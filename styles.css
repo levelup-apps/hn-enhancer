@@ -1,0 +1,17 @@
+.author-popup {
+    position: absolute;
+    background: white;
+    border: 1px solid #ff6600;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    max-width: 300px;
+    display: none;
+}
+
+.comment-count {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 4px;
+}

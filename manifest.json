@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "HackerNews Comment Enhancement",
+  "version": "1.0",
+  "description": "Enhances HackerNews comments with user info and statistics",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://news.ycombinator.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://news.ycombinator.com/item*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ]
+}
