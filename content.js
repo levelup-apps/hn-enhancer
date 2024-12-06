@@ -19,12 +19,27 @@ class HNEnhancer {
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
 
-            // Extract user information
-            const userInfo = {
-                karma: doc.querySelector('td:contains("karma:")').nextElementSibling.textContent,
-                created: doc.querySelector('td:contains("created:")').nextElementSibling.textContent,
-                about: doc.querySelector('td:contains("about:")').nextElementSibling?.textContent || 'No about information'
+            // Extract user information using more specific selectors
+            const tables = doc.getElementsByTagName('table');
+            let userInfo = {
+                karma: 'Not found',
+                created: 'Not found',
+                about: 'No about information'
             };
+
+            for (let table of tables) {
+                const cells = table.getElementsByTagName('td');
+                for (let i = 0; i < cells.length; i++) {
+                    const cell = cells[i];
+                    if (cell.textContent.includes('karma:')) {
+                        userInfo.karma = cells[i + 1].textContent.trim();
+                    } else if (cell.textContent.includes('created:')) {
+                        userInfo.created = cells[i + 1].textContent.trim();
+                    } else if (cell.textContent.includes('about:')) {
+                        userInfo.about = cells[i + 1]?.textContent.trim() || 'No about information';
+                    }
+                }
+            }
 
             return userInfo;
         } catch (error) {
@@ -34,7 +49,8 @@ class HNEnhancer {
     }
 
     updateCommentCounts() {
-        const comments = document.querySelectorAll('.comtr');
+        // Find all comments using the correct HN class
+        const comments = document.querySelectorAll('.athing.comtr');
 
         comments.forEach(comment => {
             const authorElement = comment.querySelector('.hnuser');
@@ -86,12 +102,18 @@ class HNEnhancer {
     }
 
     init() {
+        console.log('HN Enhancer initializing...'); // Debug log
         this.updateCommentCounts();
         this.setupHoverEvents();
     }
 }
 
-// Initialize the enhancer when the page loads
+// Initialize immediately
+console.log('Content script loaded'); // Debug log
+new HNEnhancer();
+
+// Also initialize when DOM content is loaded (backup)
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded'); // Debug log
     new HNEnhancer();
 });
