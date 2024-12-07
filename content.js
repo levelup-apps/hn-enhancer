@@ -118,7 +118,7 @@ class HNEnhancer {
 
                 const navPrev = document.createElement('span');
                 navPrev.className = 'author-nav';
-                navPrev.textContent = ' ↑';
+                navPrev.textContent = '↑';
                 navPrev.title = 'Go to previous comment by this author';
                 navPrev.onclick = (e) => {
                     e.preventDefault();
@@ -128,7 +128,7 @@ class HNEnhancer {
 
                 const navNext = document.createElement('span');
                 navNext.className = 'author-nav';
-                navNext.textContent = '↓ ';
+                navNext.textContent = '↓';
                 navNext.title = 'Go to next comment by this author';
                 navNext.onclick = (e) => {
                     e.preventDefault();
@@ -143,6 +143,11 @@ class HNEnhancer {
                     authorIndicator.title = 'Post Author';
                     container.appendChild(authorIndicator);
                 }
+
+                const separator = document.createElement("span");
+                separator.className = "author-separator";
+                separator.textContent = "|";
+                container.appendChild(separator);
 
                 // Get the parent element of the author element and append the container as second child
                 authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);

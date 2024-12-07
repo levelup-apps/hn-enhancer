@@ -11,14 +11,12 @@
 }
 
 .comment-count {
-    font-size: 0.8em;
     color: #666;
-    margin-left: 4px;
+    padding: 0 2px;
 }
 
 .author-nav {
-    margin-left: 4px;
-    font-size: 0.8em;
+    padding: 0 2px;
     color: #828282;
     cursor: pointer;
 }
@@ -28,7 +26,11 @@
 }
 
 .post-author {
-    margin-left: 4px;
+    padding: 0 2px;
+}
+
+.author-separator {
+    padding: 0 4px 0 2px;
 }
 
 @keyframes highlight-pulse {
