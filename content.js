@@ -23,33 +23,12 @@ class HNEnhancer {
 
     async fetchUserInfo(username) {
         try {
-            const response = await fetch(`https://news.ycombinator.com/user?id=${username}`);
-            const text = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-
-            const tables = doc.getElementsByTagName('table');
-            let userInfo = {
-                karma: 'Not found',
-                created: 'Not found',
-                about: 'No about information'
+            const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`);
+            const userInfoResponse = await response.json();
+            return {
+                karma: userInfoResponse.karma || 'Not found',
+                about: userInfoResponse.about || 'No about information'
             };
-
-            for (let table of tables) {
-                const cells = table.getElementsByTagName('td');
-                for (let i = 0; i < cells.length; i++) {
-                    const cell = cells[i];
-                    if (cell.textContent.includes('karma:')) {
-                        userInfo.karma = cells[i + 1].textContent.trim();
-                    } else if (cell.textContent.includes('created:')) {
-                        userInfo.created = cells[i + 1].textContent.trim();
-                    } else if (cell.textContent.includes('about:')) {
-                        userInfo.about = cells[i + 1]?.textContent.trim() || 'No about information';
-                    }
-                }
-            }
-
-            return userInfo;
         } catch (error) {
             console.error('Error fetching user info:', error);
             return null;
@@ -190,7 +169,6 @@ class HNEnhancer {
                     this.popup.innerHTML = `
             <strong>${username}</strong><br>
             Karma: ${userInfo.karma}<br>
-            Created: ${userInfo.created}<br>
             About: ${userInfo.about}
           `;
 
