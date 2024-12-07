@@ -1,9 +1,11 @@
 class HNEnhancer {
     constructor() {
-        this.authorStats = new Map(); // Store comment counts
-        this.authorComments = new Map(); // Store comment elements by author
+        this.authorStats = new Map();       // Store comment counts
+        this.authorComments = new Map();    // Store comment elements by author
         this.popup = this.createPopup();
         this.postAuthor = this.getPostAuthor();
+        this.activeHighlight = null;        // Track currently highlighted element
+        this.highlightTimeout = null;       // Track highlight timeout
         this.init();
     }
 
@@ -15,7 +17,6 @@ class HNEnhancer {
     }
 
     getPostAuthor() {
-        // Get the post author from the main post
         const postAuthorElement = document.querySelector('.fatitem .hnuser');
         return postAuthorElement ? postAuthorElement.textContent : null;
     }
@@ -55,23 +56,46 @@ class HNEnhancer {
         }
     }
 
+    clearHighlight() {
+        if (this.activeHighlight) {
+            this.activeHighlight.classList.remove('highlight-author');
+            this.activeHighlight = null;
+        }
+        if (this.highlightTimeout) {
+            clearTimeout(this.highlightTimeout);
+            this.highlightTimeout = null;
+        }
+    }
+
+    highlightAuthor(authorElement) {
+        this.clearHighlight();
+
+        // Add highlight class to trigger animation
+        authorElement.classList.add('highlight-author');
+        this.activeHighlight = authorElement;
+
+        // Remove highlight class after animation completes
+        this.highlightTimeout = setTimeout(() => {
+            authorElement.classList.remove('highlight-author');
+            this.activeHighlight = null;
+            this.highlightTimeout = null;
+        }, 2000); // Match this with the CSS animation duration
+    }
+
     updateCommentCounts() {
-        // Clear previous data
         this.authorStats.clear();
         this.authorComments.clear();
 
-        // Find all comments using the correct HN class
+        // Get all comments
         const comments = document.querySelectorAll('.athing.comtr');
 
-        // First pass: collect statistics and store comments
+        // Count comments by author and the author comments elements by author
         comments.forEach(comment => {
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement) {
                 const author = authorElement.textContent;
-                // Update comment count
                 this.authorStats.set(author, (this.authorStats.get(author) || 0) + 1);
 
-                // Store comment reference
                 if (!this.authorComments.has(author)) {
                     this.authorComments.set(author, []);
                 }
@@ -79,23 +103,19 @@ class HNEnhancer {
             }
         });
 
-        // Second pass: add navigation and counts
         comments.forEach(comment => {
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement && !authorElement.querySelector('.comment-count')) {
                 const author = authorElement.textContent;
                 const count = this.authorStats.get(author);
 
-                // Create container for count and navigation
                 const container = document.createElement('span');
 
-                // Add comment count
                 const countSpan = document.createElement('span');
                 countSpan.className = 'comment-count';
                 countSpan.textContent = `(${count})`;
                 container.appendChild(countSpan);
 
-                // Add navigation arrows
                 const navPrev = document.createElement('span');
                 navPrev.className = 'author-nav';
                 navPrev.textContent = ' ↑';
@@ -116,7 +136,6 @@ class HNEnhancer {
                 };
                 container.appendChild(navNext);
 
-                // Add post author indicator if applicable
                 if (author === this.postAuthor) {
                     const authorIndicator = document.createElement('span');
                     authorIndicator.className = 'post-author';
@@ -125,7 +144,9 @@ class HNEnhancer {
                     container.appendChild(authorIndicator);
                 }
 
-                authorElement.appendChild(container);
+                // Get the parent element of the author element and append the container as second child
+                authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
+                // authorElement.appendChild(container);
             }
         });
     }
@@ -146,6 +167,12 @@ class HNEnhancer {
 
         const targetComment = comments[targetIndex];
         targetComment.scrollIntoView({behavior: 'smooth', block: 'center'});
+
+        // Highlight the author name in the target comment
+        const targetAuthorElement = targetComment.querySelector('.hnuser');
+        if (targetAuthorElement) {
+            this.highlightAuthor(targetAuthorElement);
+        }
     }
 
     setupHoverEvents() {
@@ -176,18 +203,18 @@ class HNEnhancer {
     }
 
     init() {
-        console.log('HN Enhancer initializing...'); // Debug log
+        console.log('HN Enhancer initializing...');
         this.updateCommentCounts();
         this.setupHoverEvents();
     }
 }
 
 // Initialize immediately
-console.log('Content script loaded'); // Debug log
+console.log('Content script loaded');
 new HNEnhancer();
 
 // Also initialize when DOM content is loaded (backup)
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content Loaded'); // Debug log
+    console.log('DOM Content Loaded');
     new HNEnhancer();
 });
