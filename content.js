@@ -141,6 +141,12 @@ class HNEnhancer {
                     e.preventDefault();
                     this.toggleHelpModal(this.helpModal.style.display === 'none');
                     break;
+                case 'Escape': // Close help modal if open
+                    if (this.helpModal.style.display === 'flex') {
+                        e.preventDefault();
+                        this.toggleHelpModal(false);
+                    }
+                    break;
             }
         });
     }
