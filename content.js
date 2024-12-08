@@ -410,7 +410,7 @@ class HNEnhancer {
         }
 
         const targetComment = comments[targetIndex];
-        targetComment.scrollIntoView({behavior: 'smooth', block: 'center'});
+        this.setCurrentComment(targetComment);
 
         // Highlight the author name in the target comment
         const targetAuthorElement = targetComment.querySelector('.hnuser');
