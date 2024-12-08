@@ -6,6 +6,7 @@ class HNEnhancer {
         this.postAuthor = this.getPostAuthor();
         this.activeHighlight = null;        // Track currently highlighted element
         this.highlightTimeout = null;       // Track highlight timeout
+        this.currentComment = null;         // Track currently focused comment
         this.init();
     }
 
@@ -59,6 +60,149 @@ class HNEnhancer {
             this.activeHighlight = null;
             this.highlightTimeout = null;
         }, 2000); // Match this with the CSS animation duration
+    }
+
+    initCommentNavigation() {
+        // Initialize the first comment as current
+        const firstComment = document.querySelector('.athing.comtr');
+        if (firstComment) {
+            this.setCurrentComment(firstComment);
+        }
+
+        // Add keyboard event listener
+        document.addEventListener('keydown', (e) => {
+            // Only handle navigation when not in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            switch (e.key) {
+                case 'j': // Next comment at same depth
+                    e.preventDefault();
+                    this.navigateNextSameDepth();
+                    break;
+                case 'k': // Previous comment at same depth
+                    e.preventDefault();
+                    this.navigatePrevSameDepth();
+                    break;
+                case 'l': // Next child
+                    e.preventDefault();
+                    this.navigateNextChild();
+                    break;
+                case 'h': // Previous parent
+                    e.preventDefault();
+                    this.navigatePrevParent();
+                    break;
+            }
+        });
+    }
+
+    setCurrentComment(comment) {
+        // Remove highlight from previous comment
+        if (this.currentComment) {
+            const prevIndicator = this.currentComment.querySelector('.current-comment-indicator');
+            if (prevIndicator) {
+                prevIndicator.remove();
+            }
+        }
+
+        // Set and highlight new current comment
+        this.currentComment = comment;
+        if (comment) {
+            // Add visual indicator
+            const indicator = document.createElement('span');
+            indicator.className = 'current-comment-indicator';
+            indicator.textContent = '👉'; // Current comment indicator
+            indicator.style.marginRight = '5px';
+
+            const commentHead = comment.querySelector('.comhead');
+            if (commentHead) {
+                commentHead.insertBefore(indicator, commentHead.firstChild);
+            }
+
+            // Scroll into view if needed
+            comment.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    }
+
+    getCommentDepth(comment) {
+        const indent = comment.querySelector('.ind img');
+        return indent ? parseInt(indent.width) : 0;
+    }
+
+    navigateNextSameDepth() {
+        if (!this.currentComment) return;
+
+        const currentDepth = this.getCommentDepth(this.currentComment);
+        let next = this.currentComment.nextElementSibling;
+
+        while (next) {
+            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
+                const nextDepth = this.getCommentDepth(next);
+                if (nextDepth === currentDepth) {
+                    this.setCurrentComment(next);
+                    return;
+                }
+            }
+            next = next.nextElementSibling;
+        }
+    }
+
+    navigatePrevSameDepth() {
+        if (!this.currentComment) return;
+
+        const currentDepth = this.getCommentDepth(this.currentComment);
+        let prev = this.currentComment.previousElementSibling;
+
+        while (prev) {
+            if (prev.classList.contains('athing') && prev.classList.contains('comtr')) {
+                const prevDepth = this.getCommentDepth(prev);
+                if (prevDepth === currentDepth) {
+                    this.setCurrentComment(prev);
+                    return;
+                }
+            }
+            prev = prev.previousElementSibling;
+        }
+    }
+
+    navigateNextChild() {
+        if (!this.currentComment) return;
+
+        const currentDepth = this.getCommentDepth(this.currentComment);
+        let next = this.currentComment.nextElementSibling;
+
+        while (next) {
+            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
+                const nextDepth = this.getCommentDepth(next);
+                if (nextDepth > currentDepth) {
+                    this.setCurrentComment(next);
+                    return;
+                }
+                if (nextDepth < currentDepth) {
+                    return; // No child comments
+                }
+            }
+            next = next.nextElementSibling;
+        }
+    }
+
+    navigatePrevParent() {
+        if (!this.currentComment) return;
+
+        const currentDepth = this.getCommentDepth(this.currentComment);
+        let prev = this.currentComment.previousElementSibling;
+
+        while (prev) {
+            if (prev.classList.contains('athing') && prev.classList.contains('comtr')) {
+                const prevDepth = this.getCommentDepth(prev);
+                if (prevDepth < currentDepth) {
+                    this.setCurrentComment(prev);
+                    return;
+                }
+            }
+            prev = prev.previousElementSibling;
+        }
     }
 
     updateCommentCounts() {
@@ -189,6 +333,7 @@ class HNEnhancer {
         console.log('HN Enhancer initializing...');
         this.updateCommentCounts();
         this.setupHoverEvents();
+        this.initCommentNavigation(); // Initialize comment navigation
     }
 }
 
