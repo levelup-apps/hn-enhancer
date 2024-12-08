@@ -137,6 +137,41 @@ class HNEnhancer {
                         window.open(postLink.href, '_blank');
                     }
                     break;
+                case 'r': // Go to comment root
+                    e.preventDefault();
+
+                    if (this.currentComment) {
+                        const navs = this.currentComment.querySelector('.navs'); // Select the span child element with class 'navs'
+                        if (navs) {
+                            const rootLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'root');
+                            if (rootLink) {
+                                const commentId = rootLink.href.split('#')[1];
+                                const rootComment = document.getElementById(commentId);
+                                if (rootComment) {
+                                    this.setCurrentComment(rootComment);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case 'p': // Go to parent comment
+                    e.preventDefault();
+
+                    if (this.currentComment) {
+                        const navs = this.currentComment.querySelector('.navs'); // Select the span child element with class 'navs'
+                        if (navs) {
+                            const parentLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'parent');
+                            if (parentLink) {
+                                const commentId = parentLink.href.split('#')[1];
+                                const parentComment = document.getElementById(commentId);
+                                if (parentComment) {
+                                    this.setCurrentComment(parentComment);
+                                }
+                            }
+                        }
+                    }
+                    break;
+
                 case '?': // Toggle help modal
                     e.preventDefault();
                     this.toggleHelpModal(this.helpModal.style.display === 'none');
@@ -283,6 +318,8 @@ class HNEnhancer {
             {key: 'z', description: 'Scroll to current comment'},
             {key: 'Space', description: 'Collapse/expand current comment'},
             {key: 'gg', description: 'Go to first comment'},
+            {key: 'r', description: 'Go to comment root'},
+            {key: 'p', description: 'Go to parent comment'},
             {key: 'o', description: 'Open original post in new window'},
             {key: '?', description: 'Toggle this help modal'}
         ];
