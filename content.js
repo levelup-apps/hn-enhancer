@@ -96,6 +96,7 @@ class HNEnhancer {
                     this.navigatePrevSameDepth();
                     break;
                 case 'l': // Next child
+                    if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
                     e.preventDefault();
                     this.navigateNextChild();
                     break;
