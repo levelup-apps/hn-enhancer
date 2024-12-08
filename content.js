@@ -473,6 +473,20 @@ class HNEnhancer {
             authorElement.addEventListener('mouseleave', () => {
                 this.popup.style.display = 'none';
             });
+
+            // Add event listener for Esc key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.popup.style.display = 'none';
+                }
+            });
+
+            // Add event listener for clicks outside the popup
+            document.addEventListener('click', (e) => {
+                if (!this.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
+                    this.popup.style.display = 'none';
+                }
+            });
         });
     }
 
