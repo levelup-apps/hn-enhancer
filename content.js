@@ -30,7 +30,7 @@ class HNEnhancer {
 
     async fetchUserInfo(username) {
         try {
-            const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`);
+            const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`, {cache: 'force-cache'});
             const userInfoResponse = await response.json();
             return {
                 karma: userInfoResponse.karma || 'Not found', about: userInfoResponse.about || 'No about information'
