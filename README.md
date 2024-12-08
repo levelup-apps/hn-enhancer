@@ -1,4 +1,7 @@
 ### HackerNews Enhancer - Chrome Extension
+
+[![Basic features video](http://img.youtube.com/vi/N8711ldzVkU/maxresdefault.jpg)](https://www.youtube.com/watch?v=N8711ldzVkU)
+
 This is a Chrome extension that enhances the HackerNews website by adding the following features:
 - For each comment, hovering on the author element shows a tooltip with the author's details.
   - Also show the total number of comments made by the author.
