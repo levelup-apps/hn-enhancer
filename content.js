@@ -8,7 +8,7 @@ class HNEnhancer {
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
-        this.helpIcon = this.createHelpIcon();
+        this.createHelpIcon();
         this.init();
     }
 
@@ -129,13 +129,11 @@ class HNEnhancer {
                     lastKey = 'g';
                     lastKeyTime = currentTime;
                     break;
-                case 'o': // Open post in new window
+                case 'o': // Open the original post in new window
                     e.preventDefault();
-                    if (this.currentComment) {
-                        const link = this.currentComment.querySelector('.age a');
-                        if (link) {
-                            window.open(link.href, '_blank');
-                        }
+                    const postLink = document.querySelector('.titleline a');
+                    if (postLink) {
+                        window.open(postLink.href, '_blank');
                     }
                     break;
                 case '?': // Toggle help modal
@@ -270,16 +268,17 @@ class HNEnhancer {
         closeBtn.textContent = '×';
         closeBtn.onclick = () => this.toggleHelpModal(false);
 
-        const shortcuts = [{key: 'j', description: 'Next comment at same level'}, {
-            key: 'k',
-            description: 'Previous comment at same level'
-        }, {key: 'l', description: 'Next child comment'}, {key: 'h', description: 'Previous parent comment'}, {
-            key: 'z',
-            description: 'Scroll to current comment'
-        }, {key: 'Space', description: 'Collapse/expand current comment'}, {
-            key: 'gg',
-            description: 'Go to first comment'
-        }, {key: 'o', description: 'Open comment in new window'}, {key: '?', description: 'Toggle this help modal'}];
+        const shortcuts = [
+            {key: 'j', description: 'Next comment at same level'},
+            {key: 'k', description: 'Previous comment at same level'},
+            {key: 'l', description: 'Next child comment'},
+            {key: 'h', description: 'Previous parent comment'},
+            {key: 'z', description: 'Scroll to current comment'},
+            {key: 'Space', description: 'Collapse/expand current comment'},
+            {key: 'gg', description: 'Go to first comment'},
+            {key: 'o', description: 'Open original post in new window'},
+            {key: '?', description: 'Toggle this help modal'}
+        ];
 
         const table = document.createElement('table');
         shortcuts.forEach(({key, description}) => {
