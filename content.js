@@ -58,13 +58,6 @@ class HNEnhancer {
         // Add highlight class to trigger animation
         authorElement.classList.add('highlight-author');
         this.activeHighlight = authorElement;
-
-        // Remove highlight class after animation completes
-        this.highlightTimeout = setTimeout(() => {
-            authorElement.classList.remove('highlight-author');
-            this.activeHighlight = null;
-            this.highlightTimeout = null;
-        }, 2000); // Match this with the CSS animation duration
     }
 
     initCommentNavigation() {
@@ -198,18 +191,13 @@ class HNEnhancer {
         // Set and highlight new current comment
         this.currentComment = comment;
         if (comment) {
-            // Add visual indicator
-            const indicator = document.createElement('span');
-            indicator.className = 'current-comment-indicator';
-            indicator.textContent = '👉'; // Current comment indicator
-            indicator.style.marginRight = '5px';
-
-            const commentHead = comment.querySelector('.comhead');
-            if (commentHead) {
-                commentHead.insertBefore(indicator, commentHead.firstChild);
+            // Highlight the author name
+            const authorElement = comment.querySelector('.hnuser');
+            if (authorElement) {
+                this.highlightAuthor(authorElement);
             }
 
-            // Scroll into view if needed
+            // Scroll into the comment view if needed
             comment.scrollIntoView({behavior: 'smooth', block: 'center'});
         }
     }
