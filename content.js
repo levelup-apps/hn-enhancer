@@ -491,16 +491,14 @@ class HNEnhancer {
     }
 
     init() {
-        console.log('HN Enhancer initializing...');
         this.updateCommentCounts();
         this.setupHoverEvents();
         this.initCommentNavigation(); // Initialize comment navigation
     }
 }
 
-// Initialize immediately
-console.log('Content script loaded');
-new HNEnhancer();
+new HNEnhancer();                       // Initialize immediately
+console.log('Initialized HN Enhancer');
 
 // Also initialize when DOM content is loaded (backup)
 document.addEventListener('DOMContentLoaded', () => {
