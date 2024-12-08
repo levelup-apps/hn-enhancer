@@ -1,6 +1,5 @@
 class HNEnhancer {
     constructor() {
-        this.authorStats = new Map();       // Store comment counts
         this.authorComments = new Map();    // Store comment elements by author
         this.popup = this.createPopup();
         this.postAuthor = this.getPostAuthor();
@@ -8,9 +7,16 @@ class HNEnhancer {
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
-        this.createHelpIcon();
         this.init();
     }
+
+    init() {
+        this.createHelpIcon();
+        this.updateCommentCounts();
+        this.setupHoverEvents();
+        this.initCommentNavigation(); // Initialize comment navigation
+    }
+
 
     toggleHelpModal(show) {
         this.helpModal.style.display = show ? 'flex' : 'none';
@@ -353,7 +359,6 @@ class HNEnhancer {
     }
 
     updateCommentCounts() {
-        this.authorStats.clear();
         this.authorComments.clear();
 
         // Get all comments
@@ -364,7 +369,6 @@ class HNEnhancer {
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement) {
                 const author = authorElement.textContent;
-                this.authorStats.set(author, (this.authorStats.get(author) || 0) + 1);
 
                 if (!this.authorComments.has(author)) {
                     this.authorComments.set(author, []);
@@ -377,7 +381,7 @@ class HNEnhancer {
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement && !authorElement.querySelector('.comment-count')) {
                 const author = authorElement.textContent;
-                const count = this.authorStats.get(author);
+                const count = this.authorComments.get(author).length;
 
                 const container = document.createElement('span');
 
@@ -489,15 +493,9 @@ class HNEnhancer {
             });
         });
     }
-
-    init() {
-        this.updateCommentCounts();
-        this.setupHoverEvents();
-        this.initCommentNavigation(); // Initialize comment navigation
-    }
 }
 
-new HNEnhancer();                       // Initialize immediately
+document.hnEnhancer = new HNEnhancer();                       // Initialize immediately
 console.log('Initialized HN Enhancer');
 
 // Also initialize when DOM content is loaded (backup)
