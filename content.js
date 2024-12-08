@@ -7,7 +7,13 @@ class HNEnhancer {
         this.activeHighlight = null;        // Track currently highlighted element
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
+        this.helpModal = this.createHelpModal();
+        this.helpIcon = this.createHelpIcon();
         this.init();
+    }
+
+    toggleHelpModal(show) {
+        this.helpModal.style.display = show ? 'flex' : 'none';
     }
 
     createPopup() {
@@ -27,8 +33,7 @@ class HNEnhancer {
             const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`);
             const userInfoResponse = await response.json();
             return {
-                karma: userInfoResponse.karma || 'Not found',
-                about: userInfoResponse.about || 'No about information'
+                karma: userInfoResponse.karma || 'Not found', about: userInfoResponse.about || 'No about information'
             };
         } catch (error) {
             console.error('Error fetching user info:', error);
@@ -69,12 +74,17 @@ class HNEnhancer {
             this.setCurrentComment(firstComment);
         }
 
+        let lastKeyTime = 0;
+        let lastKey = '';
+
         // Add keyboard event listener
         document.addEventListener('keydown', (e) => {
             // Only handle navigation when not in an input field
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
             }
+
+            const currentTime = Date.now();
 
             switch (e.key) {
                 case 'j': // Next comment at same depth
@@ -92,6 +102,45 @@ class HNEnhancer {
                 case 'h': // Previous parent
                     e.preventDefault();
                     this.navigatePrevParent();
+                    break;
+                case 'z': // Scroll to current comment
+                    e.preventDefault();
+                    if (this.currentComment) {
+                        this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    }
+                    break;
+                case ' ': // Collapse current comment
+                    e.preventDefault();
+                    if (this.currentComment) {
+                        const toggleLink = this.currentComment.querySelector('.togg');
+                        if (toggleLink) {
+                            toggleLink.click();
+                        }
+                    }
+                    break;
+                case 'g': // Go to first comment (when pressed twice)
+                    e.preventDefault();
+                    if (lastKey === 'g' && currentTime - lastKeyTime < 500) {
+                        const firstComment = document.querySelector('.athing.comtr');
+                        if (firstComment) {
+                            this.setCurrentComment(firstComment);
+                        }
+                    }
+                    lastKey = 'g';
+                    lastKeyTime = currentTime;
+                    break;
+                case 'o': // Open post in new window
+                    e.preventDefault();
+                    if (this.currentComment) {
+                        const link = this.currentComment.querySelector('.age a');
+                        if (link) {
+                            window.open(link.href, '_blank');
+                        }
+                    }
+                    break;
+                case '?': // Toggle help modal
+                    e.preventDefault();
+                    this.toggleHelpModal(this.helpModal.style.display === 'none');
                     break;
             }
         });
@@ -203,6 +252,73 @@ class HNEnhancer {
             }
             prev = prev.previousElementSibling;
         }
+    }
+
+    createHelpModal() {
+        const modal = document.createElement('div');
+        modal.className = 'keyboard-help-modal';
+        modal.style.display = 'none';
+
+        const content = document.createElement('div');
+        content.className = 'keyboard-help-content';
+
+        const title = document.createElement('h2');
+        title.textContent = 'Keyboard Shortcuts';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'help-close-btn';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = () => this.toggleHelpModal(false);
+
+        const shortcuts = [{key: 'j', description: 'Next comment at same level'}, {
+            key: 'k',
+            description: 'Previous comment at same level'
+        }, {key: 'l', description: 'Next child comment'}, {key: 'h', description: 'Previous parent comment'}, {
+            key: 'z',
+            description: 'Scroll to current comment'
+        }, {key: 'Space', description: 'Collapse/expand current comment'}, {
+            key: 'gg',
+            description: 'Go to first comment'
+        }, {key: 'o', description: 'Open comment in new window'}, {key: '?', description: 'Toggle this help modal'}];
+
+        const table = document.createElement('table');
+        shortcuts.forEach(({key, description}) => {
+            const row = table.insertRow();
+            const keyCell = row.insertCell();
+            const descCell = row.insertCell();
+
+            const kbd = document.createElement('kbd');
+            kbd.textContent = key;
+            keyCell.appendChild(kbd);
+            descCell.textContent = description;
+        });
+
+        content.appendChild(closeBtn);
+        content.appendChild(title);
+        content.appendChild(table);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.toggleHelpModal(false);
+            }
+        });
+
+        return modal;
+    }
+
+    createHelpIcon() {
+        const icon = document.createElement('div');
+        icon.className = 'help-icon';
+        icon.innerHTML = '?';
+        icon.title = 'Keyboard Shortcuts (Press ? to toggle)';
+
+        icon.onclick = () => this.toggleHelpModal(true);
+
+        document.body.appendChild(icon);
+        return icon;
     }
 
     updateCommentCounts() {
