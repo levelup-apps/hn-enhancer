@@ -133,6 +133,26 @@ class HNEnhancer {
                     }
                     break;
 
+                case '[': {
+                    e.preventDefault();
+                    const authorElement = this.currentComment.querySelector('.hnuser');
+                    if (authorElement) {
+                        const author = authorElement.textContent;
+                        this.navigateAuthorComments(author, this.currentComment, 'prev');
+                    }
+                    break;
+                }
+
+                case ']': {
+                    e.preventDefault();
+                    const authorElement = this.currentComment.querySelector('.hnuser');
+                    if (authorElement) {
+                        const author = authorElement.textContent;
+                        this.navigateAuthorComments(author, this.currentComment, 'next');
+                    }
+                    break;
+                }
+
                 case 'z': // Scroll to current comment
                     e.preventDefault();
                     if (this.currentComment) {
@@ -272,16 +292,18 @@ class HNEnhancer {
         closeBtn.onclick = () => this.toggleHelpModal(false);
 
         const shortcuts = [
-            {key: 'j', description: 'Next comment at same level'},
-            {key: 'k', description: 'Previous comment at same level'},
-            {key: 'l', description: 'Next child comment'},
+            {key: 'j', description: 'Go to next comment at same level'},
+            {key: 'k', description: 'Go to previous comment at same level'},
+            {key: 'l', description: 'Go to next child comment'},
             {key: 'h', description: 'Go to parent comment'},
+            {key: 'r', description: 'Go to root comment'},
+            {key: '[', description: 'Go to previous comment by current comment author'},
+            {key: ']', description: 'Go to next comment by current comment author'},
+            {key: 'gg', description: 'Go to first comment'},
             {key: 'z', description: 'Scroll to current comment'},
             {key: 'Space', description: 'Collapse/expand current comment'},
-            {key: 'gg', description: 'Go to first comment'},
-            {key: 'r', description: 'Go to comment root'},
             {key: 'o', description: 'Open original post in new window'},
-            {key: '?', description: 'Toggle this help modal'}
+            {key: '?', description: 'Toggle this help panel'}
         ];
 
         const table = document.createElement('table');
