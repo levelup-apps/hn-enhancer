@@ -258,8 +258,10 @@ class HNEnhancer {
     }
 
     getCommentDepth(comment) {
-        const indent = comment.querySelector('.ind img');
-        return indent ? parseInt(indent.width) : 0;
+        // Get the indent level from the table cell with class 'ind'.
+        // The indent level is stored in the 'indent' attribute of the cell. '<td class="ind" indent="0"><img..></td>'
+        const indentCell = comment.querySelector('.ind');
+        return indentCell ? parseInt(indentCell.getAttribute('indent')) : 0;
     }
 
     navigateNextChild() {
@@ -269,11 +271,15 @@ class HNEnhancer {
         //  So the next child is the next element with a higher depth in the array.
         //  If the next sibling has a lower depth, it is a sibling of the parent comment.
         const currentDepth = this.getCommentDepth(this.currentComment);
+        // console.log('Current element depth:', currentDepth);
+
         let next = this.currentComment.nextElementSibling;
 
         while (next) {
             if (next.classList.contains('athing') && next.classList.contains('comtr')) {
                 const nextDepth = this.getCommentDepth(next);
+                // console.log('Next comment depth:', nextDepth);
+
                 if (nextDepth > currentDepth) {
                     // This is a child of the current comment. Set it as the current comment
                     this.setCurrentComment(next);
