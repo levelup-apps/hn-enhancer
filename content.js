@@ -252,6 +252,9 @@ class HNEnhancer {
     navigateNextChild() {
         if (!this.currentComment) return;
 
+        // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
+        //  So the next child is the next element with a higher depth in the array.
+        //  If the next sibling has a lower depth, it is a sibling of the parent comment.
         const currentDepth = this.getCommentDepth(this.currentComment);
         let next = this.currentComment.nextElementSibling;
 
@@ -259,10 +262,11 @@ class HNEnhancer {
             if (next.classList.contains('athing') && next.classList.contains('comtr')) {
                 const nextDepth = this.getCommentDepth(next);
                 if (nextDepth > currentDepth) {
+                    // This is a child of the current comment. Set it as the current comment
                     this.setCurrentComment(next);
                     return;
                 }
-                if (nextDepth < currentDepth) {
+                if (nextDepth <= currentDepth) {
                     return; // No child comments
                 }
             }
