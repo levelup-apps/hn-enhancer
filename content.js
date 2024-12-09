@@ -7,6 +7,8 @@ class HNEnhancer {
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
+        this.summaryPanel = this.createSummaryPanel();
+        this.isPanelCollapsed = false;
         this.init();
     }
 
@@ -202,6 +204,13 @@ class HNEnhancer {
                 }
                 break;
 
+            case 's': // Open the summary panel on the right
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    this.toggleSummaryPanel();
+                }
+                break;
+
             case '?': // Toggle help modal
             case '/': // Toggle help modal
                 e.preventDefault();
@@ -252,9 +261,47 @@ class HNEnhancer {
                 this.highlightAuthor(authorElement);
             }
 
+            this.updateSummaryPanel(comment);
+
             // Scroll into the comment view if needed
             comment.scrollIntoView({behavior: 'smooth', block: 'center'});
         }
+    }
+
+    updateSummaryPanel(comment) {
+        const content = this.summaryPanel.querySelector('.summary-panel-content');
+
+        // Get comment metadata
+        const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
+        const timestamp = comment.querySelector('.age')?.textContent || '';
+        const commentText = comment.querySelector('.comment')?.textContent || '';
+        const points = comment.querySelector('.score')?.textContent || '0 points';
+
+        // Create summary content
+        content.innerHTML = `
+            <div class="summary-author">@${author}</div>
+            <div class="summary-metadata">
+                ${points} • ${timestamp}
+            </div>
+            <div class="summary-text">
+                ${this.summarizeText(commentText)}
+            </div>
+        `;
+    }
+
+    summarizeText(text) {
+        // Basic text summarization (you can enhance this)
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        let summary;
+
+        if (sentences.length <= 2) {
+            summary = sentences.join('. ');
+        } else {
+            // Take first and last sentence for a basic summary
+            summary = sentences[0] + '.......... ' + sentences[sentences.length - 2];
+        }
+
+        return summary.trim() + '.';
     }
 
     // TODO: Remove this method once the nextNavigateChild method does not need it.
@@ -539,6 +586,47 @@ class HNEnhancer {
             });
         });
     }
+
+    createSummaryPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'summary-panel';
+
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'summary-panel-header';
+
+        const title = document.createElement('h3');
+        title.className = 'summary-panel-title';
+        title.textContent = 'Comment Summary';
+        header.appendChild(title);
+
+        // Create toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'summary-panel-toggle';
+        toggleBtn.innerHTML = '▶';
+        toggleBtn.title = 'Toggle Summary Panel';
+        toggleBtn.onclick = () => this.toggleSummaryPanel();
+
+        // Create content container
+        const content = document.createElement('div');
+        content.className = 'summary-panel-content';
+
+        panel.appendChild(header);
+        panel.appendChild(content);
+        document.body.appendChild(panel);
+        document.body.appendChild(toggleBtn);
+
+        return panel;
+    }
+
+    toggleSummaryPanel() {
+        this.isPanelCollapsed = !this.isPanelCollapsed;
+        this.summaryPanel.classList.toggle('collapsed', this.isPanelCollapsed);
+        const toggleBtn = document.querySelector('.summary-panel-toggle');
+        toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
+        toggleBtn.innerHTML = this.isPanelCollapsed ? '◀': '▶';
+    }
+
 }
 
 document.hnEnhancer = new HNEnhancer();                       // Initialize immediately
