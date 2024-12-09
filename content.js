@@ -257,6 +257,7 @@ class HNEnhancer {
         }
     }
 
+    // TODO: Remove this method once the nextNavigateChild method does not need it.
     getCommentDepth(comment) {
         // Get the indent level from the table cell with class 'ind'.
         // The indent level is stored in the 'indent' attribute of the cell. '<td class="ind" indent="0"><img..></td>'
@@ -270,25 +271,22 @@ class HNEnhancer {
         // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
         //  So the next child is the next element with a higher depth in the array.
         //  If the next sibling has a lower depth, it is a sibling of the parent comment.
+
+        // TODO: Remove this code the method getCommentDepth after confirming that this is not needed.
         const currentDepth = this.getCommentDepth(this.currentComment);
         // console.log('Current element depth:', currentDepth);
 
         let next = this.currentComment.nextElementSibling;
 
         while (next) {
+            // Look for the element with the style classes of comment. If found, return. If not, continue to the next sibling.
             if (next.classList.contains('athing') && next.classList.contains('comtr')) {
-                const nextDepth = this.getCommentDepth(next);
-                // console.log('Next comment depth:', nextDepth);
 
-                if (nextDepth > currentDepth) {
-                    // This is a child of the current comment. Set it as the current comment
-                    this.setCurrentComment(next);
-                    return;
-                }
-                if (nextDepth <= currentDepth) {
-                    this.setCurrentComment(next);
-                    return; // No child comments
-                }
+                const nextDepth = this.getCommentDepth(next);
+                // console.log('Next element depth:', nextDepth);
+
+                this.setCurrentComment(next);
+                return; // Found the next child
             }
             next = next.nextElementSibling;
         }
