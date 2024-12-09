@@ -140,11 +140,11 @@ class HNEnhancer {
                     e.preventDefault();
 
                     if (this.currentComment) {
-                        const navs = this.currentComment.querySelector('.navs'); // Select the span child element with class 'navs'
+                        const navs = this.currentComment.querySelector('.comhead .navs'); // Select the span child element with class 'navs'
                         if (navs) {
                             const rootLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'root');
                             if (rootLink) {
-                                const commentId = rootLink.href.split('#')[1];
+                                const commentId = rootLink.hash.split('#')[1];
                                 const rootComment = document.getElementById(commentId);
                                 if (rootComment) {
                                     this.setCurrentComment(rootComment);
@@ -157,11 +157,11 @@ class HNEnhancer {
                     e.preventDefault();
 
                     if (this.currentComment) {
-                        const navs = this.currentComment.querySelector('.navs'); // Select the span child element with class 'navs'
+                        const navs = this.currentComment.querySelector('.comhead .navs'); // Select the span child element with class 'navs'
                         if (navs) {
                             const parentLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'parent');
                             if (parentLink) {
-                                const commentId = parentLink.href.split('#')[1];
+                                const commentId = parentLink.hash.split('#')[1];
                                 const parentComment = document.getElementById(commentId);
                                 if (parentComment) {
                                     this.setCurrentComment(parentComment);
@@ -267,6 +267,7 @@ class HNEnhancer {
                     return;
                 }
                 if (nextDepth <= currentDepth) {
+                    this.setCurrentComment(next);
                     return; // No child comments
                 }
             }
