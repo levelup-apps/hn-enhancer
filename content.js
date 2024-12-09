@@ -91,7 +91,7 @@ class HNEnhancer {
                     e.preventDefault();
 
                     // Find the 'next' hyperlink in the HN nav panel and navigate to it.
-                    const nextComment = this.getNavElementByName('next');
+                    const nextComment = this.getNavElementByName(this.currentComment,'next');
                     if (nextComment) {
                         this.setCurrentComment(nextComment);
                     }
@@ -101,7 +101,7 @@ class HNEnhancer {
                     e.preventDefault();
 
                     // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
-                    const prevComment = this.getNavElementByName('prev');
+                    const prevComment = this.getNavElementByName(this.currentComment,'prev');
                     if (prevComment) {
                         this.setCurrentComment(prevComment);
                     }
@@ -117,7 +117,7 @@ class HNEnhancer {
                     e.preventDefault();
 
                     // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
-                    const parentComment = this.getNavElementByName('parent');
+                    const parentComment = this.getNavElementByName(this.currentComment, 'parent');
                     if (parentComment) {
                         this.setCurrentComment(parentComment);
                     }
@@ -127,7 +127,7 @@ class HNEnhancer {
                     e.preventDefault();
 
                     // Find the 'root' hyperlink in the HN nav panel and navigate to it.
-                    const rootComment = this.getNavElementByName('root');
+                    const rootComment = this.getNavElementByName(this.currentComment,'root');
                     if (rootComment) {
                         this.setCurrentComment(rootComment);
                     }
@@ -185,14 +185,14 @@ class HNEnhancer {
         });
     }
 
-    getNavElementByName(elementName) {
-        if (!this.currentComment) return;
+    getNavElementByName(comment, elementName) {
+        if (!comment) return;
 
         // Get HN's default navigation panel and locate the nav element by the given name ('root', 'parent', 'next' or 'prev').
-        const hnNavPanel = this.currentComment.querySelector('.comhead .navs');
-        if (hnNavPanel) {
+        const hyperLinks = comment.querySelectorAll('.comhead .navs a');
+        if (hyperLinks) {
             // Find the <a href> with text that matches the given name
-            const hyperLink = Array.from(hnNavPanel.querySelectorAll('a')).find(a => a.textContent.trim() === elementName);
+            const hyperLink = Array.from(hyperLinks).find(a => a.textContent.trim() === elementName);
             if (hyperLink) {
                 const commentId = hyperLink.hash.split('#')[1];
                 const element = document.getElementById(commentId);
@@ -332,6 +332,8 @@ class HNEnhancer {
 
         // Count comments by author and the author comments elements by author
         comments.forEach(comment => {
+
+            // save the author comments mapping (comments from each user in this post)
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement) {
                 const author = authorElement.textContent;
@@ -344,55 +346,81 @@ class HNEnhancer {
         });
 
         comments.forEach(comment => {
-            const authorElement = comment.querySelector('.hnuser');
-            if (authorElement && !authorElement.querySelector('.comment-count')) {
-                const author = authorElement.textContent;
-                const count = this.authorComments.get(author).length;
+            this.injectAuthorCommentsNavigation(comment);
 
-                const container = document.createElement('span');
+            this.overrideHNDefaultNavigation(comment);
+        });
+    }
 
-                const countSpan = document.createElement('span');
-                countSpan.className = 'comment-count';
-                countSpan.textContent = `(${count})`;
-                container.appendChild(countSpan);
+    injectAuthorCommentsNavigation(comment) {
+        const authorElement = comment.querySelector('.hnuser');
+        if (authorElement && !authorElement.querySelector('.comment-count')) {
+            const author = authorElement.textContent;
+            const count = this.authorComments.get(author).length;
 
-                const navPrev = document.createElement('span');
-                navPrev.className = 'author-nav';
-                navPrev.textContent = '↑';
-                navPrev.title = 'Go to previous comment by this author';
-                navPrev.onclick = (e) => {
-                    e.preventDefault();
-                    this.navigateAuthorComments(author, comment, 'prev');
-                };
-                container.appendChild(navPrev);
+            const container = document.createElement('span');
 
-                const navNext = document.createElement('span');
-                navNext.className = 'author-nav';
-                navNext.textContent = '↓';
-                navNext.title = 'Go to next comment by this author';
-                navNext.onclick = (e) => {
-                    e.preventDefault();
-                    this.navigateAuthorComments(author, comment, 'next');
-                };
-                container.appendChild(navNext);
+            const countSpan = document.createElement('span');
+            countSpan.className = 'comment-count';
+            countSpan.textContent = `(${count})`;
+            container.appendChild(countSpan);
 
-                if (author === this.postAuthor) {
-                    const authorIndicator = document.createElement('span');
-                    authorIndicator.className = 'post-author';
-                    authorIndicator.textContent = '👑';
-                    authorIndicator.title = 'Post Author';
-                    container.appendChild(authorIndicator);
-                }
+            const navPrev = document.createElement('span');
+            navPrev.className = 'author-nav';
+            navPrev.textContent = '↑';
+            navPrev.title = 'Go to previous comment by this author';
+            navPrev.onclick = (e) => {
+                e.preventDefault();
+                this.navigateAuthorComments(author, comment, 'prev');
+            };
+            container.appendChild(navPrev);
 
-                const separator = document.createElement("span");
-                separator.className = "author-separator";
-                separator.textContent = "|";
-                container.appendChild(separator);
+            const navNext = document.createElement('span');
+            navNext.className = 'author-nav';
+            navNext.textContent = '↓';
+            navNext.title = 'Go to next comment by this author';
+            navNext.onclick = (e) => {
+                e.preventDefault();
+                this.navigateAuthorComments(author, comment, 'next');
+            };
+            container.appendChild(navNext);
 
-                // Get the parent element of the author element and append the container as second child
-                authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
-                // authorElement.appendChild(container);
+            if (author === this.postAuthor) {
+                const authorIndicator = document.createElement('span');
+                authorIndicator.className = 'post-author';
+                authorIndicator.textContent = '👑';
+                authorIndicator.title = 'Post Author';
+                container.appendChild(authorIndicator);
             }
+
+            const separator = document.createElement("span");
+            separator.className = "author-separator";
+            separator.textContent = "|";
+            container.appendChild(separator);
+
+            // Get the parent element of the author element and append the container as second child
+            authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
+            // authorElement.appendChild(container);
+        }
+    }
+
+    overrideHNDefaultNavigation(comment) {
+        const hyperLinks = comment.querySelectorAll('.comhead .navs a');
+        if (!hyperLinks) return;
+
+        // Find the <a href> with text that have a hash ('#<comment_id>') and add click event listener
+        const navLinks = Array.from(hyperLinks).filter(link => link.hash.length > 0);
+
+        navLinks.forEach(link => {
+            link.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // stop the default link navigation
+
+                const targetComment = this.getNavElementByName(comment, link.textContent.trim());
+                if (targetComment) {
+                    this.setCurrentComment(targetComment);
+                }
+            };
         });
     }
 
