@@ -73,137 +73,149 @@ class HNEnhancer {
             this.setCurrentComment(firstComment);
         }
 
-        let lastKeyTime = 0;
+        // Save the last key press time and last key in order to handle double key press (eg: 'gg')
         let lastKey = '';
+        let lastKeyPressTime = 0;
 
         // Add keyboard event listener
         document.addEventListener('keydown', (e) => {
-            // Only handle navigation when not in an input field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            // Handle key press only when it is not in an input field
+            const isInputField = e.target.matches('input, textarea, [contenteditable="true"]');
+            if (isInputField) {
                 return;
             }
 
-            const currentTime = Date.now();
-
-            switch (e.key) {
-
-                case 'j': // Next comment at same depth (same as 'next' hyperlink)
-                    e.preventDefault();
-
-                    // Find the 'next' hyperlink in the HN nav panel and navigate to it.
-                    const nextComment = this.getNavElementByName(this.currentComment,'next');
-                    if (nextComment) {
-                        this.setCurrentComment(nextComment);
-                    }
-                    break;
-
-                case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
-                    e.preventDefault();
-
-                    // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
-                    const prevComment = this.getNavElementByName(this.currentComment,'prev');
-                    if (prevComment) {
-                        this.setCurrentComment(prevComment);
-                    }
-                    break;
-
-                case 'l': // Next child
-                    if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
-                    e.preventDefault();
-                    this.navigateNextChild();
-                    break;
-
-                case 'h': // Parent comment (same as 'parent' hyperlink)
-                    e.preventDefault();
-
-                    // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
-                    const parentComment = this.getNavElementByName(this.currentComment, 'parent');
-                    if (parentComment) {
-                        this.setCurrentComment(parentComment);
-                    }
-                    break;
-
-                case 'r': // Root comment (same as 'root' hyperlink)
-                    e.preventDefault();
-
-                    // Find the 'root' hyperlink in the HN nav panel and navigate to it.
-                    const rootComment = this.getNavElementByName(this.currentComment,'root');
-                    if (rootComment) {
-                        this.setCurrentComment(rootComment);
-                    }
-                    break;
-
-                case '[': {
-                    e.preventDefault();
-                    const authorElement = this.currentComment.querySelector('.hnuser');
-                    if (authorElement) {
-                        const author = authorElement.textContent;
-                        this.navigateAuthorComments(author, this.currentComment, 'prev');
-                    }
-                    break;
-                }
-
-                case ']': {
-                    e.preventDefault();
-                    const authorElement = this.currentComment.querySelector('.hnuser');
-                    if (authorElement) {
-                        const author = authorElement.textContent;
-                        this.navigateAuthorComments(author, this.currentComment, 'next');
-                    }
-                    break;
-                }
-
-                case 'z': // Scroll to current comment
-                    e.preventDefault();
-                    if (this.currentComment) {
-                        this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    }
-                    break;
-
-                case ' ': // Collapse current comment
-                    e.preventDefault();
-                    if (this.currentComment) {
-                        const toggleLink = this.currentComment.querySelector('.togg');
-                        if (toggleLink) {
-                            toggleLink.click();
-                        }
-                    }
-                    break;
-
-                case 'g': // Go to first comment (when pressed twice)
-                    e.preventDefault();
-                    if (lastKey === 'g' && currentTime - lastKeyTime < 500) {
-                        const firstComment = document.querySelector('.athing.comtr');
-                        if (firstComment) {
-                            this.setCurrentComment(firstComment);
-                        }
-                    }
-                    lastKey = 'g';
-                    lastKeyTime = currentTime;
-                    break;
-
-                case 'o': // Open the original post in new window
-                    e.preventDefault();
-                    const postLink = document.querySelector('.titleline a');
-                    if (postLink) {
-                        window.open(postLink.href, '_blank');
-                    }
-                    break;
-
-                case '?': // Toggle help modal
-                case '/': // Toggle help modal
-                    e.preventDefault();
-                    this.toggleHelpModal(this.helpModal.style.display === 'none');
-                    break;
-
-                case 'Escape': // Close help modal if open
-                    if (this.helpModal.style.display === 'flex') {
-                        e.preventDefault();
-                        this.toggleHelpModal(false);
-                    }
-                    break;
-            }
+            const result = this.handleKeyboardEvent(e, lastKey, lastKeyPressTime);
+            lastKey = result.lastKey;
+            lastKeyPressTime = result.lastKeyPressTime;
         });
+    }
+
+    handleKeyboardEvent(e, lastKey, lastKeyPressTime) {
+
+        switch (e.key) {
+
+            case 'j': // Next comment at same depth (same as 'next' hyperlink)
+                e.preventDefault();
+
+                // Find the 'next' hyperlink in the HN nav panel and navigate to it.
+                const nextComment = this.getNavElementByName(this.currentComment, 'next');
+                if (nextComment) {
+                    this.setCurrentComment(nextComment);
+                }
+                break;
+
+            case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
+                e.preventDefault();
+
+                // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
+                const prevComment = this.getNavElementByName(this.currentComment, 'prev');
+                if (prevComment) {
+                    this.setCurrentComment(prevComment);
+                }
+                break;
+
+            case 'l': // Next child
+                if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
+                e.preventDefault();
+                this.navigateNextChild();
+                break;
+
+            case 'h': // Parent comment (same as 'parent' hyperlink)
+                e.preventDefault();
+
+                // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
+                const parentComment = this.getNavElementByName(this.currentComment, 'parent');
+                if (parentComment) {
+                    this.setCurrentComment(parentComment);
+                }
+                break;
+
+            case 'r': // Root comment (same as 'root' hyperlink)
+                e.preventDefault();
+
+                // Find the 'root' hyperlink in the HN nav panel and navigate to it.
+                const rootComment = this.getNavElementByName(this.currentComment, 'root');
+                if (rootComment) {
+                    this.setCurrentComment(rootComment);
+                }
+                break;
+
+            case '[': {
+                e.preventDefault();
+                const authorElement = this.currentComment.querySelector('.hnuser');
+                if (authorElement) {
+                    const author = authorElement.textContent;
+                    this.navigateAuthorComments(author, this.currentComment, 'prev');
+                }
+                break;
+            }
+
+            case ']': {
+                e.preventDefault();
+                const authorElement = this.currentComment.querySelector('.hnuser');
+                if (authorElement) {
+                    const author = authorElement.textContent;
+                    this.navigateAuthorComments(author, this.currentComment, 'next');
+                }
+                break;
+            }
+
+            case 'z': // Scroll to current comment
+                e.preventDefault();
+                if (this.currentComment) {
+                    this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+                break;
+
+            case ' ': // Collapse current comment
+                e.preventDefault();
+                if (this.currentComment) {
+                    const toggleLink = this.currentComment.querySelector('.togg');
+                    if (toggleLink) {
+                        toggleLink.click();
+                    }
+                }
+                break;
+
+            case 'g': // Go to first comment (when pressed twice)
+                e.preventDefault();
+
+                const currentTime = Date.now();
+                if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
+                    const firstComment = document.querySelector('.athing.comtr');
+                    if (firstComment) {
+                        this.setCurrentComment(firstComment);
+                    }
+                }
+
+                // Update the last key and time so that we can handle the repeated press in the next iteration
+                lastKey = 'g';
+                lastKeyPressTime = currentTime;
+                break;
+
+            case 'o': // Open the original post in new window
+                e.preventDefault();
+                const postLink = document.querySelector('.titleline a');
+                if (postLink) {
+                    window.open(postLink.href, '_blank');
+                }
+                break;
+
+            case '?': // Toggle help modal
+            case '/': // Toggle help modal
+                e.preventDefault();
+                this.toggleHelpModal(this.helpModal.style.display === 'none');
+                break;
+
+            case 'Escape': // Close help modal if open
+                if (this.helpModal.style.display === 'flex') {
+                    e.preventDefault();
+                    this.toggleHelpModal(false);
+                }
+                break;
+        }
+        return {lastKey: lastKey, lastKeyPressTime: lastKeyPressTime};
     }
 
     getNavElementByName(comment, elementName) {
