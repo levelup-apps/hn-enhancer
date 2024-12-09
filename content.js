@@ -191,6 +191,7 @@ class HNEnhancer {
                     break;
 
                 case '?': // Toggle help modal
+                case '/': // Toggle help modal
                     e.preventDefault();
                     this.toggleHelpModal(this.helpModal.style.display === 'none');
                     break;
@@ -303,18 +304,31 @@ class HNEnhancer {
             {key: 'z', description: 'Scroll to current comment'},
             {key: 'Space', description: 'Collapse/expand current comment'},
             {key: 'o', description: 'Open original post in new window'},
-            {key: '?', description: 'Toggle this help panel'}
+            {key: '?|/', description: 'Toggle this help panel'}
         ];
 
         const table = document.createElement('table');
         shortcuts.forEach(({key, description}) => {
             const row = table.insertRow();
-            const keyCell = row.insertCell();
-            const descCell = row.insertCell();
 
-            const kbd = document.createElement('kbd');
-            kbd.textContent = key;
-            keyCell.appendChild(kbd);
+            const keyCell = row.insertCell();
+
+            // Keys could be 'l', 'h' for single keys, 'gg' for repeated keys or '?|/' for multiple keys
+            const keys = key.split('|');
+            keys.forEach((k, index) => {
+                const keySpan = document.createElement('span');
+                keySpan.className = 'key';
+                keySpan.textContent = k;
+                keyCell.appendChild(keySpan);
+
+                if (index < keys.length - 1) {
+                    const separator = document.createElement('span');
+                    separator.textContent = ' or ';
+                    keyCell.appendChild(separator);
+                }
+            });
+
+            const descCell = row.insertCell();
             descCell.textContent = description;
         });
 
@@ -338,7 +352,7 @@ class HNEnhancer {
         const icon = document.createElement('div');
         icon.className = 'help-icon';
         icon.innerHTML = '?';
-        icon.title = 'Keyboard Shortcuts (Press ? to toggle)';
+        icon.title = 'Keyboard Shortcuts (Press ? or / to toggle)';
 
         icon.onclick = () => this.toggleHelpModal(true);
 
