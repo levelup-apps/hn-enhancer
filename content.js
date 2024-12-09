@@ -139,35 +139,19 @@ class HNEnhancer {
                 case 'r': // Go to comment root
                     e.preventDefault();
 
-                    if (this.currentComment) {
-                        const navs = this.currentComment.querySelector('.comhead .navs'); // Select the span child element with class 'navs'
-                        if (navs) {
-                            const rootLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'root');
-                            if (rootLink) {
-                                const commentId = rootLink.hash.split('#')[1];
-                                const rootComment = document.getElementById(commentId);
-                                if (rootComment) {
-                                    this.setCurrentComment(rootComment);
-                                }
-                            }
-                        }
+                    // Find the 'root' hyperlink in the HN nav panel and navigate to it.
+                    const rootComment = this.getNavElementByName('root');
+                    if (rootComment) {
+                        this.setCurrentComment(rootComment);
                     }
                     break;
                 case 'p': // Go to parent comment
                     e.preventDefault();
 
-                    if (this.currentComment) {
-                        const navs = this.currentComment.querySelector('.comhead .navs'); // Select the span child element with class 'navs'
-                        if (navs) {
-                            const parentLink = Array.from(navs.querySelectorAll('a')).find(a => a.textContent.trim() === 'parent');
-                            if (parentLink) {
-                                const commentId = parentLink.hash.split('#')[1];
-                                const parentComment = document.getElementById(commentId);
-                                if (parentComment) {
-                                    this.setCurrentComment(parentComment);
-                                }
-                            }
-                        }
+                    // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
+                    const parentComment = this.getNavElementByName('parent');
+                    if (parentComment) {
+                        this.setCurrentComment(parentComment);
                     }
                     break;
 
@@ -183,6 +167,24 @@ class HNEnhancer {
                     break;
             }
         });
+    }
+
+    getNavElementByName(elementName) {
+        if (!this.currentComment) {
+            return null;
+        }
+
+        // Get HN's default navigation panel and locate the nav element by the given name ('root', 'parent', 'next' or 'prev').
+        const hnNavPanel = this.currentComment.querySelector('.comhead .navs');
+        if (hnNavPanel) {
+            // Find the <a href> with text that matches the given name
+            const hyperLink = Array.from(hnNavPanel.querySelectorAll('a')).find(a => a.textContent.trim() === elementName);
+            if (hyperLink) {
+                const commentId = hyperLink.hash.split('#')[1];
+                const element = document.getElementById(commentId);
+                return element;
+            }
+        }
     }
 
     setCurrentComment(comment) {
