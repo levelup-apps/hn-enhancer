@@ -86,29 +86,60 @@ class HNEnhancer {
             const currentTime = Date.now();
 
             switch (e.key) {
-                case 'j': // Next comment at same depth
+
+                case 'j': // Next comment at same depth (same as 'next' hyperlink)
                     e.preventDefault();
-                    this.navigateNextSameDepth();
+
+                    // Find the 'next' hyperlink in the HN nav panel and navigate to it.
+                    const nextComment = this.getNavElementByName('next');
+                    if (nextComment) {
+                        this.setCurrentComment(nextComment);
+                    }
                     break;
-                case 'k': // Previous comment at same depth
+
+                case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
                     e.preventDefault();
-                    this.navigatePrevSameDepth();
+
+                    // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
+                    const prevComment = this.getNavElementByName('prev');
+                    if (prevComment) {
+                        this.setCurrentComment(prevComment);
+                    }
                     break;
+
                 case 'l': // Next child
                     if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
                     e.preventDefault();
                     this.navigateNextChild();
                     break;
-                case 'h': // Previous parent
+
+                case 'h': // Parent comment (same as 'parent' hyperlink)
                     e.preventDefault();
-                    this.navigatePrevParent();
+
+                    // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
+                    const parentComment = this.getNavElementByName('parent');
+                    if (parentComment) {
+                        this.setCurrentComment(parentComment);
+                    }
                     break;
+
+                case 'r': // Root comment (same as 'root' hyperlink)
+                    e.preventDefault();
+
+                    // Find the 'root' hyperlink in the HN nav panel and navigate to it.
+                    const rootComment = this.getNavElementByName('root');
+                    if (rootComment) {
+                        this.setCurrentComment(rootComment);
+                    }
+                    break;
+
                 case 'z': // Scroll to current comment
                     e.preventDefault();
                     if (this.currentComment) {
                         this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
                     }
                     break;
+
                 case ' ': // Collapse current comment
                     e.preventDefault();
                     if (this.currentComment) {
@@ -118,6 +149,7 @@ class HNEnhancer {
                         }
                     }
                     break;
+
                 case 'g': // Go to first comment (when pressed twice)
                     e.preventDefault();
                     if (lastKey === 'g' && currentTime - lastKeyTime < 500) {
@@ -129,6 +161,7 @@ class HNEnhancer {
                     lastKey = 'g';
                     lastKeyTime = currentTime;
                     break;
+
                 case 'o': // Open the original post in new window
                     e.preventDefault();
                     const postLink = document.querySelector('.titleline a');
@@ -136,29 +169,12 @@ class HNEnhancer {
                         window.open(postLink.href, '_blank');
                     }
                     break;
-                case 'r': // Go to comment root
-                    e.preventDefault();
-
-                    // Find the 'root' hyperlink in the HN nav panel and navigate to it.
-                    const rootComment = this.getNavElementByName('root');
-                    if (rootComment) {
-                        this.setCurrentComment(rootComment);
-                    }
-                    break;
-                case 'p': // Go to parent comment
-                    e.preventDefault();
-
-                    // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
-                    const parentComment = this.getNavElementByName('parent');
-                    if (parentComment) {
-                        this.setCurrentComment(parentComment);
-                    }
-                    break;
 
                 case '?': // Toggle help modal
                     e.preventDefault();
                     this.toggleHelpModal(this.helpModal.style.display === 'none');
                     break;
+
                 case 'Escape': // Close help modal if open
                     if (this.helpModal.style.display === 'flex') {
                         e.preventDefault();
@@ -170,9 +186,7 @@ class HNEnhancer {
     }
 
     getNavElementByName(elementName) {
-        if (!this.currentComment) {
-            return null;
-        }
+        if (!this.currentComment) return;
 
         // Get HN's default navigation panel and locate the nav element by the given name ('root', 'parent', 'next' or 'prev').
         const hnNavPanel = this.currentComment.querySelector('.comhead .navs');
@@ -215,42 +229,6 @@ class HNEnhancer {
         return indent ? parseInt(indent.width) : 0;
     }
 
-    navigateNextSameDepth() {
-        if (!this.currentComment) return;
-
-        const currentDepth = this.getCommentDepth(this.currentComment);
-        let next = this.currentComment.nextElementSibling;
-
-        while (next) {
-            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
-                const nextDepth = this.getCommentDepth(next);
-                if (nextDepth === currentDepth) {
-                    this.setCurrentComment(next);
-                    return;
-                }
-            }
-            next = next.nextElementSibling;
-        }
-    }
-
-    navigatePrevSameDepth() {
-        if (!this.currentComment) return;
-
-        const currentDepth = this.getCommentDepth(this.currentComment);
-        let prev = this.currentComment.previousElementSibling;
-
-        while (prev) {
-            if (prev.classList.contains('athing') && prev.classList.contains('comtr')) {
-                const prevDepth = this.getCommentDepth(prev);
-                if (prevDepth === currentDepth) {
-                    this.setCurrentComment(prev);
-                    return;
-                }
-            }
-            prev = prev.previousElementSibling;
-        }
-    }
-
     navigateNextChild() {
         if (!this.currentComment) return;
 
@@ -277,24 +255,6 @@ class HNEnhancer {
         }
     }
 
-    navigatePrevParent() {
-        if (!this.currentComment) return;
-
-        const currentDepth = this.getCommentDepth(this.currentComment);
-        let prev = this.currentComment.previousElementSibling;
-
-        while (prev) {
-            if (prev.classList.contains('athing') && prev.classList.contains('comtr')) {
-                const prevDepth = this.getCommentDepth(prev);
-                if (prevDepth < currentDepth) {
-                    this.setCurrentComment(prev);
-                    return;
-                }
-            }
-            prev = prev.previousElementSibling;
-        }
-    }
-
     createHelpModal() {
         const modal = document.createElement('div');
         modal.className = 'keyboard-help-modal';
@@ -315,12 +275,11 @@ class HNEnhancer {
             {key: 'j', description: 'Next comment at same level'},
             {key: 'k', description: 'Previous comment at same level'},
             {key: 'l', description: 'Next child comment'},
-            {key: 'h', description: 'Previous parent comment'},
+            {key: 'h', description: 'Go to parent comment'},
             {key: 'z', description: 'Scroll to current comment'},
             {key: 'Space', description: 'Collapse/expand current comment'},
             {key: 'gg', description: 'Go to first comment'},
             {key: 'r', description: 'Go to comment root'},
-            {key: 'p', description: 'Go to parent comment'},
             {key: 'o', description: 'Open original post in new window'},
             {key: '?', description: 'Toggle this help modal'}
         ];
