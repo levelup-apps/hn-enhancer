@@ -2,17 +2,30 @@
   "manifest_version": 3,
   "name": "HackerNews Comment Enhancement",
   "description": "Enhances HackerNews comments with a better UI",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "icons": {
     "16": "images/icon-16.png",
     "32": "images/icon-32.png",
     "48": "images/icon-48.png",
     "128": "images/icon-128.png"
   },
+  "background": {
+    "service_worker": "worker.js"
+  },
   "host_permissions": [
     "https://news.ycombinator.com/*",
     "https://hn.algolia.com/*"
   ],
+  "permissions": [
+    "sidePanel",
+    "tabs"
+  ],
+  "action": {
+    "default_title": "Click to open panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "content_scripts": [
     {
       "matches": [

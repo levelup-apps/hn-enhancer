@@ -202,7 +202,6 @@
     position: fixed;
     right: 0;
     top: 0;
-    width: 300px;
     height: 100vh;
     background-color: #f6f6ef; /* #F6F6EF */
     border-left: 1px solid #ff6600;
@@ -213,6 +212,9 @@
     transition: transform 0.3s ease;
 }
 
+.summary-panel-overlay {
+    width: 300px;
+}
 .summary-panel.collapsed {
     transform: translateX(100%);
 }
@@ -234,8 +236,8 @@
 }
 
 .summary-panel-toggle {
-    position: fixed;
-    right: 300px;
+    /*position: fixed;*/
+    /*right: 300px;*/
     top: 50%;
     transform: translateY(-50%);
     background: #ff6600;
