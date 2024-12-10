@@ -281,3 +281,41 @@
     color: #000000;
     font-size: 9pt;
 }
+
+/*Type of summary panel*/
+.panel-type-toggle {
+    position: fixed;
+    right: 80px;  /* Position it near the help icon */
+    bottom: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #ff6600;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: all 0.2s;
+    font-family: Verdana, Geneva, sans-serif;
+    font-size: 12px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.panel-type-toggle:hover {
+    background-color: #ff7700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.panel-type-icon {
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}

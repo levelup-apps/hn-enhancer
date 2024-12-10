@@ -20,6 +20,8 @@ class HNEnhancer {
         this.summaryPanel = this.createSummaryPanel();
         this.isPanelCollapsed = true;
         this.isSidePanelLoaded = false;
+        // Add the toggle button to switch between the panel type (inline or side panel)
+        this.panelTypeToggle = this.createPanelTypeToggle();
 
         this.init();
     }
@@ -716,6 +718,65 @@ class HNEnhancer {
         } else {
             // if we are using Chrome side panel, toggle the side panel
             this.toggleSidePanel();
+        }
+    }
+
+    createPanelTypeToggle() {
+        const toggle = document.createElement('div');
+        toggle.className = 'panel-type-toggle';
+        toggle.title = 'Toggle between Side Panel and Inline Panel';
+
+        // Create the icon container
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'panel-type-icon';
+
+        const icon = this.summaryType === HNEnhancer.SummaryType.SIDEPANEL ? '⬅G' : '↪I';
+        iconContainer.textContent = icon;
+
+        toggle.appendChild(iconContainer);
+
+        toggle.onclick = () => {
+            // Toggle between panel types
+            if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
+                this.switchToPanelType(HNEnhancer.SummaryType.SIDEPANEL);
+            } else {
+                this.switchToPanelType(HNEnhancer.SummaryType.INLINE);
+            }
+        };
+
+        document.body.appendChild(toggle);
+        return toggle;
+    }
+
+    switchToPanelType(newType) {
+        // If switching to the same type, do nothing
+        if (this.summaryType === newType) return;
+
+        // Clean up existing panel
+        if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            // Remove inline panel elements
+            const existingPanel = document.querySelector('.summary-panel-inline');
+            const existingToggle = document.querySelector('.summary-panel-toggle');
+            if (existingPanel) existingPanel.remove();
+            if (existingToggle) existingToggle.remove();
+        } else {
+            // Close side panel if it's open
+            if (!this.isPanelCollapsed) {
+                this.toggleSidePanel();
+            }
+        }
+
+        // Update type and create new panel
+        this.summaryType = newType;
+        this.summaryPanel = this.createSummaryPanel();
+
+        // Update the toggle button text
+        const newIcon = newType === HNEnhancer.SummaryType.SIDEPANEL ? '⬅G' : '↪I';
+        this.panelTypeToggle.querySelector('.panel-type-icon').textContent = newIcon;
+
+        // Update current comment's summary in the new panel
+        if (this.currentComment) {
+            this.updateSummaryPanel(this.currentComment);
         }
     }
 }
