@@ -1,9 +1,9 @@
 class SidePanel {
     constructor() {
         this.domContentLoaded = false;
-        this.panel = document.querySelector('.summary-panel');
-        this.toggleBtn = document.querySelector('.summary-panel-toggle');
-        this.isPanelCollapsed = false;
+        // this.panel = document.querySelector('.summary-panel');
+        // this.toggleBtn = document.querySelector('.summary-panel-toggle');
+        // this.isPanelCollapsed = false;
         this.init();
     }
 
@@ -12,7 +12,7 @@ class SidePanel {
         console.log(`sidepanel.js: init(): this.domContentLoaded: ${this.domContentLoaded}`);
 
         // Listen for toggle button clicks
-        this.toggleBtn.addEventListener('click', () => this.togglePanel());
+        // this.toggleBtn?.addEventListener('click', () => this.togglePanel());
 
         // Listen for Escape key
         document.addEventListener('keydown', (e) => {
@@ -48,44 +48,42 @@ class SidePanel {
         });
     }
 
-    togglePanel() {
-        console.log(`sidepanel.js: togglePanel(): this.domContentLoaded: ${this.domContentLoaded}`);
+    // // This  method is not used. It is just kept here if we want to use it.
+    // togglePanel() {
+    //     console.log(`sidepanel.js: togglePanel(): this.domContentLoaded: ${this.domContentLoaded}`);
+    //
+    //     this.isPanelCollapsed ? this.openSidePanel() : this.closeSidePanel();
+    //
+    //     this.panel.classList.toggle('collapsed', this.isPanelCollapsed);
+    //     this.toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
+    //     this.toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
+    //
+    //     this.isPanelCollapsed = !this.isPanelCollapsed;
+    //     this.panel.classList.toggle('collapsed', this.isPanelCollapsed);
+    //     this.toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
+    //     this.toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
+    // }
 
-        this.isPanelCollapsed ? this.openSidePanel() : this.closeSidePanel();
-        // this.isPanelCollapsed = !this.isPanelCollapsed;
-
-        // this.panel.classList.toggle('collapsed', this.isPanelCollapsed);
-        // this.toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
-        // this.toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
-
-        // this.isPanelCollapsed = !this.isPanelCollapsed;
-        // this.panel.classList.toggle('collapsed', this.isPanelCollapsed);
-        // this.toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
-        // this.toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
-    }
-
-    async openSidePanel() {
-        console.log('sidepanel.js: openSidePanel(): Opening side panel');
-        try {
-            const response = await chrome.runtime.sendMessage({
-                type: 'open_side_panel',
-                data: {}
-            });
-            if (response.success) {
-                this.isPanelCollapsed = false;
-            } else {
-                console.error('sidepanel.js: Failed to open side panel:', response.error);
-            }
-        } catch (error) {
-            console.error('sidepanel.js: Error opening side panel:', error);
-        }
-    }
+    // async openSidePanel() {
+    //     console.log('sidepanel.js: openSidePanel(): Opening side panel');
+    //     try {
+    //         const response = await chrome.runtime.sendMessage({
+    //             type: 'open_side_panel',
+    //             data: {}
+    //         });
+    //         if (response.success) {
+    //             this.isPanelCollapsed = false;
+    //         } else {
+    //             console.error('sidepanel.js: Failed to open side panel:', response.error);
+    //         }
+    //     } catch (error) {
+    //         console.error('sidepanel.js: Error opening side panel:', error);
+    //     }
+    // }
 
     closeSidePanel() {
-        // Close the side panel using Chrome's API
-        // chrome.runtime.sendMessage({ type: 'closeSidePanel' })
         console.log('sidepanel.js: closeSidePanel(): Closing side panel');
-        this.isPanelCollapsed = true;
+        // this.isPanelCollapsed = true;
         window.close();
     }
 

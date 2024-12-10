@@ -1,4 +1,9 @@
 class HNEnhancer {
+    static SummaryType = {
+        INLINE: 'inline',
+        SIDEPANEL: 'sidepanel'
+    };
+
     constructor() {
         this.authorComments = new Map();    // Store comment elements by author
         this.popup = this.createPopup();
@@ -7,9 +12,15 @@ class HNEnhancer {
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
+
+        // Set the summary type - INLINE for the inline panel or 'SIDEPANEL for the Chrome side panel
+        // this.summaryType = HNEnhancer.SummaryType.INLINE;
+        this.summaryType = HNEnhancer.SummaryType.SIDEPANEL;
+
         this.summaryPanel = this.createSummaryPanel();
         this.isPanelCollapsed = true;
         this.isSidePanelLoaded = false;
+
         this.init();
     }
 
@@ -276,9 +287,18 @@ class HNEnhancer {
             console.log('content.js: updateSummaryPanel(): No comment provided to updateSummaryPanel, so not updating the side panel.');
             return;
         }
-        if (!this.isSidePanelLoaded) {
-            console.log('content.js: updateSummaryPanel(): Side panel not loaded yet, so not updating the side panel.');
-            return;
+
+        // Make sure that the panel to display the new content is available - inline or side panel
+        if(this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            if(!this.summaryPanel.querySelector('.summary-panel-content')) {
+                console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
+                return;
+            }
+        } else {
+            if (!this.isSidePanelLoaded) {
+                console.log('content.js: updateSummaryPanel(): Side panel not loaded yet, so not updating the side panel.');
+                return;
+            }
         }
 
         // Get comment metadata
@@ -289,37 +309,36 @@ class HNEnhancer {
 
         const summary = this.summarizeText(commentText);
 
-        const messageName = 'update_side_panel';
-        const messageData = {
-            author,
-            timestamp,
-            points,
-            summary
-        };
-
-        console.log(`content.js: Sending message ${messageName} for comment with data author: ${messageData.author}`);
-        chrome.runtime.sendMessage(
-            {type: messageName, data: messageData}
-        ).then(response => {
-            console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(response)}`);
-        }).catch(error => {
-            console.error(`content.js: Error sending message ${message}. Error: ${JSON.stringify(error)}`);
-        });
-
-        // Create summary content
-        const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
-        if (summaryContentElement) {
+        if(this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            // Create summary content
+            const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
             summaryContentElement.innerHTML = `
-            <div class="summary-author">@${author}</div>
-            <div class="summary-metadata">
-                ${points} • ${timestamp}
-            </div>
-            <div class="summary-text">
-                ${summary}
-            </div>
-        `;
+                <div class="summary-author">@${author}</div>
+                <div class="summary-metadata">
+                    ${points} • ${timestamp}
+                </div>
+                <div class="summary-text">
+                    ${summary}
+                </div>
+            `;
+
         } else {
-            console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
+            const messageName = 'update_side_panel';
+            const messageData = {
+                author,
+                timestamp,
+                points,
+                summary
+            };
+
+            console.log(`content.js: Sending message ${messageName} for comment with data author: ${messageData.author}`);
+            chrome.runtime.sendMessage(
+                {type: messageName, data: messageData}
+            ).then(response => {
+                console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(response)}`);
+            }).catch(error => {
+                console.error(`content.js: Error sending message ${message}. Error: ${JSON.stringify(error)}`);
+            });
         }
     }
 
@@ -607,15 +626,14 @@ class HNEnhancer {
     }
 
     createSummaryPanel() {
-        // if we are using Chrome side panel, subscribe to messages from the side panel
-        this.subscribeToSidePanelMessages();
-
-        return this.createSummaryOverlay();
+        return this.summaryType === HNEnhancer.SummaryType.INLINE ?
+            this.initSummaryInline() :
+            this.initSummarySidePanel();
     }
 
-    createSummaryOverlay() {
+    initSummaryInline() {
         const panel = document.createElement('div');
-        panel.className = 'summary-panel summary-panel-overlay';
+        panel.className = 'summary-panel summary-panel-inline collapsed';
 
         // Create header
         const header = document.createElement('div');
@@ -628,7 +646,7 @@ class HNEnhancer {
 
         // Create toggle button
         const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'summary-panel-toggle';
+        toggleBtn.className = 'summary-panel-toggle collapsed';
         toggleBtn.innerHTML = '▶';
         toggleBtn.title = 'Toggle Summary Panel';
         toggleBtn.onclick = () => this.toggleSummaryPanel();
@@ -639,14 +657,15 @@ class HNEnhancer {
 
         panel.appendChild(header);
         panel.appendChild(content);
-        // document.body.appendChild(panel);
-        // document.body.appendChild(toggleBtn);
+
+        document.body.appendChild(panel);
+        document.body.appendChild(toggleBtn);
 
         return panel;
     }
 
-    subscribeToSidePanelMessages() {
-        console.log('content.js: Subscribing to chrome runtime messages');
+    initSummarySidePanel() {
+        console.log('content.js: initSummarySidePanel(): Subscribing to chrome runtime messages');
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             console.log('content.js: Message Listener: Received message: ', JSON.stringify(message));
@@ -655,9 +674,9 @@ class HNEnhancer {
                 this.isSidePanelLoaded = true;
                 this.updateSummaryPanel(this.currentComment);
                 sendResponse({success: true});
-                return true;
             }
         });
+        return null;
     }
 
     async toggleSidePanel() {
@@ -686,17 +705,19 @@ class HNEnhancer {
     }
 
     toggleSummaryPanel() {
-        // if we are using Chrome side panel, toggle the side panel
-        this.toggleSidePanel();
 
-        // if we are using the overlay, toggle the overlay
-        // this.isPanelCollapsed = !this.isPanelCollapsed;
-        // this.summaryPanel.classList.toggle('collapsed', this.isPanelCollapsed);
-        // const toggleBtn = document.querySelector('.summary-panel-toggle');
-        // toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
-        // toggleBtn.innerHTML = this.isPanelCollapsed ? '◀': '▶';
+        if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            // if we are using the overlay, toggle the overlay
+            this.isPanelCollapsed = !this.isPanelCollapsed;
+            this.summaryPanel.classList.toggle('collapsed', this.isPanelCollapsed);
+            const toggleBtn = document.querySelector('.summary-panel-toggle');
+            toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
+            toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
+        } else {
+            // if we are using Chrome side panel, toggle the side panel
+            this.toggleSidePanel();
+        }
     }
-
 }
 
 document.hnEnhancer = new HNEnhancer();                       // Initialize immediately

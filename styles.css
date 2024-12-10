@@ -199,20 +199,21 @@
 
 /* Summary panel */
 .summary-panel {
-    position: fixed;
     right: 0;
     top: 0;
     height: 100vh;
-    background-color: #f6f6ef; /* #F6F6EF */
+    background-color: #f6f6ef;
     border-left: 1px solid #ff6600;
-    padding: 20px;
+    border-top: 1px solid #ff6600;
+    padding: 10px;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     z-index: 999;
     overflow-y: auto;
     transition: transform 0.3s ease;
 }
 
-.summary-panel-overlay {
+.summary-panel-inline {
+    position: fixed;
     width: 300px;
 }
 .summary-panel.collapsed {
@@ -236,8 +237,8 @@
 }
 
 .summary-panel-toggle {
-    /*position: fixed;*/
-    /*right: 300px;*/
+    position: fixed;
+    right: 296px;
     top: 50%;
     transform: translateY(-50%);
     background: #ff6600;
@@ -256,8 +257,8 @@
 
 .summary-panel-content {
     font-family: Verdana, Geneva, sans-serif;
-    font-size: 9pt;
-    line-height: 1.5;
+    font-size: 8pt;
+    color: #828282;
 }
 
 .summary-author {
@@ -277,4 +278,6 @@
     padding: 10px;
     /*background-color: #f6f6f6;*/
     border-radius: 4px;
+    color: #000000;
+    font-size: 9pt;
 }
