@@ -633,39 +633,6 @@ class HNEnhancer {
             this.initSummarySidePanel();
     }
 
-    initSummaryInline() {
-        const panel = document.createElement('div');
-        panel.className = 'summary-panel summary-panel-inline collapsed';
-
-        // Create header
-        const header = document.createElement('div');
-        header.className = 'summary-panel-header';
-
-        const title = document.createElement('h3');
-        title.className = 'summary-panel-title';
-        title.textContent = 'Comment Summary';
-        header.appendChild(title);
-
-        // Create toggle button
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'summary-panel-toggle collapsed';
-        toggleBtn.innerHTML = '▶';
-        toggleBtn.title = 'Toggle Summary Panel';
-        toggleBtn.onclick = () => this.toggleSummaryPanel();
-
-        // Create content container
-        const content = document.createElement('div');
-        content.className = 'summary-panel-content';
-
-        panel.appendChild(header);
-        panel.appendChild(content);
-
-        document.body.appendChild(panel);
-        document.body.appendChild(toggleBtn);
-
-        return panel;
-    }
-
     initSummarySidePanel() {
         console.log('content.js: initSummarySidePanel(): Subscribing to chrome runtime messages');
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -706,17 +673,116 @@ class HNEnhancer {
         }
     }
 
-    toggleSummaryPanel() {
+    initSummaryInline() {
+        // Create wrapper for main content and panel
+        const wrapper = document.createElement('div');
+        wrapper.className = 'hn-content-wrapper';
 
+        // Get the main content
+        const mainContent = document.querySelector('center > table');
+        if (!mainContent) return null;
+
+        // Create main content container
+        const mainContainer = document.createElement('div');
+        mainContainer.className = 'main-content-container';
+
+        // Move the main content inside our container
+        mainContent.parentNode.insertBefore(wrapper, mainContent);
+        mainContainer.appendChild(mainContent);
+        wrapper.appendChild(mainContainer);
+
+        // Create the panel
+        const panel = document.createElement('div');
+        panel.className = 'summary-panel summary-panel-inline';
+
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'summary-panel-header';
+
+        const title = document.createElement('h3');
+        title.className = 'summary-panel-title';
+        title.textContent = 'Comment Summary';
+        header.appendChild(title);
+
+        // Create content container
+        const content = document.createElement('div');
+        content.className = 'summary-panel-content';
+        content.innerHTML = `
+        <div class="summary-author">Loading...</div>
+        <div class="summary-metadata"></div>
+        <div class="summary-text"></div>
+    `;
+
+        panel.appendChild(header);
+        panel.appendChild(content);
+
+        // Create resizer bar
+        const resizer = document.createElement('div');
+        resizer.className = 'panel-resizer';
+
+        // Add resize functionality
+        let isResizing = false;
+        let startX;
+        let startWidth;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.pageX;
+            startWidth = parseInt(window.getComputedStyle(panel).width, 10);
+            document.body.style.userSelect = 'none'; // Prevent text selection while resizing
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const diffX = startX - e.pageX;
+            const newWidth = Math.max(200, Math.min(800, startWidth + diffX));
+
+            // Update panel width
+            panel.style.width = `${newWidth}px`;
+
+            // Update resizer position
+            resizer.style.right = `${newWidth}px`;
+
+            // Update main content margin
+            mainContainer.style.marginRight = `${newWidth + 5}px`; // 5px for resizer width
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // Add panel and resizer to wrapper
+        wrapper.appendChild(panel);
+        wrapper.appendChild(resizer);
+
+        return panel;
+    }
+
+    toggleSummaryPanel() {
         if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
-            // if we are using the overlay, toggle the overlay
             this.isPanelCollapsed = !this.isPanelCollapsed;
-            this.summaryPanel.classList.toggle('collapsed', this.isPanelCollapsed);
-            const toggleBtn = document.querySelector('.summary-panel-toggle');
-            toggleBtn.classList.toggle('collapsed', this.isPanelCollapsed);
-            toggleBtn.innerHTML = this.isPanelCollapsed ? '◀' : '▶';
+            const wrapper = document.querySelector('.hn-content-wrapper');
+            const mainContent = document.querySelector('.main-content-container');
+            const panel = this.summaryPanel;
+            const resizer = document.querySelector('.panel-resizer');
+
+            if (this.isPanelCollapsed) {
+                panel.style.width = '0';
+                mainContent.style.marginRight = '0';
+                resizer.style.right = '0';
+                resizer.style.display = 'none';
+            } else {
+                const width = '300';
+                panel.style.width = `${width}px`;
+                mainContent.style.marginRight = `${parseInt(width) + 5}px`;
+                resizer.style.right = `${width}px`;
+                resizer.style.display = 'block';
+            }
         } else {
-            // if we are using Chrome side panel, toggle the side panel
             this.toggleSidePanel();
         }
     }

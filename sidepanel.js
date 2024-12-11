@@ -88,9 +88,9 @@ class SidePanel {
     }
 
     updateContent(data) {
-        const authorElem = document.querySelector('.summary-author');
-        const metadataElem = document.querySelector('.summary-metadata');
-        const textElem = document.querySelector('.summary-text');
+        const authorElem = document.querySelector('.chrome-summary-author');
+        const metadataElem = document.querySelector('.chrome-summary-metadata');
+        const textElem = document.querySelector('.chrome-summary-text');
 
         if (authorElem && metadataElem && textElem) {
             authorElem.textContent = `@${data.author}`;
