@@ -283,39 +283,76 @@
 }
 
 /*Type of summary panel*/
+
+/* Panel type toggle switch container */
 .panel-type-toggle {
     position: fixed;
-    right: 80px;  /* Position it near the help icon */
+    right: 80px;
     bottom: 20px;
-    width: 40px;
-    height: 40px;
-    background-color: #ff6600;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     z-index: 1000;
-    transition: all 0.2s;
+    gap: 8px;
+}
+
+/* Switch styles */
+.panel-type-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+}
+
+.panel-type-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.panel-type-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.panel-type-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .panel-type-slider {
+    background-color: #ff6600;
+}
+
+input:checked + .panel-type-slider:before {
+    transform: translateX(22px);
+}
+
+/* Labels */
+.panel-type-label {
     font-family: Verdana, Geneva, sans-serif;
     font-size: 12px;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    color: #828282;
 }
 
-.panel-type-toggle:hover {
-    background-color: #ff7700;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.panel-type-icon {
-    font-size: 16px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+.panel-type-label.active {
+    color: #ff6600;
+    font-weight: bold;
 }

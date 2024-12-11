@@ -724,25 +724,56 @@ class HNEnhancer {
     createPanelTypeToggle() {
         const toggle = document.createElement('div');
         toggle.className = 'panel-type-toggle';
-        toggle.title = 'Toggle between Side Panel and Inline Panel';
 
-        // Create the icon container
-        const iconContainer = document.createElement('div');
-        iconContainer.className = 'panel-type-icon';
+        // Create labels and switch
+        const inlineLabel = document.createElement('span');
+        inlineLabel.className = 'panel-type-label' + (this.summaryType !== HNEnhancer.SummaryType.SIDEPANEL ? ' active' : '');
+        inlineLabel.textContent = 'Inline';
 
-        const icon = this.summaryType === HNEnhancer.SummaryType.SIDEPANEL ? '⬅G' : '↪I';
-        iconContainer.textContent = icon;
+        const switchLabel = document.createElement('label');
+        switchLabel.className = 'panel-type-switch';
 
-        toggle.appendChild(iconContainer);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = this.summaryType === HNEnhancer.SummaryType.SIDEPANEL;
 
-        toggle.onclick = () => {
-            // Toggle between panel types
-            if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
-                this.switchToPanelType(HNEnhancer.SummaryType.SIDEPANEL);
+        const slider = document.createElement('span');
+        slider.className = 'panel-type-slider';
+
+        const sideLabel = document.createElement('span');
+        sideLabel.className = 'panel-type-label' + (this.summaryType === HNEnhancer.SummaryType.SIDEPANEL ? ' active' : '');
+        sideLabel.textContent = 'G Side';
+
+        // Add event listener
+        input.onchange = () => {
+            const newType = input.checked ? HNEnhancer.SummaryType.SIDEPANEL : HNEnhancer.SummaryType.INLINE;
+            this.switchToPanelType(newType);
+
+            // Update labels
+            inlineLabel.className = 'panel-type-label' + (!input.checked ? ' active' : '');
+            sideLabel.className = 'panel-type-label' + (input.checked ? ' active' : '');
+
+            // Return focus to the main content area
+            if (this.currentComment) {
+                this.currentComment.focus();
             } else {
-                this.switchToPanelType(HNEnhancer.SummaryType.INLINE);
+                // If no current comment, focus the main content area
+                const mainContent = document.querySelector('.fatitem') || document.body;
+                mainContent.focus();
             }
+
+            // Prevent the switch from keeping focus
+            input.blur();
         };
+
+        // Assemble the switch
+        switchLabel.appendChild(input);
+        switchLabel.appendChild(slider);
+
+        // Assemble the toggle
+        toggle.appendChild(inlineLabel);
+        toggle.appendChild(switchLabel);
+        toggle.appendChild(sideLabel);
 
         document.body.appendChild(toggle);
         return toggle;
@@ -769,10 +800,6 @@ class HNEnhancer {
         // Update type and create new panel
         this.summaryType = newType;
         this.summaryPanel = this.createSummaryPanel();
-
-        // Update the toggle button text
-        const newIcon = newType === HNEnhancer.SummaryType.SIDEPANEL ? '⬅G' : '↪I';
-        this.panelTypeToggle.querySelector('.panel-type-icon').textContent = newIcon;
 
         // Update current comment's summary in the new panel
         if (this.currentComment) {
