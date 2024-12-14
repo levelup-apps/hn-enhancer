@@ -7,27 +7,14 @@ class HNEnhancer {
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
+        this.summaryPanel = this.createSummaryPanel(); // Initialize the summary panel
 
         this.createHelpIcon();
         this.updateCommentCounts();
         this.setupHoverEvents();
 
-        this.loadSummaryPanel(); // Initialize the summary panel
-
         // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
         this.initCommentNavigation(); // Initialize comment navigation
-    }
-
-    loadSummaryPanel() {
-        // Create the summary panel. If it is already created, don't create it again (the DOM will be messed up).
-        if (!this.summaryPanel) {
-            this.summaryPanel = this.initSummaryInlinePanel();
-        }
-
-        if (this.isPanelVisible) {
-            // Hide the panel until the user opens it with the shortcut
-            this.toggleSummaryPanel();
-        }
     }
 
     toggleHelpModal(show) {
@@ -605,10 +592,6 @@ class HNEnhancer {
         });
     }
 
-    isPanelOpen() {
-        return this.summaryPanel && this.summaryPanel.style.display !== 'none';
-    }
-
     calculatePanelConstraints() {
         const mainWrapper = document.querySelector('.main-content-wrapper');
         const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 8 : window.innerWidth - 8;
@@ -635,7 +618,7 @@ class HNEnhancer {
         };
     }
 
-    initSummaryInlinePanel() {
+    createSummaryPanel() {
         // Create wrapper for main content, resizer and panel
         const mainWrapper = document.createElement('div');
         mainWrapper.className = 'main-content-wrapper';
@@ -718,8 +701,8 @@ class HNEnhancer {
         });
 
         window.addEventListener('resize', () => {
-            // Only adjust the panel width if it's visible
-            if (this.isPanelVisible) {
+            // Adjust the panel width if it's available and visible
+            if (this.summaryPanel && this.summaryPanel.style.display !== 'none') {
                 const {minWidth, maxWidth} = this.calculatePanelConstraints();
                 const currentWidth = panel.offsetWidth;
 
@@ -731,30 +714,34 @@ class HNEnhancer {
             }
         });
 
-        // Add resizer and panel to the main wrapper
+        // Hide the resizer and add it to the main wrapper. We will show it when the panel is visible.
+        resizer.style.display = 'none';
         mainWrapper.appendChild(resizer);   // main-content-wrapper > panel-resizer
-        mainWrapper.appendChild(panel);     // main-content-wrapper > summary-panel
 
-        // Panel is visible now, so set the corresponding flag to true to keep it in sync
-        this.isPanelVisible = true;
+        // Hide the panel and add to the main wrapper. We will show it when the user opens it with the shortcut key.
+        panel.style.display = 'none';
+        mainWrapper.appendChild(panel);     // main-content-wrapper > summary-panel
 
         return panel;
     }
 
     toggleSummaryPanel() {
+        if(!this.summaryPanel) {
+            console.error(`content.js: toggleSummaryPanel(): Summary panel is not available, so cannot toggle the summary panel.`);
+            return;
+        }
+
         const summaryPanel = this.summaryPanel;
         const resizer = document.querySelector('.panel-resizer');
 
-        if (this.isPanelVisible) {
-            summaryPanel.style.display = 'none';
-            resizer.style.display = 'none';
-        } else {
+        // if summary panel and resizer are hidden, show it. Otherwise, hide it.
+        if (summaryPanel.style.display === 'none') {
             summaryPanel.style.display = 'block';
             resizer.style.display = 'block';
+        } else {
+            summaryPanel.style.display = 'none';
+            resizer.style.display = 'none';
         }
-
-        // flip the panel visible flag
-        this.isPanelVisible = !this.isPanelVisible;
     }
 }
 
