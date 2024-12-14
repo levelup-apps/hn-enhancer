@@ -277,7 +277,7 @@ class HNEnhancer {
         }
 
         // update the summary panel to show the summary of the current comment
-        console.log(`content.js: setCurrentComment(): Updating summary panel for comment with author: ${authorElement.textContent}`);
+        // console.log(`content.js: setCurrentComment(): Updating summary panel for comment with author: ${authorElement.textContent}`);
         this.updateSummaryPanel(comment);
 
         // Scroll into the comment view if needed
