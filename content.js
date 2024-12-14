@@ -677,6 +677,32 @@ class HNEnhancer {
         }
     }
 
+    calculatePanelConstraints() {
+        const mainWrapper = document.querySelector('.main-content-wrapper');
+        const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 16 : window.innerWidth - 16;
+
+        const resizerWidth = 16;
+
+        if (availableWidth < 768) {
+            return {
+                minWidth: Math.min(200, availableWidth * 0.85),
+                maxWidth: Math.min(300, availableWidth * 0.95)
+            };
+        }
+
+        if (availableWidth < 1024) {
+            return {
+                minWidth: Math.min(350, availableWidth * 0.3),
+                maxWidth: Math.min(500, availableWidth * 0.5)
+            };
+        }
+
+        return {
+            minWidth: Math.min(400, availableWidth * 0.25),
+            maxWidth: Math.min(700 - resizerWidth, availableWidth * 0.4)
+        };
+    }
+
     initSummaryInline() {
         // Create wrapper for main content, resizer and panel
         const mainWrapper = document.createElement('div');
@@ -734,15 +760,18 @@ class HNEnhancer {
             startX = e.clientX;
             startWidth = panel.offsetWidth;
 
-            document.body.style.userSelect = 'none'; // Prevent text selection while resizing
+            // Prevent text selection while resizing
+            document.body.style.userSelect = 'none';
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
             // Find the new width based on the delta between start and current mouse position
-            const deltaX =  e.clientX - startX;
-            const newWidth = Math.max(400, Math.min(672, startWidth - deltaX));
+            const { minWidth, maxWidth } = this.calculatePanelConstraints();
+
+            const deltaX = e.clientX - startX;
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
 
             // Update panel width (when the flex-direction is row, flex-basis is the width)
             panel.style.flexBasis = `${newWidth}px`;
@@ -753,6 +782,20 @@ class HNEnhancer {
             if (isResizing) {
                 isResizing = false;
                 document.body.style.userSelect = '';
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            // Only adjust the panel width if it's visible
+            if (this.isPanelVisible) {
+                const { minWidth, maxWidth } = this.calculatePanelConstraints();
+                const currentWidth = panel.offsetWidth;
+
+                if (currentWidth < minWidth) {
+                    panel.style.flexBasis = `${minWidth}px`;
+                } else if (currentWidth > maxWidth) {
+                    panel.style.flexBasis = `${maxWidth}px`;
+                }
             }
         });
 
