@@ -19,7 +19,11 @@ class HNEnhancer {
 
         // Create and show the panel at initial load
         this.summaryPanel = this.createSummaryPanel();
-        this.isPanelCollapsed = false;  // the panel is not collapsed at initial load
+
+        // if the panel is visible, close it at initial load
+        if(this.isPanelVisible) {
+            this.toggleSummaryPanel();
+        }
         this.isSidePanelLoaded = false;
 
         // Add the toggle button to switch between the panel type (inline or side panel)
@@ -661,7 +665,6 @@ class HNEnhancer {
             console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(isOpenResponse)}`);
 
             // Check the response to determine the next message to send - close the panel if it is open, otherwise open it.
-            // const message = this.isPanelCollapsed ? 'open_side_panel' : 'close_side_panel';
             messageName = (isOpenResponse && isOpenResponse.data.isOpen) ? 'close_side_panel' : 'open_side_panel';
 
             // Now send the open/close message to the side panel
@@ -669,33 +672,32 @@ class HNEnhancer {
             const response = await chrome.runtime.sendMessage({type: messageName, data: {}});
             console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(response)}`);
 
-            this.isPanelCollapsed = !this.isPanelCollapsed;
         } catch (error) {
             console.error(`content.js: Error sending message. Error: ${JSON.stringify(error)}`);
         }
     }
 
     initSummaryInline() {
-        // Create wrapper for main content and panel
-        const wrapper = document.createElement('div');
-        wrapper.className = 'hn-content-wrapper';
+        // Create wrapper for main content, resizer and panel
+        const mainWrapper = document.createElement('div');
+        mainWrapper.className = 'main-content-wrapper';
 
-        // Get the main content
-        const mainContent = document.querySelector('center > table');
-        if (!mainContent) return null;
+        // Get the main HN content
+        const mainHnTable = document.querySelector('center > table');
+        if (!mainHnTable) return null;
 
         // Create main content container
-        const mainContainer = document.createElement('div');
-        mainContainer.className = 'main-content-container';
+        const hnContentContainer = document.createElement('div');
+        hnContentContainer.className = 'hn-content-container';
 
-        // Move the main content inside our container
-        mainContent.parentNode.insertBefore(wrapper, mainContent);
-        mainContainer.appendChild(mainContent);
-        wrapper.appendChild(mainContainer);
+        // Move the main HN content inside our container
+        mainHnTable.parentNode.insertBefore(mainWrapper, mainHnTable); // center > main-content-wrapper
+        hnContentContainer.appendChild(mainHnTable);    // hn-content-container > table
+        mainWrapper.appendChild(hnContentContainer);    // main-content-wrapper > hn-content-container
 
-        // Create the panel
+        // Create the summary panel element
         const panel = document.createElement('div');
-        panel.className = 'summary-panel summary-panel-inline';
+        panel.className = 'summary-panel';
 
         // Create header
         const header = document.createElement('div');
@@ -754,28 +756,31 @@ class HNEnhancer {
             }
         });
 
-        // Add panel and resizer to wrapper
-        wrapper.appendChild(resizer);
-        wrapper.appendChild(panel);
+        // Add resizer and panel to the main wrapper
+        mainWrapper.appendChild(resizer);   // main-content-wrapper > panel-resizer
+        mainWrapper.appendChild(panel);     // main-content-wrapper > summary-panel
+
+        // Panel is visible now, set it to true before returning
+        this.isPanelVisible = true;
 
         return panel;
     }
 
     toggleSummaryPanel() {
         if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
-            const panel = this.summaryPanel;
+            const summaryPanel = this.summaryPanel;
             const resizer = document.querySelector('.panel-resizer');
 
-            if (this.isPanelCollapsed) {
-                panel.style.removeProperty('display');  // Remove the display:none
-                resizer.style.removeProperty('display');  // Remove the display:none
-            } else {
-                panel.style.display = 'none';
+            if (this.isPanelVisible) {
+                summaryPanel.style.display = 'none';
                 resizer.style.display = 'none';
+            } else {
+                summaryPanel.style.display = 'block';
+                resizer.style.display = 'block';
             }
 
-            // flip the panel collapsed flag
-            this.isPanelCollapsed = !this.isPanelCollapsed;
+            // flip the panel visible flag
+            this.isPanelVisible = !this.isPanelVisible;
         } else {
             this.toggleSidePanel();
         }
@@ -846,13 +851,15 @@ class HNEnhancer {
         // Clean up existing panel
         if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
             // Remove inline panel elements
-            const existingPanel = document.querySelector('.summary-panel-inline');
+
+            // TODO - these styles are not right - need to review and fix them.
+            const existingPanel = document.querySelector('.summary-panel');
             const existingToggle = document.querySelector('.summary-panel-toggle');
             if (existingPanel) existingPanel.remove();
             if (existingToggle) existingToggle.remove();
         } else {
             // Close side panel if it's open
-            if (!this.isPanelCollapsed) {
+            if (this.isPanelVisible) {
                 this.toggleSidePanel();
             }
         }

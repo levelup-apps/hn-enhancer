@@ -372,24 +372,64 @@ input:checked + .panel-type-slider:before {
     height: 100%;
 }
 
-/* Content wrapper and main content */
-.hn-content-wrapper {
-    /*position: relative;*/
+/* Content wrapper that hosts HN container, resizer and side panel */
+.main-content-wrapper {
     display: flex;
     width: 100%;
     min-height: 100vh;
 }
 
-.main-content-container {
+/* container that hosts the HN main content */
+.hn-content-container {
     flex: 1 0 0;
     transition: margin-right 0.3s ease;
 }
 
+/*!* Resizer gutter *!*/
+/*.panel-resizer_1 {*/
+/*    position: fixed;*/
+/*    right: 330px;*/
+/*    top: 0;*/
+/*    width: 5px;*/
+/*    height: 100vh;*/
+/*    background-color: #ff6600;*/
+/*    cursor: col-resize;*/
+/*    z-index: 101;*/
+/*    transition: right 0.3s ease;*/
+/*}*/
+
+.panel-resizer {
+    display: block;
+    width: 16px;
+    padding: 0;
+    border: none;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+    cursor: col-resize;
+    background-color: #ff6600;
+    /*transition: right 0.1s ease;*/
+    /*    TODO - remove if possible */
+    /*height: 100vh;*/
+}
+
+/* to show the faint line at the center of the resize button*/
+/*.panel-resizer:before {*/
+/*    width: 1px;*/
+/*    background-color: grey;*/
+/*}*/
+
+.panel-resizer:hover {
+    background-color: #ff7733;
+}
+
+.panel-resizer:active {
+    background-color: #ff884d;
+}
 
 /* Summary panel */
-.summary-panel-inline {
-
-    flex: 0 0 400px;
+.summary-panel {
+    flex: 0 0 400px; /* grow :0, shrink: 0, basis: 400px */
     background-color: #f6f6ef;
     /*border-left: 2px solid #ff6600;*/
     padding: 16px;
@@ -446,52 +486,11 @@ input:checked + .panel-type-slider:before {
     line-height: 1.4;
 }
 
-/* Resizer gutter */
-.panel-resizer_1 {
-    position: fixed;
-    right: 330px;
-    top: 0;
-    width: 5px;
-    height: 100vh;
-    background-color: #ff6600;
-    cursor: col-resize;
-    z-index: 101;
-    transition: right 0.3s ease;
-}
-.panel-resizer {
-    display: block;
-    width: 16px;
-    padding: 0;
-    border: none;
-    position: relative;
-    z-index: 2;
-    pointer-events: auto;
-    cursor: col-resize;
-    background-color: #ff6600;
-    /*transition: right 0.1s ease;*/
-    /*    TODO - remove if possible */
-    /*height: 100vh;*/
-}
-
-/* to show the faint line at the center of the resize button*/
-/*.panel-resizer:before {*/
-/*    width: 1px;*/
-/*    background-color: grey;*/
+/*!* Panel collapse state *!*/
+/*.summary-panel.collapsed {*/
+/*    width: 0;*/
 /*}*/
 
-.panel-resizer:hover {
-    background-color: #ff7733;
-}
-
-.panel-resizer:active {
-    background-color: #ff884d;
-}
-
-/* Panel collapse state */
-.summary-panel.collapsed {
-    width: 0;
-}
-
-.summary-panel.collapsed + .panel-resizer {
-    right: 0;
-}
+/*.summary-panel.collapsed + .panel-resizer {*/
+/*    right: 0;*/
+/*}*/
