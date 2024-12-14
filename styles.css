@@ -321,7 +321,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: #ff6600;
     transition: .3s;
     border-radius: 24px;
 }
@@ -338,9 +338,10 @@
     border-radius: 50%;
 }
 
-input:checked + .panel-type-slider {
-    background-color: #ff6600;
-}
+/*input:checked + .panel-type-slider {*/
+/*    background-color: #ff6600;*/
+/*}*/
+
 
 input:checked + .panel-type-slider:before {
     transform: translateX(22px);
@@ -358,7 +359,6 @@ input:checked + .panel-type-slider:before {
     font-weight: bold;
 }
 .panel-type-toggle:hover {
-    background-color: #ff7700;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 

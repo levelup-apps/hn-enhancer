@@ -13,32 +13,44 @@ class HNEnhancer {
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
 
-        // Set the summary type - INLINE for the inline panel or 'SIDEPANEL for the Chrome side panel
-        this.summaryType = HNEnhancer.SummaryType.INLINE;
-        // this.summaryType = HNEnhancer.SummaryType.SIDEPANEL;
+        this.createHelpIcon();
+        this.updateCommentCounts();
+        this.setupHoverEvents();
 
-        // Create and show the panel at initial load
-        this.summaryPanel = this.createSummaryPanel();
-
-        // if the panel is visible, close it at initial load
-        if(this.isPanelVisible) {
-            this.toggleSummaryPanel();
-        }
-        this.isSidePanelLoaded = false;
+        const panelType = HNEnhancer.SummaryType.INLINE;
+        // const panelType = HNEnhancer.SummaryType.SIDEPANEL;
+        this.loadSummaryPanel(panelType); // Initialize the summary panel
 
         // Add the toggle button to switch between the panel type (inline or side panel)
         this.panelTypeToggle = this.createPanelTypeToggle();
 
-        this.init();
-    }
-
-    init() {
-        this.createHelpIcon();
-        this.updateCommentCounts();
-        this.setupHoverEvents();
+        // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
         this.initCommentNavigation(); // Initialize comment navigation
     }
 
+    loadSummaryPanel(panelType) {
+        if(panelType === HNEnhancer.SummaryType.INLINE) {
+            // Create the summary panel. If it is already created, don't create it again (the DOM will be messed up).
+            if(!this.summaryPanel) {
+                this.summaryPanel = this.initSummaryInlinePanel();
+            }
+            // set the panel type before calling any other method that depends on the panel type
+            this.summaryType = panelType;
+
+            if (this.isPanelVisible) {
+                // Hide the panel until the user opens it with the shortcut
+                this.toggleSummaryPanel();
+            }
+        } else {
+            // Initialize Chrome side panel by subscribing to Chrome messages to know when side panel is loaded.
+            // The actual panel will be created by Chrome when the user opens it with the toolbar button / shortcut key.
+            this.initSummarySidePanel();
+            // set the panel type before calling any other method that depends on the panel type
+            this.summaryType = panelType;
+
+            this.isSidePanelLoaded = false;
+        }
+    }
 
     toggleHelpModal(show) {
         this.helpModal.style.display = show ? 'flex' : 'none';
@@ -297,8 +309,8 @@ class HNEnhancer {
         }
 
         // Make sure that the panel to display the new content is available - inline or side panel
-        if(this.summaryType === HNEnhancer.SummaryType.INLINE) {
-            if(!this.summaryPanel.querySelector('.summary-panel-content')) {
+        if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            if (!this.summaryPanel.querySelector('.summary-panel-content')) {
                 console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
                 return;
             }
@@ -317,7 +329,7 @@ class HNEnhancer {
 
         const summary = this.summarizeText(commentText);
 
-        if(this.summaryType === HNEnhancer.SummaryType.INLINE) {
+        if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
             // Create summary content
             const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
             summaryContentElement.innerHTML = `
@@ -633,12 +645,6 @@ class HNEnhancer {
         });
     }
 
-    createSummaryPanel() {
-        return this.summaryType === HNEnhancer.SummaryType.INLINE ?
-            this.initSummaryInline() :
-            this.initSummarySidePanel();
-    }
-
     initSummarySidePanel() {
         console.log('content.js: initSummarySidePanel(): Subscribing to chrome runtime messages');
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -654,18 +660,38 @@ class HNEnhancer {
         return null;
     }
 
+    async isPanelOpen() {
+
+        let isPanelOpen = false;
+
+        if(this.summaryType === HNEnhancer.SummaryType.INLINE) {
+            isPanelOpen = this.summaryPanel && this.summaryPanel.style.display !== 'none';
+        } else {
+            try {
+                // First send a message to check if the panel is open before trying to open or close it.
+                let messageName = 'is_panel_open';
+                console.log(`content.js: Sending message ${messageName}`);
+
+                const isOpenResponse = await chrome.runtime.sendMessage({type: messageName, data: {}});
+                console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(isOpenResponse)}`);
+
+                // Check the response to determine the next message to send - close the panel if it is open, otherwise open it.
+                if(isOpenResponse && isOpenResponse.data.isOpen){
+                    isPanelOpen = true;
+                }
+            } catch (error) {
+                console.error(`content.js: Error sending message. Error: ${JSON.stringify(error)}`);
+            }
+        }
+        return isPanelOpen;
+    }
+
     async toggleSidePanel() {
 
         try {
-            // First send a message to check if the panel is open before trying to open or close it.
-            let messageName = 'is_panel_open';
-            console.log(`content.js: Sending message ${messageName}`);
-
-            const isOpenResponse = await chrome.runtime.sendMessage({type: messageName, data: {}});
-            console.log(`content.js: Success sending message ${messageName}. Received response: ${JSON.stringify(isOpenResponse)}`);
-
-            // Check the response to determine the next message to send - close the panel if it is open, otherwise open it.
-            messageName = (isOpenResponse && isOpenResponse.data.isOpen) ? 'close_side_panel' : 'open_side_panel';
+            // Check is the panel is open. Then close the panel if it is open, otherwise open it.
+            const isPanelOpen = await this.isPanelOpen();
+            const messageName = isPanelOpen ? 'close_side_panel' : 'open_side_panel';
 
             // Now send the open/close message to the side panel
             console.log(`content.js: Sending message ${messageName}`);
@@ -703,7 +729,7 @@ class HNEnhancer {
         };
     }
 
-    initSummaryInline() {
+    initSummaryInlinePanel() {
         // Create wrapper for main content, resizer and panel
         const mainWrapper = document.createElement('div');
         mainWrapper.className = 'main-content-wrapper';
@@ -768,7 +794,7 @@ class HNEnhancer {
             if (!isResizing) return;
 
             // Find the new width based on the delta between start and current mouse position
-            const { minWidth, maxWidth } = this.calculatePanelConstraints();
+            const {minWidth, maxWidth} = this.calculatePanelConstraints();
 
             const deltaX = e.clientX - startX;
             const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
@@ -788,7 +814,7 @@ class HNEnhancer {
         window.addEventListener('resize', () => {
             // Only adjust the panel width if it's visible
             if (this.isPanelVisible) {
-                const { minWidth, maxWidth } = this.calculatePanelConstraints();
+                const {minWidth, maxWidth} = this.calculatePanelConstraints();
                 const currentWidth = panel.offsetWidth;
 
                 if (currentWidth < minWidth) {
@@ -803,7 +829,7 @@ class HNEnhancer {
         mainWrapper.appendChild(resizer);   // main-content-wrapper > panel-resizer
         mainWrapper.appendChild(panel);     // main-content-wrapper > summary-panel
 
-        // Panel is visible now, set it to true before returning
+        // Panel is visible now, so set the corresponding flag to true to keep it in sync
         this.isPanelVisible = true;
 
         return panel;
@@ -850,7 +876,7 @@ class HNEnhancer {
 
         const sideLabel = document.createElement('span');
         sideLabel.className = 'panel-type-label' + (this.summaryType === HNEnhancer.SummaryType.SIDEPANEL ? ' active' : '');
-        sideLabel.textContent = 'G Side';
+        sideLabel.textContent = 'Google Side';
 
         // Add event listener
         input.onchange = () => {
@@ -887,29 +913,20 @@ class HNEnhancer {
         return toggle;
     }
 
-    switchToPanelType(newType) {
+    async switchToPanelType(newType) {
         // If switching to the same type, do nothing
         if (this.summaryType === newType) return;
 
-        // Clean up existing panel
-        if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
-            // Remove inline panel elements
-
-            // TODO - these styles are not right - need to review and fix them.
-            const existingPanel = document.querySelector('.summary-panel');
-            const existingToggle = document.querySelector('.summary-panel-toggle');
-            if (existingPanel) existingPanel.remove();
-            if (existingToggle) existingToggle.remove();
-        } else {
-            // Close side panel if it's open
-            if (this.isPanelVisible) {
-                this.toggleSidePanel();
-            }
+        // close the summary panel if it is open
+        // if (this.summaryType === HNEnhancer.SummaryType.INLINE && this.isPanelVisible) {
+        //     this.toggleSummaryPanel();
+        // }
+        if(await this.isPanelOpen()) {
+            this.toggleSummaryPanel();
         }
 
-        // Update type and create new panel
-        this.summaryType = newType;
-        this.summaryPanel = this.createSummaryPanel();
+        // initialize the summary panel - this method will init the appropriate panel based on the summary type
+        this.loadSummaryPanel(newType);
 
         // Update current comment's summary in the new panel
         if (this.currentComment) {
