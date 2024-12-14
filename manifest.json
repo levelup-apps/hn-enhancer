@@ -16,16 +16,6 @@
     "https://news.ycombinator.com/*",
     "https://hn.algolia.com/*"
   ],
-  "permissions": [
-    "sidePanel",
-    "tabs"
-  ],
-  "action": {
-    "default_title": "Click to open panel"
-  },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "content_scripts": [
     {
       "matches": [
