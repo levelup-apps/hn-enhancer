@@ -14,12 +14,14 @@ class HNEnhancer {
         this.helpModal = this.createHelpModal();
 
         // Set the summary type - INLINE for the inline panel or 'SIDEPANEL for the Chrome side panel
-        // this.summaryType = HNEnhancer.SummaryType.INLINE;
-        this.summaryType = HNEnhancer.SummaryType.SIDEPANEL;
+        this.summaryType = HNEnhancer.SummaryType.INLINE;
+        // this.summaryType = HNEnhancer.SummaryType.SIDEPANEL;
 
+        // Create and show the panel at initial load
         this.summaryPanel = this.createSummaryPanel();
-        this.isPanelCollapsed = true;
+        this.isPanelCollapsed = false;  // the panel is not collapsed at initial load
         this.isSidePanelLoaded = false;
+
         // Add the toggle button to switch between the panel type (inline or side panel)
         this.panelTypeToggle = this.createPanelTypeToggle();
 
@@ -708,16 +710,16 @@ class HNEnhancer {
         const content = document.createElement('div');
         content.className = 'summary-panel-content';
         content.innerHTML = `
-        <div class="summary-author">Loading...</div>
-        <div class="summary-metadata"></div>
-        <div class="summary-text"></div>
-    `;
+            <div class="summary-author">Loading...</div>
+            <div class="summary-metadata"></div>
+            <div class="summary-text"></div>
+        `;
 
         panel.appendChild(header);
         panel.appendChild(content);
 
-        // Create resizer bar
-        const resizer = document.createElement('div');
+        // Create resizer button
+        const resizer = document.createElement('button');
         resizer.className = 'panel-resizer';
 
         // Add resize functionality
@@ -727,25 +729,22 @@ class HNEnhancer {
 
         resizer.addEventListener('mousedown', (e) => {
             isResizing = true;
-            startX = e.pageX;
-            startWidth = parseInt(window.getComputedStyle(panel).width, 10);
+            startX = e.clientX;
+            startWidth = panel.offsetWidth;
+
             document.body.style.userSelect = 'none'; // Prevent text selection while resizing
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
-            const diffX = startX - e.pageX;
-            const newWidth = Math.max(200, Math.min(800, startWidth + diffX));
+            // Find the new width based on the delta between start and current mouse position
+            const deltaX =  e.clientX - startX;
+            const newWidth = Math.max(400, Math.min(672, startWidth - deltaX));
 
-            // Update panel width
-            panel.style.width = `${newWidth}px`;
+            // Update panel width (when the flex-direction is row, flex-basis is the width)
+            panel.style.flexBasis = `${newWidth}px`;
 
-            // Update resizer position
-            resizer.style.right = `${newWidth}px`;
-
-            // Update main content margin
-            mainContainer.style.marginRight = `${newWidth + 5}px`; // 5px for resizer width
         });
 
         document.addEventListener('mouseup', () => {
@@ -756,32 +755,27 @@ class HNEnhancer {
         });
 
         // Add panel and resizer to wrapper
-        wrapper.appendChild(panel);
         wrapper.appendChild(resizer);
+        wrapper.appendChild(panel);
 
         return panel;
     }
 
     toggleSummaryPanel() {
         if (this.summaryType === HNEnhancer.SummaryType.INLINE) {
-            this.isPanelCollapsed = !this.isPanelCollapsed;
-            const wrapper = document.querySelector('.hn-content-wrapper');
-            const mainContent = document.querySelector('.main-content-container');
             const panel = this.summaryPanel;
             const resizer = document.querySelector('.panel-resizer');
 
             if (this.isPanelCollapsed) {
-                panel.style.width = '0';
-                mainContent.style.marginRight = '0';
-                resizer.style.right = '0';
-                resizer.style.display = 'none';
+                panel.style.removeProperty('display');  // Remove the display:none
+                resizer.style.removeProperty('display');  // Remove the display:none
             } else {
-                const width = '300';
-                panel.style.width = `${width}px`;
-                mainContent.style.marginRight = `${parseInt(width) + 5}px`;
-                resizer.style.right = `${width}px`;
-                resizer.style.display = 'block';
+                panel.style.display = 'none';
+                resizer.style.display = 'none';
             }
+
+            // flip the panel collapsed flag
+            this.isPanelCollapsed = !this.isPanelCollapsed;
         } else {
             this.toggleSidePanel();
         }

@@ -215,7 +215,7 @@
 
 .chrome-summary-panel-inline {
     position: fixed;
-    width: 300px;
+    width: 400px;
 }
 .chrome-summary-panel.collapsed {
     transform: translateX(100%);
@@ -374,30 +374,32 @@ input:checked + .panel-type-slider:before {
 
 /* Content wrapper and main content */
 .hn-content-wrapper {
-    position: relative;
+    /*position: relative;*/
     display: flex;
     width: 100%;
     min-height: 100vh;
 }
 
 .main-content-container {
-    flex: 1;
+    flex: 1 0 0;
     transition: margin-right 0.3s ease;
 }
 
+
 /* Summary panel */
 .summary-panel-inline {
-    position: fixed;
-    right: 0;
-    top: 0;
-    height: 100vh;
-    width: 300px;
+
+    flex: 0 0 400px;
     background-color: #f6f6ef;
     /*border-left: 2px solid #ff6600;*/
     padding: 16px;
     z-index: 100;
     overflow-y: auto;
-    transition: width 0.3s ease;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+
+    transition: transform 0.3s ease;
+    /*transition: width 0.3s ease;*/
+    /*transition: flex-basis 0.2s ease; !* Smooth resize *!*/
 }
 
 /* Panel content styling */
@@ -445,7 +447,7 @@ input:checked + .panel-type-slider:before {
 }
 
 /* Resizer gutter */
-.panel-resizer {
+.panel-resizer_1 {
     position: fixed;
     right: 330px;
     top: 0;
@@ -456,6 +458,26 @@ input:checked + .panel-type-slider:before {
     z-index: 101;
     transition: right 0.3s ease;
 }
+.panel-resizer {
+    display: block;
+    width: 16px;
+    padding: 0;
+    border: none;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+    cursor: col-resize;
+    background-color: #ff6600;
+    /*transition: right 0.1s ease;*/
+    /*    TODO - remove if possible */
+    /*height: 100vh;*/
+}
+
+/* to show the faint line at the center of the resize button*/
+/*.panel-resizer:before {*/
+/*    width: 1px;*/
+/*    background-color: grey;*/
+/*}*/
 
 .panel-resizer:hover {
     background-color: #ff7733;
