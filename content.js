@@ -679,9 +679,9 @@ class HNEnhancer {
 
     calculatePanelConstraints() {
         const mainWrapper = document.querySelector('.main-content-wrapper');
-        const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 16 : window.innerWidth - 16;
+        const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 8 : window.innerWidth - 8;
 
-        const resizerWidth = 16;
+        const resizerWidth = 8;
 
         if (availableWidth < 768) {
             return {

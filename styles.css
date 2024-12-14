@@ -400,14 +400,13 @@ input:checked + .panel-type-slider:before {
 
 .panel-resizer {
     display: block;
-    width: 16px;
+    width: 8px;
     padding: 0;
     border: none;
     position: relative;
     z-index: 2;
     pointer-events: auto;
     cursor: col-resize;
-    background-color: #ff6600;
     /*transition: right 0.1s ease;*/
 }
 
@@ -418,11 +417,11 @@ input:checked + .panel-type-slider:before {
 /*}*/
 
 .panel-resizer:hover {
-    background-color: #ff7733;
+    background-color: #F9DAC7;
 }
 
 .panel-resizer:active {
-    background-color: #ff884d;
+    background-color: #F9DAC7;
 }
 
 /* Summary panel */
