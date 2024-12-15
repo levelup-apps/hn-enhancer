@@ -211,8 +211,9 @@
 }
 
 .panel-resizer {
-    display: block;
-    width: 8px;
+    /*display: block;*/
+    /*width: 8px;*/
+    flex: 0 0 8px;  /* grow :0, shrink: 0, basis: 8px */
     padding: 0;
     border: none;
     position: relative;
@@ -238,7 +239,7 @@
 
 /* Summary panel */
 .summary-panel {
-    flex: 0 0 400px; /* grow :0, shrink: 0, basis: 400px */
+    flex: 0 1 400px; /* grow :0, shrink: 1, basis: 400px */
     position: sticky;
     top:0;
     align-self: flex-start;

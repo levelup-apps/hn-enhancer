@@ -618,6 +618,12 @@ class HNEnhancer {
     }
 
     calculatePanelConstraints() {
+        // set the fixed min/max width for now, in the next iteration we will make them responsive
+        return {
+            minWidth: 400,
+            maxWidth: 700
+        }
+
         const mainWrapper = document.querySelector('.main-content-wrapper');
         const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 8 : window.innerWidth - 8;
 
@@ -695,27 +701,50 @@ class HNEnhancer {
         let startX;
         let startWidth;
 
+        // define the constants that are required to compute the new width - constants are better than computing
+        // it dynamically using getComputedStyle() for better performance.
+        const resizerWidth = 8;
+
         resizer.addEventListener('mousedown', (e) => {
             isResizing = true;
             startX = e.clientX;
-            startWidth = panel.offsetWidth;
-
+            startWidth = panel.offsetWidth; // This will be the flex-basis value including the 16px padding on each side
             // Prevent text selection while resizing
             document.body.style.userSelect = 'none';
+
+            // Prevent default dragging behavior
+            e.preventDefault();
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
-            // Find the new width based on the delta between start and current mouse position
+            // Calculate the new width of summary panel based on the delta between start and current mouse position
+
             const {minWidth, maxWidth} = this.calculatePanelConstraints();
 
-            const deltaX = e.clientX - startX;
-            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
+            // panel is moving from right to left, so x is decreasing from start to current position
+            const deltaX = startX - e.clientX ;
+            const newPanelWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
 
             // Update panel width (when the flex-direction is row, flex-basis is the width)
-            panel.style.flexBasis = `${newWidth}px`;
+            panel.style.flexBasis = `${newPanelWidth}px`;
 
+            // console.log(`BEFORE: hnTable.width: ${hnTable.offsetWidth}, startWidth:${startWidth}, startX: ${startX}, e.clientX: ${e.clientX}, newWidth: ${newPanelWidth}`);
+
+            // Calculate the new width of the main HN table based on the new panel width. This is in 85% by default.
+            const hnTable = document.querySelector('#hnmain');
+
+            const viewportWidth = window.innerWidth;
+            const availableWidth = viewportWidth - newPanelWidth - resizerWidth; // 8px resizer width, 32px padding
+            const movePercent = (viewportWidth - e.clientX) / availableWidth; // Adjust range
+
+            // Scale from 85 to 99 more aggressively
+            const tableWidthPercent = 85 + (14 * Math.min(1, movePercent * 1.5)); // Increase scaling factor
+            const clampedTableWidthPercent = Math.min(99, Math.max(85, tableWidthPercent));
+            hnTable.style.width = `${clampedTableWidthPercent}%`;
+
+            // console.log(`AFTER: hnTable.width: ${hnTable.offsetWidth}, newWidth: ${newPanelWidth}, clampedTableWidth: ${clampedTableWidthPercent}`);
         });
 
         document.addEventListener('mouseup', () => {
