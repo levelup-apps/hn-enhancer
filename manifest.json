@@ -13,10 +13,22 @@
     "ArROXQIdYHn8CEwJCT02qMPHvAmS6ih8t1ZHiT5FpVVX3ayKlN47tmWAhqX/XnBiUQsuTd2hvPZUX4SevnGDPg8AAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vbWJnZGJnZmRoZGhjbGJrYWNraGtsY2JlY2NtZWFrYmUiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ==",
     "AmvawA4HIg2FLhHRUdEaYpysamI5CI2wqhOkrSBLAe6gEwwNomjZYSeI/0Ni3gFZFQ6ED9BkQRwp31jRxRQbbwAAAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8va2hmY2FpbmVsY2FlZG1taGppY3BoYmtwaWdrbGVqZ2YiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ=="
   ],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://news.ycombinator.com/*",
     "https://hn.algolia.com/*"
   ],
+  "optional_host_permissions": [
+    "https://api.openai.com/v1/chat/completions/*",
+    "https://api.anthropic.com/v1/messages/*",
+    "http://localhost:11434/*"
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
   "content_scripts": [
     {
       "matches": [
@@ -31,7 +43,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["page-script.js"],
+    "resources": ["page-script.js", "styles.css"],
     "matches": ["https://news.ycombinator.com/*"]
   }]
 }
