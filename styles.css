@@ -211,30 +211,46 @@
 }
 
 .panel-resizer {
-    /*display: block;*/
-    /*width: 8px;*/
     flex: 0 0 8px;  /* grow :0, shrink: 0, basis: 8px */
     padding: 0;
     border: none;
-    position: relative;
-    z-index: 2;
+
+    position: sticky;
+    top: 0;
+    height: 100vh;
+
     pointer-events: auto;
     cursor: col-resize;
-    /*transition: right 0.1s ease;*/
+
+    background-color: #f6f6ef;
+    transition: background-color 0.2s ease;  /* Smooth color transition */
 }
 
-/* to show the faint line at the center of the resize button*/
-/*.panel-resizer:before {*/
-/*    width: 1px;*/
-/*    background-color: grey;*/
-/*}*/
+/* show a grip handle to indicate that this button can be used to resize the summary panel */
+.panel-resizer::after {
+    content: "";             /* Required - even if empty */
+    position: absolute;      /* Position relative to the handle */
+    left: 3px;              /* Position from left of handle */
+    top: 50vh;              /* Center vertically */
+    height: 30px;           /* Height of the grip line */
+    width: 2px;             /* Width of the grip line */
+    border-radius: 1px;     /* Slightly rounded corners */
+    transform: translateY(-50%); /* Perfect vertical centering */
+
+    background-color: #888;       /* Color of the grip line */
+    opacity: 0.7;
+    transition: opacity 0.2s ease;  /* Smooth opacity transition */
+}
 
 .panel-resizer:hover {
-    background-color: #F9DAC7;
+    background-color: rgba(249, 218, 199, 0.8);  /* Slightly transparent peach */
 }
 
+.panel-resizer:hover::after {
+    opacity: 1;  /* Full opacity on hover */
+}
 .panel-resizer:active {
-    background-color: #F9DAC7;
+    background-color: rgba(249, 218, 199, 1);  /* Full opacity when dragging */
 }
 
 /* Summary panel */
@@ -249,15 +265,6 @@
     height: 100vh;
 
     transition: transform 0.3s ease;
-    /*transition: width 0.3s ease;*/
-    /*transition: flex-basis 0.2s ease; !* Smooth resize *!*/
-}
-
-@media (max-width: 768px) {
-
-    .summary-panel {
-        /*flex: 0 9999999 200px; !* grow :0, shrink: 1, basis: 200px *!*/
-    }
 }
 
 /* Panel content styling */

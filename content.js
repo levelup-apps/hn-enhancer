@@ -686,8 +686,8 @@ class HNEnhancer {
         panel.appendChild(header);
         panel.appendChild(content);
 
-        // Create resizer button
-        const resizer = document.createElement('button');
+        // Create a vertical element to resize the panel
+        const resizer = document.createElement('div');
         resizer.className = 'panel-resizer';
 
         // Add resize functionality
