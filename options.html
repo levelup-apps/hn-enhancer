@@ -14,23 +14,52 @@
             <legend class="text-sm/6 font-semibold text-gray-900">LLM Settings</legend>
             <p class="mt-1 text-sm/6 text-gray-600">Configure LLM to use for summarization.</p>
             <div class="mt-6 space-y-6">
-                <div class="flex items-center">
-                    <input id="openai" name="notification-method" type="radio" checked
-                           class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                    <label for="openai" class="ml-3 block text-sm/6 font-medium text-gray-900">OpenAI</label>
-
-
-
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="openai" name="notification-method" type="radio" checked
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="openai" class="ml-3 block text-sm/6 font-medium text-gray-900">OpenAI</label>
+                    </div>
+                    <div class="ml-7">
+                        <label for="openai-key" class="sr-only">Enter OpenAI API Key</label>
+                        <input type="password"
+                               id="openai-key"
+                               name="openai-key"
+                               placeholder="Enter OpenAI API Key"
+                               class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
+                    </div>
                 </div>
-                <div class="flex items-center">
-                    <input id="anthropic" name="notification-method" type="radio"
-                           class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                    <label for="anthropic" class="ml-3 block text-sm/6 font-medium text-gray-900">Anthropic</label>
+
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="anthropic" name="notification-method" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="anthropic" class="ml-3 block text-sm/6 font-medium text-gray-900">Anthropic</label>
+                    </div>
+                    <div class="ml-7">
+                        <label for="anthropic-key" class="sr-only">Enter Anthropic API Key</label>
+                        <input type="password"
+                               id="anthropic-key"
+                               name="anthropic-key"
+                               class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                               placeholder="Enter Anthropic API Key">
+                    </div>
                 </div>
-                <div class="flex items-center">
-                    <input id="ollama" name="notification-method" type="radio"
-                           class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                    <label for="ollama" class="ml-3 block text-sm/6 font-medium text-gray-900">Ollama</label>
+
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="ollama" name="notification-method" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="ollama" class="ml-3 block text-sm/6 font-medium text-gray-900">Ollama</label>
+                    </div>
+                    <div class="ml-7">
+                        <label for="ollama-key" class="sr-only">Enter Ollama API Key</label>
+                        <input type="password"
+                               id="ollama-key"
+                               name="ollama-key"
+                               placeholder="Enter Ollama API Key"
+                               class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
+                    </div>
                 </div>
             </div>
         </fieldset>
@@ -44,6 +73,5 @@
         </div>
     </form>
 </div>
-
 </body>
 </html>
