@@ -617,35 +617,29 @@ class HNEnhancer {
         });
     }
 
-    calculatePanelConstraints() {
-        // set the fixed min/max width for now, in the next iteration we will make them responsive
-        return {
-            minWidth: 400,
-            maxWidth: 700
-        }
+    calculatePanelConstraints(maxAvailableWidth) {
 
-        const mainWrapper = document.querySelector('.main-content-wrapper');
-        const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 8 : window.innerWidth - 8;
-
-        const resizerWidth = 8;
-
-        if (availableWidth < 768) {
+        // Calculate the min and max width based on the max available width
+        // - on small screens, the panel should take 85%-95% of the available width
+        // - on medium screens, the panel should take 30%-50% of the available width
+        // - on large screens, the panel should take 20%-35% of the available width
+        if (maxAvailableWidth < 768) {
             return {
-                minWidth: Math.min(200, availableWidth * 0.85),
-                maxWidth: Math.min(300, availableWidth * 0.95)
+                minWidth: Math.min(200, maxAvailableWidth * 0.85),
+                maxWidth: Math.min(300, maxAvailableWidth * 0.95)
             };
         }
 
-        if (availableWidth < 1024) {
+        if (maxAvailableWidth < 1024) {
             return {
-                minWidth: Math.min(350, availableWidth * 0.3),
-                maxWidth: Math.min(500, availableWidth * 0.5)
+                minWidth: Math.min(350, maxAvailableWidth * 0.6),
+                maxWidth: Math.min(500, maxAvailableWidth * 0.8)
             };
         }
 
         return {
-            minWidth: Math.min(400, availableWidth * 0.25),
-            maxWidth: Math.min(700 - resizerWidth, availableWidth * 0.4)
+            minWidth: Math.min(400, maxAvailableWidth * 0.3),
+            maxWidth: Math.min(700, maxAvailableWidth * 0.4)
         };
     }
 
@@ -721,7 +715,13 @@ class HNEnhancer {
 
             // Calculate the new width of summary panel based on the delta between start and current mouse position
 
-            const {minWidth, maxWidth} = this.calculatePanelConstraints();
+            // Calculate the min and max width of the panel based on the max available width
+            //   Note - Summary panel and HN table can shrink/grow as the panel resizer moves left/right
+            const maxAvailableWidth = mainWrapper.offsetWidth - resizerWidth;
+            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+
+            // console.log(`viewport width: ${window.innerWidth}, mainContentWrapper ow: ${mainWrapper.offsetWidth}, panel ow: ${panel.offsetWidth}`);
+            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
 
             // panel is moving from right to left, so x is decreasing from start to current position
             const deltaX = startX - e.clientX ;
@@ -790,11 +790,28 @@ class HNEnhancer {
 
         // if summary panel and resizer are hidden, show it. Otherwise, hide it.
         if (summaryPanel.style.display === 'none') {
+
+            // Reset the width of the summary panel width based on the available size
+            const mainWrapper = document.querySelector('.main-content-wrapper');
+            const maxAvailableWidth = mainWrapper.offsetWidth - 8;  // 8px resizer width
+            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
+            summaryPanel.style.flexBasis = `${minWidth}px`;
+
             summaryPanel.style.display = 'block';
             resizer.style.display = 'block';
+
+            // remove the min-width of HN table so that the summary panel can take more space
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.minWidth = '0';
         } else {
             summaryPanel.style.display = 'none';
             resizer.style.display = 'none';
+
+            // restore the min-width and width of HN table so that the default behavior is restored
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.removeProperty('min-width');
+            hnTable.style.removeProperty('width');
         }
     }
 
