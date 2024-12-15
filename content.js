@@ -1,4 +1,11 @@
 class HNEnhancer {
+
+    static AI_AVAILABLE = {
+        YES: 'readily',
+        NO: 'no',
+        AFTER_DOWNLOAD: 'after-download'
+    }
+
     constructor() {
         this.authorComments = new Map();    // Store comment elements by author
         this.popup = this.createPopup();
@@ -8,6 +15,7 @@ class HNEnhancer {
         this.currentComment = null;         // Track currently focused comment
         this.helpModal = this.createHelpModal();
         this.summaryPanel = this.createSummaryPanel(); // Initialize the summary panel
+        this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
 
         this.createHelpIcon();
         this.updateCommentCounts();
@@ -298,6 +306,7 @@ class HNEnhancer {
             return;
         }
 
+
         // Get comment metadata
         const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
         const timestamp = comment.querySelector('.age')?.textContent || '';
@@ -320,21 +329,27 @@ class HNEnhancer {
     }
 
     summarizeText(text) {
-        // Basic text summarization (you can enhance this)
-        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        let summary;
+        text = text.trim(); // trim beginning and ending white spaces
 
-        if (sentences.length <= 2) {
-            summary = sentences.join('. ');
-        } else {
-            // Take first and last sentence for a basic summary
-            // summary = sentences[0] + '.......... ' + sentences[sentences.length - 2];
-            summary = text;
+        // check if the word count is less than 50, then don't summarize
+        if(text.split(/\s+/).length < 20)
+            return text;
+
+        if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
+            return text;
         }
-
-        return summary.trim() + '.';
+        window.postMessage({
+            type: 'HN_AI_SUMMARIZE',
+            data: {text}
+        })
+        return 'Summarizing...';
     }
 
+    updateSummaryText(text) {
+        const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
+        summaryTextElement.textContent = text;
+
+    }
     navigateNextChild() {
         if (!this.currentComment) return;
 
@@ -755,6 +770,20 @@ class HNEnhancer {
     }
 
     initSummarizationAI() {
+
+        function parseAvailable(available) {
+            switch (available) {
+                case 'readily':
+                    return HNEnhancer.AI_AVAILABLE.YES;
+                case 'no':
+                    return HNEnhancer.AI_AVAILABLE.NO;
+                case 'after-download':
+                    return HNEnhancer.AI_AVAILABLE.AFTER_DOWNLOAD;
+            }
+            return HNEnhancer.AI_AVAILABLE.NO;
+        }
+
+
         // 1. Inject the script into the webpage's context
         const pageScript = document.createElement('script');
         pageScript.src = chrome.runtime.getURL('page-script.js');
@@ -774,22 +803,23 @@ class HNEnhancer {
                 return;
             }
 
-            console.log('content.js: Received message:', JSON.stringify(event));
+            console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
+
 
             // Handle different message types
             switch (event.data.type) {
-                case 'HN_GET_COMMENTS':
-                    // console.log("Received comments data from webpage:", event.data.comments);
-                    // Process comments data
-                    const processedData = "processComments(event.data.comments)"
-                    // Send back to webpage
-                    window.postMessage({
-                        type: 'HN_PROCESSED_COMMENTS',
-                        data: processedData
-                    }, '*');
+                case 'HN_CHECK_AI_AVAILABLE_RESPONSE':
+                    const available = event.data.data.available;
+
+                    // TODO: Find a better way to set the HNEnhancer instance
+                    document.hnEnhancer.isAiAvailable = parseAvailable(available);
+                    console.log('HN_CHECK_AI_AVAILABLE_RESPONSE', document.hnEnhancer.isAiAvailable);
                     break;
                 case 'HN_CHECK_AI_READY':
-                    console.log('received HN_CHECK_AI_READY', event.data);
+                    break;
+                case 'HN_AI_SUMMARIZE_RESPONSE':
+                    const summary = event.data.data.summary;
+                    document.hnEnhancer.updateSummaryText(summary);
                     break;
             }
         });
