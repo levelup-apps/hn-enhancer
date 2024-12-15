@@ -29,5 +29,9 @@
         "content.js"
       ]
     }
-  ]
+  ],
+  "web_accessible_resources": [{
+    "resources": ["page-script.js"],
+    "matches": ["https://news.ycombinator.com/*"]
+  }]
 }

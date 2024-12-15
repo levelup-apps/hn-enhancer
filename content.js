@@ -21,6 +21,8 @@ class HNEnhancer {
         otMeta.httpEquiv = 'origin-trial';
         otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
         document.head.prepend(otMeta);
+
+        this.initSummarizationAI();
     }
 
     toggleHelpModal(show) {
@@ -750,6 +752,47 @@ class HNEnhancer {
             summaryPanel.style.display = 'none';
             resizer.style.display = 'none';
         }
+    }
+
+    initSummarizationAI() {
+        // 1. Inject the script into the webpage's context
+        const pageScript = document.createElement('script');
+        pageScript.src = chrome.runtime.getURL('page-script.js');
+        (document.head || document.documentElement).appendChild(pageScript);
+
+        pageScript.onload = () => {
+            window.postMessage({
+                type: 'HN_CHECK_AI_AVAILABLE',
+                data: {}
+            });
+        }
+
+        // 2. Listen for messages from the webpage
+        window.addEventListener('message', function (event) {
+            // reject all messages from other domains
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            console.log('content.js: Received message:', JSON.stringify(event));
+
+            // Handle different message types
+            switch (event.data.type) {
+                case 'HN_GET_COMMENTS':
+                    // console.log("Received comments data from webpage:", event.data.comments);
+                    // Process comments data
+                    const processedData = "processComments(event.data.comments)"
+                    // Send back to webpage
+                    window.postMessage({
+                        type: 'HN_PROCESSED_COMMENTS',
+                        data: processedData
+                    }, '*');
+                    break;
+                case 'HN_CHECK_AI_READY':
+                    console.log('received HN_CHECK_AI_READY', event.data);
+                    break;
+            }
+        });
     }
 }
 
