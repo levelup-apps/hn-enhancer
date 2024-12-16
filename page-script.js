@@ -7,7 +7,7 @@
             return;
         }
 
-        console.log('page-Script - Received message:', event.type, JSON.stringify(event.data));
+        // console.log('page-Script - Received message:', event.type, JSON.stringify(event.data));
 
         switch (event.data.type) {
             case 'HN_CHECK_AI_AVAILABLE':
@@ -33,7 +33,7 @@
                 const summary = await summarizer.summarize(event.data.data.text, {
                     context: 'This text is a comment for a tech-savvy audience.',
                 });
-                console.log(summary);
+                // console.log(summary);
 
                 window.postMessage({
                     type: 'HN_AI_SUMMARIZE_RESPONSE',

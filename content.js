@@ -331,23 +331,27 @@ class HNEnhancer {
     summarizeText(text) {
         text = text.trim(); // trim beginning and ending white spaces
 
-        // check if the word count is less than 50, then don't summarize
-        if(text.split(/\s+/).length < 20)
-            return text;
+        // Count sentences by splitting on periods followed by spaces or end of string.
+        //  If less than 3 sentences, do NOT summarize the text using AI.
+        const sentences = text.split(/[.!?]+(?:\s+|$)/);
+
+        // Filter out empty strings that might result from the split
+        const sentenceCount = sentences.filter(sentence => sentence.trim().length > 0).length;
+        if (sentenceCount < 3) {
+            return text + '<br /><em>(Not enough content to summarize)</em>';
+        }
 
         if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
             return text;
         }
-        window.postMessage({
-            type: 'HN_AI_SUMMARIZE',
-            data: {text}
-        })
+        this.summarizeTextWithAI(text);
+
         return 'Summarizing...';
     }
 
     updateSummaryText(text) {
         const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
-        summaryTextElement.textContent = text;
+        summaryTextElement.innerHTML = text;
 
     }
     navigateNextChild() {
@@ -849,8 +853,7 @@ class HNEnhancer {
                 return;
             }
 
-            console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
-
+            // console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
 
             // Handle different message types
             switch (event.data.type) {
@@ -870,6 +873,109 @@ class HNEnhancer {
             }
         });
     }
+
+    summarizeTextWithAI(text) {
+        chrome.storage.sync.get('settings').then(data => {
+            const providerSelection = data.settings?.providerSelection;
+            console.log(`Summarizing text with AI: providerSelection: ${providerSelection}`);
+
+            switch (providerSelection) {
+                case 'chrome-ai':
+                    window.postMessage({
+                        type: 'HN_AI_SUMMARIZE',
+                        data: {text}
+                    });
+                    break;
+
+                case 'openai':
+                    const model = data.settings?.[providerSelection]?.model;
+
+                    const apiKey = data.settings?.[providerSelection]?.apiKey;
+                    console.log(`Summarizing text with AI: model: ${model}`);
+
+                    this.summarizeUsingOpenAI(text, model, apiKey);
+                    break;
+            }
+        }).catch(error => {
+            console.error('Error fetching settings:', error);
+        });
+    }
+
+    summarizeUsingOpenAI(text, model, apiKey) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for OpenAI summarization');
+            this.updateSummaryText('Error: Missing API configuration');
+            return;
+        }
+
+        // Set up the API request
+        const endpoint = 'https://api.openai.com/v1/chat/completions';
+
+        // Create the system message for better summarization
+        const systemMessage = {
+            role: "system",
+            content: "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity."
+        };
+
+        // Create the user message with the text to summarize
+        const userMessage = {
+            role: "user",
+            content: `Please summarize the following text concisely: ${text}`
+        };
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: [systemMessage, userMessage],
+            temperature: 0.3, // Lower temperature for more focused output
+            max_tokens: 150,  // Limit response length for concise summaries
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            const summary = data.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+
+            // Update the summary panel with the generated summary
+            this.updateSummaryText(summary);
+        }).catch(error => {
+            console.error('Error in OpenAI summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+
+            this.updateSummaryText(errorMessage);
+        });
+    }
+
 }
 
 // Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
