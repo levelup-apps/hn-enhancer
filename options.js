@@ -1,8 +1,8 @@
 // Save settings to Chrome storage
 async function saveSettings() {
-    const modelSelection = document.querySelector('input[name="provider-selection"]:checked').id;
+    const providerSelection = document.querySelector('input[name="provider-selection"]:checked').id;
     const settings = {
-        modelSelection,
+        providerSelection,
         openai: {
             apiKey: document.getElementById('openai-key').value,
             model: document.getElementById('openai-model').value
@@ -37,9 +37,9 @@ async function loadSettings() {
         const settings = data.settings;
 
         if (settings) {
-            // Set model selection
-            const modelRadio = document.getElementById(settings.modelSelection);
-            if (modelRadio) modelRadio.checked = true;
+            // Set provider selection
+            const providerRadio = document.getElementById(settings.providerSelection);
+            if (providerRadio) providerRadio.checked = true;
 
             // Set OpenAI settings
             if (settings.openai) {
