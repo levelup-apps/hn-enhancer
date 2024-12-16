@@ -875,9 +875,12 @@ class HNEnhancer {
     }
 
     summarizeTextWithAI(text) {
+
         chrome.storage.sync.get('settings').then(data => {
+
             const providerSelection = data.settings?.providerSelection;
-            console.log(`Summarizing text with AI: providerSelection: ${providerSelection}`);
+            const model = data.settings?.[providerSelection]?.model;
+            console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
 
             switch (providerSelection) {
                 case 'chrome-ai':
@@ -888,12 +891,13 @@ class HNEnhancer {
                     break;
 
                 case 'openai':
-                    const model = data.settings?.[providerSelection]?.model;
-
                     const apiKey = data.settings?.[providerSelection]?.apiKey;
-                    console.log(`Summarizing text with AI: model: ${model}`);
 
                     this.summarizeUsingOpenAI(text, model, apiKey);
+                    break;
+
+                case 'ollama':
+                    this.summarizeUsingOlama(text, model);
                     break;
             }
         }).catch(error => {
@@ -972,6 +976,63 @@ class HNEnhancer {
                 errorMessage += 'Please try again later.';
             }
 
+            this.updateSummaryText(errorMessage);
+        });
+    }
+
+    summarizeUsingOlama(text, model) {
+        // Validate required parameters
+        if (!text || !model) {
+            console.error('Missing required parameters for Ollama summarization');
+            this.updateSummaryText('Error: Missing API configuration');
+            return;
+        }
+
+        // Set up the API request
+        const endpoint = 'http://localhost:11434/api/generate';
+
+        // Create the system message for better summarization
+        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
+
+        // Create the user message with the text to summarize
+        const userMessage = `Please summarize the following text concisely: ${text}`;
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            system: systemMessage,
+            prompt: userMessage,
+            stream: false
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`Ollama API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            const summary = data.response;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+
+            // Update the summary panel with the generated summary
+            this.updateSummaryText(summary);
+        }).catch(error => {
+            console.error('Error in Ollama summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ' + error.message;
             this.updateSummaryText(errorMessage);
         });
     }
