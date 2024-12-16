@@ -6,6 +6,7 @@
     <title>Settings</title>
     <link rel="stylesheet" href="options-styles.css">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <script src="options.js" defer></script>
 </head>
 <body class="flex items-center justify-center bg-gray-100">
 <div class="m-6 p-6 bg-white rounded-lg shadow-md max-w-7xl mx-auto">
@@ -19,7 +20,7 @@
                 <!--Chrome Built-in AI-->
                 <div class="space-y-3">
                     <div class="flex items-center ">
-                        <input id="chrome-ai" name="model-selection" type="radio" checked
+                        <input id="chrome-ai" name="provider-selection" type="radio" checked
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="chrome-ai" class="ml-3 block text-sm font-medium text-gray-900">Chrome Built-in AI</label>
                     </div>
@@ -28,7 +29,7 @@
                 <!-- OpenAI -->
                 <div class="space-y-3">
                     <div class="flex items-center ">
-                        <input id="openai" name="model-selection" type="radio"
+                        <input id="openai" name="provider-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="openai" class="ml-3 block text-sm font-medium text-gray-900">OpenAI</label>
                     </div>
@@ -73,7 +74,7 @@
                 <!-- Anthropic -->
                 <div class="space-y-3">
                     <div class="flex items-center">
-                        <input id="anthropic" name="model-selection" type="radio"
+                        <input id="anthropic" name="provider-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="anthropic" class="ml-3 block text-sm font-medium text-gray-900">Anthropic</label>
                     </div>
@@ -117,7 +118,7 @@
                 <!-- Ollama -->
                 <div class="space-y-3">
                     <div class="flex items-center">
-                        <input id="ollama" name="model-selection" type="radio"
+                        <input id="ollama" name="provider-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="ollama" class="ml-3 block text-sm font-medium text-gray-900">Ollama</label>
                     </div>

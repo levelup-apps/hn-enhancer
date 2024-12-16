@@ -43,7 +43,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["page-script.js", "options-styles.css"],
+    "resources": ["page-script.js", "options-styles.css", "options.js"],
     "matches": ["https://news.ycombinator.com/*"]
   }]
 }
