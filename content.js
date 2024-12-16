@@ -617,29 +617,29 @@ class HNEnhancer {
         });
     }
 
-    calculatePanelConstraints() {
-        const mainWrapper = document.querySelector('.main-content-wrapper');
-        const availableWidth = mainWrapper ? mainWrapper.offsetWidth - 8 : window.innerWidth - 8;
+    calculatePanelConstraints(maxAvailableWidth) {
 
-        const resizerWidth = 8;
-
-        if (availableWidth < 768) {
+        // Calculate the min and max width based on the max available width
+        // - on small screens, the panel should take 85%-95% of the available width
+        // - on medium screens, the panel should take 30%-50% of the available width
+        // - on large screens, the panel should take 20%-35% of the available width
+        if (maxAvailableWidth < 768) {
             return {
-                minWidth: Math.min(200, availableWidth * 0.85),
-                maxWidth: Math.min(300, availableWidth * 0.95)
+                minWidth: Math.min(200, maxAvailableWidth * 0.85),
+                maxWidth: Math.min(300, maxAvailableWidth * 0.95)
             };
         }
 
-        if (availableWidth < 1024) {
+        if (maxAvailableWidth < 1024) {
             return {
-                minWidth: Math.min(350, availableWidth * 0.3),
-                maxWidth: Math.min(500, availableWidth * 0.5)
+                minWidth: Math.min(350, maxAvailableWidth * 0.6),
+                maxWidth: Math.min(500, maxAvailableWidth * 0.8)
             };
         }
 
         return {
-            minWidth: Math.min(400, availableWidth * 0.25),
-            maxWidth: Math.min(700 - resizerWidth, availableWidth * 0.4)
+            minWidth: Math.min(400, maxAvailableWidth * 0.3),
+            maxWidth: Math.min(700, maxAvailableWidth * 0.4)
         };
     }
 
@@ -686,8 +686,8 @@ class HNEnhancer {
         panel.appendChild(header);
         panel.appendChild(content);
 
-        // Create resizer button
-        const resizer = document.createElement('button');
+        // Create a vertical element to resize the panel
+        const resizer = document.createElement('div');
         resizer.className = 'panel-resizer';
 
         // Add resize functionality
@@ -695,27 +695,56 @@ class HNEnhancer {
         let startX;
         let startWidth;
 
+        // define the constants that are required to compute the new width - constants are better than computing
+        // it dynamically using getComputedStyle() for better performance.
+        const resizerWidth = 8;
+
         resizer.addEventListener('mousedown', (e) => {
             isResizing = true;
             startX = e.clientX;
-            startWidth = panel.offsetWidth;
-
+            startWidth = panel.offsetWidth; // This will be the flex-basis value including the 16px padding on each side
             // Prevent text selection while resizing
             document.body.style.userSelect = 'none';
+
+            // Prevent default dragging behavior
+            e.preventDefault();
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
-            // Find the new width based on the delta between start and current mouse position
-            const {minWidth, maxWidth} = this.calculatePanelConstraints();
+            // Calculate the new width of summary panel based on the delta between start and current mouse position
 
-            const deltaX = e.clientX - startX;
-            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
+            // Calculate the min and max width of the panel based on the max available width
+            //   Note - Summary panel and HN table can shrink/grow as the panel resizer moves left/right
+            const maxAvailableWidth = mainWrapper.offsetWidth - resizerWidth;
+            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+
+            // console.log(`viewport width: ${window.innerWidth}, mainContentWrapper ow: ${mainWrapper.offsetWidth}, panel ow: ${panel.offsetWidth}`);
+            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
+
+            // panel is moving from right to left, so x is decreasing from start to current position
+            const deltaX = startX - e.clientX ;
+            const newPanelWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
 
             // Update panel width (when the flex-direction is row, flex-basis is the width)
-            panel.style.flexBasis = `${newWidth}px`;
+            panel.style.flexBasis = `${newPanelWidth}px`;
 
+            // console.log(`BEFORE: hnTable.width: ${hnTable.offsetWidth}, startWidth:${startWidth}, startX: ${startX}, e.clientX: ${e.clientX}, newWidth: ${newPanelWidth}`);
+
+            // Calculate the new width of the main HN table based on the new panel width. This is in 85% by default.
+            const hnTable = document.querySelector('#hnmain');
+
+            const viewportWidth = window.innerWidth;
+            const availableWidth = viewportWidth - newPanelWidth - resizerWidth; // 8px resizer width, 32px padding
+            const movePercent = (viewportWidth - e.clientX) / availableWidth; // Adjust range
+
+            // Scale from 85 to 99 more aggressively
+            const tableWidthPercent = 85 + (14 * Math.min(1, movePercent * 1.5)); // Increase scaling factor
+            const clampedTableWidthPercent = Math.min(99, Math.max(85, tableWidthPercent));
+            hnTable.style.width = `${clampedTableWidthPercent}%`;
+
+            // console.log(`AFTER: hnTable.width: ${hnTable.offsetWidth}, newWidth: ${newPanelWidth}, clampedTableWidth: ${clampedTableWidthPercent}`);
         });
 
         document.addEventListener('mouseup', () => {
@@ -761,11 +790,28 @@ class HNEnhancer {
 
         // if summary panel and resizer are hidden, show it. Otherwise, hide it.
         if (summaryPanel.style.display === 'none') {
+
+            // Reset the width of the summary panel width based on the available size
+            const mainWrapper = document.querySelector('.main-content-wrapper');
+            const maxAvailableWidth = mainWrapper.offsetWidth - 8;  // 8px resizer width
+            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
+            summaryPanel.style.flexBasis = `${minWidth}px`;
+
             summaryPanel.style.display = 'block';
             resizer.style.display = 'block';
+
+            // remove the min-width of HN table so that the summary panel can take more space
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.minWidth = '0';
         } else {
             summaryPanel.style.display = 'none';
             resizer.style.display = 'none';
+
+            // restore the min-width and width of HN table so that the default behavior is restored
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.removeProperty('min-width');
+            hnTable.style.removeProperty('width');
         }
     }
 

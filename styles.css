@@ -1,0 +1,312 @@
+.author-popup {
+    position: absolute;
+    background: white;
+    border: 1px solid #ff6600;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    max-width: 450px;
+    display: none;
+}
+
+.comment-count {
+    color: #666;
+    padding-right: 2px;
+}
+
+.author-nav {
+    padding: 0 2px;
+    color: #828282;
+    cursor: pointer;
+}
+
+.author-nav:hover {
+    color: #ff6600;
+}
+
+.post-author {
+    padding: 0 2px;
+}
+
+.author-separator {
+    padding: 0 4px 0 2px;
+}
+
+.current-comment-indicator {
+    display: inline-block;
+    margin-right: 5px;
+    animation: fade-in 0.3s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+    0% {
+        background-color: transparent;
+    }
+    25% {
+        background-color: rgba(255, 102, 0, 0.2);
+    }
+    75% {
+        background-color: rgba(255, 102, 0, 0.2);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.highlight-author {
+    padding: 2px 4px;
+    background-color: rgba(255, 102, 0, 0.2);
+    border-radius: 2px;
+}
+
+/* Help Icon */
+.help-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #ff6600;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.help-icon:hover {
+    transform: scale(1.1);
+    background-color: #ff8533;
+}
+
+/* Help Modal */
+.keyboard-help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+.keyboard-help-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-help-content h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #ff6600;
+}
+
+.keyboard-help-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.keyboard-help-content tr {
+    border-bottom: 1px solid #eee;
+}
+
+.keyboard-help-content tr:last-child {
+    border-bottom: none;
+}
+
+.keyboard-help-content td {
+    padding: 12px 8px;
+}
+
+.keyboard-help-content td:first-child {
+    width: 100px;
+}
+
+.keyboard-help-content .key {
+    background-color: #f4f4f4;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.help-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 5px 10px;
+}
+
+.help-close-btn:hover {
+    color: #ff6600;
+}
+
+/* Tooltips for current comment */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 10px;
+    background-color: #333;
+    color: white;
+    font-size: 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease;
+}
+
+[data-tooltip]:hover:before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Content wrapper that hosts HN container, resizer and side panel */
+.main-content-wrapper {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* container that hosts the HN main content */
+.hn-content-container {
+    flex: 1 0 0;
+    transition: margin-right 0.3s ease;
+}
+
+.panel-resizer {
+    flex: 0 0 8px;  /* grow :0, shrink: 0, basis: 8px */
+    padding: 0;
+    border: none;
+
+    position: sticky;
+    top: 0;
+    height: 100vh;
+
+    pointer-events: auto;
+    cursor: col-resize;
+
+    background-color: #f6f6ef;
+    transition: background-color 0.2s ease;  /* Smooth color transition */
+}
+
+/* show a grip handle to indicate that this button can be used to resize the summary panel */
+.panel-resizer::after {
+    content: "";             /* Required - even if empty */
+    position: absolute;      /* Position relative to the handle */
+    left: 3px;              /* Position from left of handle */
+    top: 50vh;              /* Center vertically */
+    height: 30px;           /* Height of the grip line */
+    width: 2px;             /* Width of the grip line */
+    border-radius: 1px;     /* Slightly rounded corners */
+    transform: translateY(-50%); /* Perfect vertical centering */
+
+    background-color: #888;       /* Color of the grip line */
+    opacity: 0.7;
+    transition: opacity 0.2s ease;  /* Smooth opacity transition */
+}
+
+.panel-resizer:hover {
+    background-color: rgba(249, 218, 199, 0.8);  /* Slightly transparent peach */
+}
+
+.panel-resizer:hover::after {
+    opacity: 1;  /* Full opacity on hover */
+}
+.panel-resizer:active {
+    background-color: rgba(249, 218, 199, 1);  /* Full opacity when dragging */
+}
+
+/* Summary panel */
+.summary-panel {
+    flex: 0 1 400px; /* grow :0, shrink: 1, basis: 400px */
+    position: sticky;
+    top:0;
+    align-self: flex-start;
+    background-color: #f6f6ef;
+    padding: 16px;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    height: 100vh;
+
+    transition: transform 0.3s ease;
+}
+
+/* Panel content styling */
+.summary-panel-header {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.summary-panel-title {
+    color: #ff6600;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.summary-panel-content {
+    text-align: left;
+    font-family: Verdana, Geneva, sans-serif;
+    font-size: 8pt;
+    color: #828282;
+}
+
+.summary-author {
+    font-weight: bold;
+    color: #ff6600;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+.summary-metadata {
+    color: #828282;
+    font-size: 12px;
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.summary-text {
+    margin-bottom: 15px;
+    color: #000000;
+    font-size: 9pt;
+    text-align: left;
+    line-height: 1.4;
+}
