@@ -30,6 +30,43 @@ async function saveSettings() {
     }
 }
 
+// Fetch Ollama models from API
+async function fetchOllamaModels() {
+    try {
+        const response = await fetch('http://localhost:11434/api/tags');
+        const data = await response.json();
+
+        const selectElement = document.getElementById('ollama-model');
+        // Clear existing options
+        selectElement.innerHTML = '';
+
+        // Add models to select element
+        data.models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.name;
+            option.textContent = model.name;
+            selectElement.appendChild(option);
+        });
+
+        // If no models found, add a placeholder option
+        if (data.models.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No models available';
+            selectElement.appendChild(option);
+        }
+    } catch (error) {
+        console.error('Error fetching Ollama models:', error);
+        // Handle error by adding an error option
+        const selectElement = document.getElementById('ollama-model');
+        selectElement.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Error loading models';
+        selectElement.appendChild(option);
+    }
+}
+
 // Load settings from Chrome storage
 async function loadSettings() {
     try {
@@ -65,6 +102,10 @@ async function loadSettings() {
 
 // Initialize event listeners and load settings
 document.addEventListener('DOMContentLoaded', async () => {
+
+    // Fetch Ollama models before loading other settings
+    await fetchOllamaModels();
+
     // Load saved settings
     await loadSettings();
 
@@ -78,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Add cancel button event listener
     const cancelButton = document.querySelector('button[type="button"]');
     cancelButton.addEventListener('click', () => {
-        loadSettings(); // Reset to saved settings
+        window.close();
     });
 
     // Add radio button change listeners to enable/disable corresponding inputs
