@@ -4,36 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Settings</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="options-styles.css">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
 <body class="flex items-center justify-center bg-gray-100">
 <div class="m-6 p-6 bg-white rounded-lg shadow-md max-w-7xl mx-auto">
     <form>
-        <fieldset class="mt-6">
+        <fieldset>
             <legend class="text-sm/6 font-semibold text-gray-900">LLM Settings</legend>
             <p class="mt-1 text-sm/6 text-gray-600">Configure LLM to use for summarization.</p>
+
             <div class="mt-6 space-y-6">
+
+                <!--Chrome Built-in AI-->
                 <div class="space-y-3">
-                    <div class="flex items-center">
-                        <input id="openai" name="notification-method" type="radio" checked
+                    <div class="flex items-center ">
+                        <input id="chrome-ai" name="model-selection" type="radio" checked
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                        <label for="openai" class="ml-3 block text-sm/6 font-medium text-gray-900">OpenAI</label>
+                        <label for="chrome-ai" class="ml-3 block text-sm font-medium text-gray-900">Chrome Built-in AI</label>
+                    </div>
+                </div>
+
+                <!-- OpenAI -->
+                <div class="space-y-3">
+                    <div class="flex items-center ">
+                        <input id="openai" name="model-selection" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="openai" class="ml-3 block text-sm font-medium text-gray-900">OpenAI</label>
                     </div>
                     <div class="ml-7 space-y-3">
-                        <div>
+                        <div class="mt-2 grid grid-cols-1">
                             <label for="openai-key" class="sr-only">Enter OpenAI API Key</label>
                             <input type="password"
                                    id="openai-key"
                                    name="openai-key"
                                    placeholder="Enter OpenAI API Key"
-                                   class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
+                                   class="col-start-1 row-start-1 block w-full rounded-md bg-white px-3 py-1.5 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                            <svg class="pointer-events-none col-start-1 row-start-1 mr-3 size-5 self-center justify-self-end text-gray-400 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+                                <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.459.134-1.033.566-1.033 1.29v.25a.75.75 0 1 0 1.5 0v-.115a2.5 2.5 0 1 0-2.518-4.153.75.75 0 1 0 1.061 1.06Z" clip-rule="evenodd" />
+                            </svg>
                         </div>
 
                         <div>
-                            <label for="openai-model" class="block text-sm/6 font-medium text-gray-900">Select OpenAI Model</label>
+                            <label for="openai-model" class="block text-sm font-medium text-gray-900">Select OpenAI Model</label>
                             <div class="mt-2 grid grid-cols-1">
-                                <select id="openai-model" name="openai-model" class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
+                                <select id="openai-model" name="openai-model" class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8  text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
                                     <option value="gpt-4">GPT-4</option>
                                     <option value="gpt-4-turbo">GPT-4 Turbo</option>
                                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
@@ -47,11 +62,13 @@
                     </div>
                 </div>
 
+
+                <!-- Anthropic -->
                 <div class="space-y-3">
                     <div class="flex items-center">
-                        <input id="anthropic" name="notification-method" type="radio"
+                        <input id="anthropic" name="model-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                        <label for="anthropic" class="ml-3 block text-sm/6 font-medium text-gray-900">Anthropic</label>
+                        <label for="anthropic" class="ml-3 block text-sm font-medium text-gray-900">Anthropic</label>
                     </div>
                     <div class="ml-7 space-y-3">
                         <div>
@@ -59,15 +76,15 @@
                             <input type="password"
                                    id="anthropic-key"
                                    name="anthropic-key"
-                                   class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                                   class="block w-full rounded-md bg-white px-3 py-1.5 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm/6"
                                    placeholder="Enter Anthropic API Key">
                         </div>
                         <div>
-                            <label for="anthropic-model" class="block text-sm/6 font-medium text-gray-900">Select Anthropic Model</label>
+                            <label for="anthropic-model" class="block text-sm font-medium text-gray-900">Select Anthropic Model</label>
                             <div class="mt-2 grid grid-cols-1">
                                 <select id="anthropic-model"
                                         name="anthropic-model"
-                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
+                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
                                     <option value="claude-3-opus">Claude 3 Opus</option>
                                     <option value="claude-3-sonnet">Claude 3 Sonnet</option>
                                     <option value="claude-3-haiku">Claude 3 Haiku</option>
@@ -80,31 +97,21 @@
                     </div>
                 </div>
 
+                <!-- Ollama -->
                 <div class="space-y-3">
                     <div class="flex items-center">
-                        <input id="ollama" name="notification-method" type="radio"
+                        <input id="ollama" name="model-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                        <label for="ollama" class="ml-3 block text-sm/6 font-medium text-gray-900">Ollama</label>
+                        <label for="ollama" class="ml-3 block text-sm font-medium text-gray-900">Ollama</label>
                     </div>
                     <div class="ml-7 space-y-3">
                         <div>
-                            <label for="ollama-key" class="sr-only">Enter Ollama API Key</label>
-                            <input type="password"
-                                   id="ollama-key"
-                                   name="ollama-key"
-                                   placeholder="Enter Ollama API Key"
-                                   class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="ollama-model" class="block text-sm/6 font-medium text-gray-900">Select Ollama
-                                Model</label>
+                            <label for="ollama-model" class="block text-sm font-medium text-gray-900">Select Ollama Model</label>
                             <div class="mt-2 grid grid-cols-1">
                                 <select id="ollama-model"
                                         name="ollama-model"
-                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm">
-                                    <option value="llama2">Llama 2</option>
-                                    <option value="mistral">Mistral</option>
-                                    <option value="codellama">Code Llama</option>
+                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                                    <option value="llama2"></option>
                                 </select>
                                 <svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
                                     <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
@@ -117,7 +124,7 @@
         </fieldset>
 
         <div class="mt-6 flex items-center justify-end gap-x-6">
-            <button type="button" class="text-sm/6 font-semibold text-gray-900">Cancel</button>
+            <button type="button" class="text-sm font-semibold text-gray-900">Cancel</button>
             <button type="submit"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                 Save
