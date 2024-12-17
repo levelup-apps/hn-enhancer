@@ -24,6 +24,7 @@ class HNEnhancer {
         // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
         this.initCommentNavigation(); // Initialize comment navigation
 
+
         // Origin -> news.ycombinator.com; Registration for Summarization API
         const otMeta = document.createElement('meta');
         otMeta.httpEquiv = 'origin-trial';
@@ -66,7 +67,7 @@ class HNEnhancer {
         try {
             const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
             }
             const jsonData = await response.json();
             return this.convertToPathFormat(jsonData);
@@ -78,15 +79,23 @@ class HNEnhancer {
     convertToPathFormat(thread) {
         const result = [];
 
+        function decodeHTMLEntities(text) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+
         function processNode(node, parentPath = "") {
             const currentPath = parentPath ? parentPath : "1";
 
             let content = "";
 
-            if(node) {
+            if (node) {
                 content = node.title || node.text || "";
-                if(content === null || content === undefined) {
+                if (content === null || content === undefined) {
                     content = "";
+                } else {
+                    content = decodeHTMLEntities(content);
                 }
             }
 
