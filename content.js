@@ -62,6 +62,48 @@ class HNEnhancer {
         }
     }
 
+    async getHNThread(itemId) {
+        try {
+            const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const jsonData = await response.json();
+            return this.convertToPathFormat(jsonData);
+        } catch (error) {
+            throw new Error(`Error fetching HN thread: ${error.message}`);
+        }
+    }
+
+    convertToPathFormat(thread) {
+        const result = [];
+
+        function processNode(node, parentPath = "") {
+            const currentPath = parentPath ? parentPath : "1";
+
+            let content = "";
+
+            if(node) {
+                content = node.title || node.text || "";
+                if(content === null || content === undefined) {
+                    content = "";
+                }
+            }
+
+            result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
+
+            if (node && node.children && node.children.length > 0) {
+                node.children.forEach((child, index) => {
+                    const childPath = `${currentPath}.${index + 1}`;
+                    processNode(child, childPath);
+                });
+            }
+        }
+
+        processNode(thread);
+        return result.join('\n');
+    }
+
     clearHighlight() {
         if (this.activeHighlight) {
             this.activeHighlight.classList.remove('highlight-author');
