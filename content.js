@@ -18,12 +18,17 @@ class HNEnhancer {
         this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
 
         this.createHelpIcon();
-        this.updateCommentCounts();
-        this.setupHoverEvents();
 
-        // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
-        this.initCommentNavigation(); // Initialize comment navigation
-
+        // Initialize home page navigation if on the home page
+        if (this.isHomePage) {
+            this.initHomePageNavigation();
+        }
+        else {
+            // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
+            this.updateCommentCounts();
+            this.setupHoverEvents();
+            this.initCommentNavigation(); // Initialize comment navigation
+        }
 
         // Origin -> news.ycombinator.com; Registration for Summarization API
         const otMeta = document.createElement('meta');
@@ -32,6 +37,10 @@ class HNEnhancer {
         document.head.prepend(otMeta);
 
         this.initSummarizationAI();
+    }
+
+    get isHomePage() {
+        return window.location.pathname === '/' || window.location.pathname === '/news';
     }
 
     toggleHelpModal(show) {
@@ -452,6 +461,7 @@ class HNEnhancer {
             {key: 'z', description: 'Scroll to current comment'},
             {key: 'Space', description: 'Collapse/expand current comment'},
             {key: 'o', description: 'Open original post in new window'},
+            {key: 's', description: 'Open summary panel'},
             {key: '?|/', description: 'Toggle this help panel'}
         ];
 
@@ -1086,6 +1096,62 @@ class HNEnhancer {
             let errorMessage = 'Error generating summary. ' + error.message;
             this.updateSummaryText(errorMessage);
         });
+    }
+
+    initHomePageNavigation() {
+        const posts = document.querySelectorAll('.athing');
+        if (posts.length === 0) return;
+
+        let currentPostIndex = 0;
+        this.setCurrentPost(posts[currentPostIndex]);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
+
+            switch (e.key) {
+                case 'j':
+                    e.preventDefault();
+                    if (currentPostIndex < posts.length - 1) {
+                        currentPostIndex++;
+                        this.setCurrentPost(posts[currentPostIndex]);
+                    }
+                    break;
+                case 'k':
+                    e.preventDefault();
+                    if (currentPostIndex > 0) {
+                        currentPostIndex--;
+                        this.setCurrentPost(posts[currentPostIndex]);
+                    }
+                    break;
+                case 'o':
+                    e.preventDefault();
+                    const postLink = posts[currentPostIndex].querySelector('.titleline a');
+                    if (postLink) {
+                        window.open(postLink.href, '_blank');
+                    }
+                    break;
+                case 'c':
+                    e.preventDefault();
+                    if(!posts[currentPostIndex])
+                        return;
+
+                    const subtext = posts[currentPostIndex].nextElementSibling;
+                    if (subtext) {
+                        const commentsLink = subtext.querySelector('a[href^="item?id="]');
+                        if (commentsLink) {
+                            window.location.href = commentsLink.href;
+                        }
+                    }
+
+                    break;
+            }
+        });
+    }
+
+    setCurrentPost(post) {
+        document.querySelectorAll('.athing').forEach(p => p.classList.remove('highlight-post'));
+        post.classList.add('highlight-post');
+        post.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
 }
