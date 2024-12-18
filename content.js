@@ -1,3 +1,7 @@
+import { Popup } from './popup.js';
+import { Navigation } from './navigation.js';
+import { Summarization } from './summarization.js';
+
 class HNEnhancer {
 
     static AI_AVAILABLE = {
@@ -8,7 +12,7 @@ class HNEnhancer {
 
     constructor() {
         this.authorComments = new Map();    // Store comment elements by author
-        this.popup = this.createPopup();
+        this.popup = new Popup();
         this.postAuthor = this.getPostAuthor();
         this.activeHighlight = null;        // Track currently highlighted element
         this.highlightTimeout = null;       // Track highlight timeout
@@ -22,8 +26,8 @@ class HNEnhancer {
         this.setupHoverEvents();
 
         // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
-        this.initCommentNavigation(); // Initialize comment navigation
-
+        this.navigation = new Navigation(this.summaryPanel);
+        this.navigation.initCommentNavigation(); // Initialize comment navigation
 
         // Origin -> news.ycombinator.com; Registration for Summarization API
         const otMeta = document.createElement('meta');
@@ -31,18 +35,12 @@ class HNEnhancer {
         otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
         document.head.prepend(otMeta);
 
-        this.initSummarizationAI();
+        this.summarization = new Summarization();
+        this.summarization.initSummarizationAI();
     }
 
     toggleHelpModal(show) {
         this.helpModal.style.display = show ? 'flex' : 'none';
-    }
-
-    createPopup() {
-        const popup = document.createElement('div');
-        popup.className = 'author-popup';
-        document.body.appendChild(popup);
-        return popup;
     }
 
     getPostAuthor() {
@@ -132,296 +130,24 @@ class HNEnhancer {
         this.activeHighlight = authorElement;
     }
 
-    initCommentNavigation() {
-        if(!this.summaryPanel) {
-            console.error(`content.js: initCommentNavigation(): Summary panel is not available, so cannot initialize comment navigation.`);
-            return;
-        }
-
-        // Initialize the first comment as current
-        const firstComment = document.querySelector('.athing.comtr');
-        if (firstComment) {
-            this.setCurrentComment(firstComment);
-        }
-
-        // Save the last key press time and last key in order to handle double key press (eg: 'gg')
-        let lastKey = '';
-        let lastKeyPressTime = 0;
-
-        // Add keyboard event listener
-        document.addEventListener('keydown', (e) => {
-            // Handle key press only when it is not in an input field
-            const isInputField = e.target.matches('input, textarea, [contenteditable="true"]');
-            if (isInputField) {
-                return;
-            }
-
-            const result = this.handleKeyboardEvent(e, lastKey, lastKeyPressTime);
-            if(result) {
-                lastKey = result.lastKey;
-                lastKeyPressTime = result.lastKeyPressTime;
-            }
-        });
-    }
-
-    handleKeyboardEvent(e, lastKey, lastKeyPressTime) {
-
-        switch (e.key) {
-
-            case 'j': // Next comment at same depth (same as 'next' hyperlink)
-                e.preventDefault();
-
-                // Find the 'next' hyperlink in the HN nav panel and navigate to it.
-                const nextComment = this.getNavElementByName(this.currentComment, 'next');
-                if (nextComment) {
-                    this.setCurrentComment(nextComment);
-                }
-                break;
-
-            case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
-                e.preventDefault();
-
-                // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
-                const prevComment = this.getNavElementByName(this.currentComment, 'prev');
-                if (prevComment) {
-                    this.setCurrentComment(prevComment);
-                }
-                break;
-
-            case 'l': // Next child
-                if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
-                e.preventDefault();
-                this.navigateNextChild();
-                break;
-
-            case 'h': // Parent comment (same as 'parent' hyperlink)
-                e.preventDefault();
-
-                // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
-                const parentComment = this.getNavElementByName(this.currentComment, 'parent');
-                if (parentComment) {
-                    this.setCurrentComment(parentComment);
-                }
-                break;
-
-            case 'r': // Root comment (same as 'root' hyperlink)
-                e.preventDefault();
-
-                // Find the 'root' hyperlink in the HN nav panel and navigate to it.
-                const rootComment = this.getNavElementByName(this.currentComment, 'root');
-                if (rootComment) {
-                    this.setCurrentComment(rootComment);
-                }
-                break;
-
-            case '[': {
-                e.preventDefault();
-                const authorElement = this.currentComment.querySelector('.hnuser');
-                if (authorElement) {
-                    const author = authorElement.textContent;
-                    this.navigateAuthorComments(author, this.currentComment, 'prev');
-                }
-                break;
-            }
-
-            case ']': {
-                e.preventDefault();
-                const authorElement = this.currentComment.querySelector('.hnuser');
-                if (authorElement) {
-                    const author = authorElement.textContent;
-                    this.navigateAuthorComments(author, this.currentComment, 'next');
-                }
-                break;
-            }
-
-            case 'z': // Scroll to current comment
-                e.preventDefault();
-                if (this.currentComment) {
-                    this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
-                }
-                break;
-
-            case ' ': // Collapse current comment
-                e.preventDefault();
-                if (this.currentComment) {
-                    const toggleLink = this.currentComment.querySelector('.togg');
-                    if (toggleLink) {
-                        toggleLink.click();
-                    }
-                }
-                break;
-
-            case 'g': // Go to first comment (when pressed twice)
-                e.preventDefault();
-
-                const currentTime = Date.now();
-                if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
-                    const firstComment = document.querySelector('.athing.comtr');
-                    if (firstComment) {
-                        this.setCurrentComment(firstComment);
-                    }
-                }
-
-                // Update the last key and time so that we can handle the repeated press in the next iteration
-                lastKey = 'g';
-                lastKeyPressTime = currentTime;
-                break;
-
-            case 'o': // Open the original post in new window
-                e.preventDefault();
-                const postLink = document.querySelector('.titleline a');
-                if (postLink) {
-                    window.open(postLink.href, '_blank');
-                }
-                break;
-
-            case 's': // Open the summary panel on the right
-                if (!e.ctrlKey && !e.metaKey) {
-                    e.preventDefault();
-                    this.toggleSummaryPanel();
-                }
-                break;
-
-            case '?': // Toggle help modal
-            case '/': // Toggle help modal
-                e.preventDefault();
-                this.toggleHelpModal(this.helpModal.style.display === 'none');
-                break;
-
-            case 'Escape': // Close help modal if open
-                if (this.helpModal.style.display === 'flex') {
-                    e.preventDefault();
-                    this.toggleHelpModal(false);
-                }
-                break;
-        }
-        return {lastKey: lastKey, lastKeyPressTime: lastKeyPressTime};
-    }
-
-    getNavElementByName(comment, elementName) {
-        if (!comment) return;
-
-        // Get HN's default navigation panel and locate the nav element by the given name ('root', 'parent', 'next' or 'prev').
-        const hyperLinks = comment.querySelectorAll('.comhead .navs a');
-        if (hyperLinks) {
-            // Find the <a href> with text that matches the given name
-            const hyperLink = Array.from(hyperLinks).find(a => a.textContent.trim() === elementName);
-            if (hyperLink) {
-                const commentId = hyperLink.hash.split('#')[1];
-                const element = document.getElementById(commentId);
-                return element;
-            }
-        }
-    }
-
     setCurrentComment(comment) {
-        if (!comment) {
-            console.log('content.js: setCurrentComment(): comment is null, so cannot set the current comment.');
-            return;
-        }
-
-        // Remove highlight from previous comment
-        if (this.currentComment) {
-            const prevIndicator = this.currentComment.querySelector('.current-comment-indicator');
-            if (prevIndicator) {
-                prevIndicator.remove();
-            }
-        }
-
-        // Set and highlight new current comment
-        this.currentComment = comment;
-
-        // Highlight the author name
-        const authorElement = comment.querySelector('.hnuser');
-        if (authorElement) {
-            this.highlightAuthor(authorElement);
-        }
-
-        // update the summary panel to show the summary of the current comment
-        // console.log(`content.js: setCurrentComment(): Updating summary panel for comment with author: ${authorElement.textContent}`);
-        this.updateSummaryPanel(comment);
-
-        // Scroll into the comment view if needed
-        comment.scrollIntoView({behavior: 'smooth', block: 'center'});
+        this.navigation.setCurrentComment(comment);
     }
 
     updateSummaryPanel(comment) {
-        if (!comment) {
-            console.log('content.js: updateSummaryPanel(): No comment provided to updateSummaryPanel, so not updating the summary panel.');
-            return;
-        }
-
-        // Make sure that the panel to display the new content is available
-        if (!this.summaryPanel.querySelector('.summary-panel-content')) {
-            console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
-            return;
-        }
-
-
-        // Get comment metadata
-        const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
-        const timestamp = comment.querySelector('.age')?.textContent || '';
-        const commentText = comment.querySelector('.comment')?.textContent || '';
-        const points = comment.querySelector('.score')?.textContent || '0 points';
-
-        const summary = this.summarizeText(commentText);
-
-        // Create summary content
-        const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
-        summaryContentElement.innerHTML = `
-            <div class="summary-author">@${author}</div>
-            <div class="summary-metadata">
-                ${points} • ${timestamp}
-            </div>
-            <div class="summary-text">
-                ${summary}
-            </div>
-        `;
+        this.navigation.updateSummaryPanel(comment);
     }
 
     summarizeText(text) {
-        text = text.trim(); // trim beginning and ending white spaces
-
-        // Count sentences by splitting on periods followed by spaces or end of string.
-        //  If less than 3 sentences, do NOT summarize the text using AI.
-        const sentences = text.split(/[.!?]+(?:\s+|$)/);
-
-        // Filter out empty strings that might result from the split
-        const sentenceCount = sentences.filter(sentence => sentence.trim().length > 0).length;
-        if (sentenceCount < 3) {
-            return text + '<br /><em>(Not enough content to summarize)</em>';
-        }
-
-        if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
-            return text;
-        }
-        this.summarizeTextWithAI(text);
-
-        return 'Summarizing...';
+        return this.summarization.summarizeText(text);
     }
 
     updateSummaryText(text) {
-        const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
-        summaryTextElement.innerHTML = text;
-
+        this.summarization.updateSummaryText(text);
     }
+
     navigateNextChild() {
-        if (!this.currentComment) return;
-
-        // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
-        //  So the next child is the next comment element in the array.
-
-        let next = this.currentComment.nextElementSibling;
-
-        while (next) {
-            // Look for the element with the style classes of comment. If found, return. If not, continue to the next sibling.
-            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
-
-                this.setCurrentComment(next);
-                return; // Found the next child
-            }
-            next = next.nextElementSibling;
-        }
+        this.navigation.navigateNextChild();
     }
 
     createHelpModal() {
@@ -639,34 +365,29 @@ class HNEnhancer {
                 const userInfo = await this.fetchUserInfo(username);
 
                 if (userInfo) {
-                    this.popup.innerHTML = `
-            <strong>${username}</strong><br>
-            Karma: ${userInfo.karma}<br>
-            About: ${userInfo.about}
-          `;
-
-                    const rect = e.target.getBoundingClientRect();
-                    this.popup.style.left = `${rect.left}px`;
-                    this.popup.style.top = `${rect.bottom + window.scrollY + 5}px`;
-                    this.popup.style.display = 'block';
+                    this.popup.showPopup(`
+                        <strong>${username}</strong><br>
+                        Karma: ${userInfo.karma}<br>
+                        About: ${userInfo.about}
+                    `, e.target.getBoundingClientRect());
                 }
             });
 
             authorElement.addEventListener('mouseleave', () => {
-                this.popup.style.display = 'none';
+                this.popup.hidePopup();
             });
 
             // Add event listener for Esc key
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    this.popup.style.display = 'none';
+                    this.popup.hidePopup();
                 }
             });
 
             // Add event listener for clicks outside the popup
             document.addEventListener('click', (e) => {
-                if (!this.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
-                    this.popup.style.display = 'none';
+                if (!this.popup.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
+                    this.popup.hidePopup();
                 }
             });
         });
@@ -868,224 +589,6 @@ class HNEnhancer {
             hnTable.style.removeProperty('min-width');
             hnTable.style.removeProperty('width');
         }
-    }
-
-    initSummarizationAI() {
-
-        function parseAvailable(available) {
-            switch (available) {
-                case 'readily':
-                    return HNEnhancer.AI_AVAILABLE.YES;
-                case 'no':
-                    return HNEnhancer.AI_AVAILABLE.NO;
-                case 'after-download':
-                    return HNEnhancer.AI_AVAILABLE.AFTER_DOWNLOAD;
-            }
-            return HNEnhancer.AI_AVAILABLE.NO;
-        }
-
-
-        // 1. Inject the script into the webpage's context
-        const pageScript = document.createElement('script');
-        pageScript.src = chrome.runtime.getURL('page-script.js');
-        (document.head || document.documentElement).appendChild(pageScript);
-
-        pageScript.onload = () => {
-            window.postMessage({
-                type: 'HN_CHECK_AI_AVAILABLE',
-                data: {}
-            });
-        }
-
-        // 2. Listen for messages from the webpage
-        window.addEventListener('message', function (event) {
-            // reject all messages from other domains
-            if (event.origin !== window.location.origin) {
-                return;
-            }
-
-            // console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
-
-            // Handle different message types
-            switch (event.data.type) {
-                case 'HN_CHECK_AI_AVAILABLE_RESPONSE':
-                    const available = event.data.data.available;
-
-                    // TODO: Find a better way to set the HNEnhancer instance
-                    document.hnEnhancer.isAiAvailable = parseAvailable(available);
-                    console.log('HN_CHECK_AI_AVAILABLE_RESPONSE', document.hnEnhancer.isAiAvailable);
-                    break;
-                case 'HN_CHECK_AI_READY':
-                    break;
-                case 'HN_AI_SUMMARIZE_RESPONSE':
-                    const summary = event.data.data.summary;
-                    document.hnEnhancer.updateSummaryText(summary);
-                    break;
-            }
-        });
-    }
-
-    summarizeTextWithAI(text) {
-
-        chrome.storage.sync.get('settings').then(data => {
-
-            const providerSelection = data.settings?.providerSelection;
-            const model = data.settings?.[providerSelection]?.model;
-            console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
-
-            switch (providerSelection) {
-                case 'chrome-ai':
-                    window.postMessage({
-                        type: 'HN_AI_SUMMARIZE',
-                        data: {text}
-                    });
-                    break;
-
-                case 'openai':
-                    const apiKey = data.settings?.[providerSelection]?.apiKey;
-
-                    this.summarizeUsingOpenAI(text, model, apiKey);
-                    break;
-
-                case 'ollama':
-                    this.summarizeUsingOlama(text, model);
-                    break;
-            }
-        }).catch(error => {
-            console.error('Error fetching settings:', error);
-        });
-    }
-
-    summarizeUsingOpenAI(text, model, apiKey) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for OpenAI summarization');
-            this.updateSummaryText('Error: Missing API configuration');
-            return;
-        }
-
-        // Set up the API request
-        const endpoint = 'https://api.openai.com/v1/chat/completions';
-
-        // Create the system message for better summarization
-        const systemMessage = {
-            role: "system",
-            content: "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity."
-        };
-
-        // Create the user message with the text to summarize
-        const userMessage = {
-            role: "user",
-            content: `Please summarize the following text concisely: ${text}`
-        };
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            messages: [systemMessage, userMessage],
-            temperature: 0.3, // Lower temperature for more focused output
-            max_tokens: 150,  // Limit response length for concise summaries
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
-        };
-
-        // Make the API request using Promise chains
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
-        }).then(data => {
-            const summary = data.choices[0]?.message?.content;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-
-            // Update the summary panel with the generated summary
-            this.updateSummaryText(summary);
-        }).catch(error => {
-            console.error('Error in OpenAI summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = 'Error generating summary. ';
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429')) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else {
-                errorMessage += 'Please try again later.';
-            }
-
-            this.updateSummaryText(errorMessage);
-        });
-    }
-
-    summarizeUsingOlama(text, model) {
-        // Validate required parameters
-        if (!text || !model) {
-            console.error('Missing required parameters for Ollama summarization');
-            this.updateSummaryText('Error: Missing API configuration');
-            return;
-        }
-
-        // Set up the API request
-        const endpoint = 'http://localhost:11434/api/generate';
-
-        // Create the system message for better summarization
-        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
-
-        // Create the user message with the text to summarize
-        const userMessage = `Please summarize the following text concisely: ${text}`;
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            system: systemMessage,
-            prompt: userMessage,
-            stream: false
-        };
-
-        // Make the API request using Promise chains
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`Ollama API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
-        }).then(data => {
-            const summary = data.response;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-
-            // Update the summary panel with the generated summary
-            this.updateSummaryText(summary);
-        }).catch(error => {
-            console.error('Error in Ollama summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = 'Error generating summary. ' + error.message;
-            this.updateSummaryText(errorMessage);
-        });
     }
 
 }

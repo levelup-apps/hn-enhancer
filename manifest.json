@@ -38,7 +38,10 @@
         "styles.css"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "popup.js",
+        "navigation.js",
+        "summarization.js"
       ]
     }
   ],
