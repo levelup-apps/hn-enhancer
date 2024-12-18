@@ -413,6 +413,10 @@ class HNEnhancer {
             .replace(/\*(.*)\*/gim, '<i>$1</i>')
             .replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
             .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
+            .replace(/^\s*\n\*\s/gm, '<ul>\n* ')
+            .replace(/^(\*\s.*\n)+/gm, match => `<ul>\n${match.replace(/^\*\s/gm, '<li>')}\n</ul>`)
+            .replace(/^\s*\n\d+\.\s/gm, '<ol>\n1. ')
+            .replace(/^(\d+\.\s.*\n)+/gm, match => `<ol>\n${match.replace(/^\d+\.\s/gm, '<li>')}\n</ol>`)
             .replace(/\n$/gim, '<br />');
         return html.trim();
     }
