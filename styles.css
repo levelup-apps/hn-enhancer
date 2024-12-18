@@ -317,3 +317,28 @@
     border-left: 4px solid #ff6600;
     padding-left: 10px;
 }
+
+.summary-text ul,
+.summary-text ol {
+    ul, ol {
+        padding-left: 0;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    li {
+        margin-bottom: 0.1rem;
+    }
+
+    ul {
+        list-style: disc;
+    }
+
+    ol {
+        list-style: decimal;
+    }
+
+    ul ul, ol ol, ul ol, ol ul {
+        margin: 0.25rem 0 0.25rem 1.25rem;
+    }
+}
