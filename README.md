@@ -29,3 +29,18 @@ This is a Chrome extension that enhances the HackerNews website by adding the fo
 ### Usage:
 - Navigate to the [HackerNews website](https://news.ycombinator.com/news).
 - The extension should automatically enhance the page (specifically the item details page https://news.ycombinator.com/item?id={itemid}) with new features.
+
+## Enable CORS for Ollama API
+Ollama supports CORS through an environment variable `OLLAMA_ORIGINS` that specifies the origins that are allowed to access the API.
+This should be set at the system level so that the Options page of the extension and HN page can call the Ollama API http://localhost:11434//api/generate.
+Run the following command after every system restart.
+To make this setting persist across system restarts, add the command to your shell profile (e.g. ~/.bash_profile, ~/.zshrc, etc).
+
+``` bash
+# Set the environment variable 
+launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
+
+# Confirm that the environment variable is set:
+launchctl getenv OLLAMA_ORIGINS
+
+```
