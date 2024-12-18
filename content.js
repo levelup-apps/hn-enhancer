@@ -1167,12 +1167,12 @@ class HNEnhancer {
     }
 
     addSummarizeCommentsLink() {
-        const navLinks = document.querySelector('.subtext');
+        const navLinks = document.querySelector('.subtext .subline');
         if (navLinks) {
             const summarizeLink = document.createElement('a');
             summarizeLink.href = '#';
-            summarizeLink.textContent = 'summarize comments';
-            summarizeLink.style.marginLeft = '10px';
+            summarizeLink.textContent = 'summarize all comments';
+            // summarizeLink.style.marginLeft = '10px';
             summarizeLink.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const itemId = this.getCurrentHNItemId();
@@ -1181,9 +1181,12 @@ class HNEnhancer {
                     if (this.summaryPanel.style.display === 'none') {
                         this.toggleSummaryPanel();
                     }
+                    this.updateSummaryText('Summarizing all comments in this post...');
                     this.summarizeTextWithAI(thread);
+
                 }
             });
+            navLinks.appendChild(document.createTextNode(' | '));
             navLinks.appendChild(summarizeLink);
         }
     }
