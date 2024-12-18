@@ -37,6 +37,7 @@ class HNEnhancer {
         document.head.prepend(otMeta);
 
         this.initSummarizationAI();
+        this.addSummarizeCommentsLink(); // Add the 'summarize comments' link
     }
 
     get isHomePage() {
@@ -1163,6 +1164,33 @@ class HNEnhancer {
                     break;
             }
         });
+    }
+
+    addSummarizeCommentsLink() {
+        const navLinks = document.querySelector('.subtext');
+        if (navLinks) {
+            const summarizeLink = document.createElement('a');
+            summarizeLink.href = '#';
+            summarizeLink.textContent = 'summarize comments';
+            summarizeLink.style.marginLeft = '10px';
+            summarizeLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const itemId = this.getCurrentHNItemId();
+                if (itemId) {
+                    const thread = await this.getHNThread(itemId);
+                    if (this.summaryPanel.style.display === 'none') {
+                        this.toggleSummaryPanel();
+                    }
+                    this.summarizeTextWithAI(thread);
+                }
+            });
+            navLinks.appendChild(summarizeLink);
+        }
+    }
+
+    getCurrentHNItemId() {
+        const itemIdMatch = window.location.search.match(/id=(\d+)/);
+        return itemIdMatch ? itemIdMatch[1] : null;
     }
 }
 
