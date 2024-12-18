@@ -171,6 +171,8 @@ class HNEnhancer {
                 lastKeyPressTime = result.lastKeyPressTime;
             }
         });
+
+        this.setupGlobalKeyboardShortcuts();
     }
 
     handleKeyboardEvent(e, lastKey, lastKeyPressTime) {
@@ -288,19 +290,6 @@ class HNEnhancer {
                 if (!e.ctrlKey && !e.metaKey) {
                     e.preventDefault();
                     this.toggleSummaryPanel();
-                }
-                break;
-
-            case '?': // Toggle help modal
-            case '/': // Toggle help modal
-                e.preventDefault();
-                this.toggleHelpModal(this.helpModal.style.display === 'none');
-                break;
-
-            case 'Escape': // Close help modal if open
-                if (this.helpModal.style.display === 'flex') {
-                    e.preventDefault();
-                    this.toggleHelpModal(false);
                 }
                 break;
         }
@@ -1146,6 +1135,8 @@ class HNEnhancer {
                     break;
             }
         });
+
+        this.setupGlobalKeyboardShortcuts();
     }
 
     setCurrentPost(post) {
@@ -1154,6 +1145,25 @@ class HNEnhancer {
         post.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    setupGlobalKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
+
+            switch (e.key) {
+                case '?':
+                case '/':
+                    e.preventDefault();
+                    this.toggleHelpModal(this.helpModal.style.display === 'none');
+                    break;
+                case 'Escape':
+                    if (this.helpModal.style.display === 'flex') {
+                        e.preventDefault();
+                        this.toggleHelpModal(false);
+                    }
+                    break;
+            }
+        });
+    }
 }
 
 // Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
