@@ -1132,10 +1132,17 @@ class HNEnhancer {
                     break;
                 case 'c':
                     e.preventDefault();
-                    const commentsLink = posts[currentPostIndex].querySelector('.subtext a[href*="item"]');
-                    if (commentsLink) {
-                        window.location.href = commentsLink.href;
+                    if(!posts[currentPostIndex])
+                        return;
+
+                    const subtext = posts[currentPostIndex].nextElementSibling;
+                    if (subtext) {
+                        const commentsLink = subtext.querySelector('a[href^="item?id="]');
+                        if (commentsLink) {
+                            window.location.href = commentsLink.href;
+                        }
                     }
+
                     break;
             }
         });
