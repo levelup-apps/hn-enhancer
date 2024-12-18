@@ -22,8 +22,7 @@ class HNEnhancer {
         // Initialize home page navigation if on the home page
         if (this.isHomePage) {
             this.initHomePageNavigation();
-        }
-        else {
+        } else if (this.isCommentsPage) {
             // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
             this.updateCommentCounts();
             this.setupHoverEvents();
@@ -42,6 +41,10 @@ class HNEnhancer {
 
     get isHomePage() {
         return window.location.pathname === '/' || window.location.pathname === '/news';
+    }
+
+    get isCommentsPage() {
+        return window.location.pathname === '/item';
     }
 
     toggleHelpModal(show) {
@@ -984,11 +987,19 @@ class HNEnhancer {
     }
 
     summarizeTextWithAI(text) {
-
         chrome.storage.sync.get('settings').then(data => {
 
             const providerSelection = data.settings?.providerSelection;
             const model = data.settings?.[providerSelection]?.model;
+
+            //TODO: if providerSelection is empty, show the extension settings popup to select the provider
+            if (!providerSelection ) {
+                console.error('Missing AI summarization configuration');
+                // use the chrome runtime to open the settings page
+                chrome.runtime.openOptionsPage();
+                return;
+            }
+
             console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
 
             switch (providerSelection) {
@@ -1253,6 +1264,15 @@ class HNEnhancer {
         const itemIdMatch = window.location.search.match(/id=(\d+)/);
         return itemIdMatch ? itemIdMatch[1] : null;
     }
+
+    getHNThreadTitle() {
+        if (!this.isCommentsPage) {
+            return '';
+        }
+        const titleElement = document.querySelector('.title');
+        return titleElement ? titleElement.textContent : '';
+    }
+
 }
 
 // Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
