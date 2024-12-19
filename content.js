@@ -741,9 +741,9 @@ class HNEnhancer {
                     const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
                     if (itemLinkElement) {
                         const itemId = itemLinkElement.href.split('=')[1];
-                        const thread = await this.getHNThread(itemId);
+                        const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
-                        if (thread) {
+                        if (formattedComment) {
                             if (!this.summaryPanel.isVisible) {
                                 this.summaryPanel.toggle();
                             }
@@ -753,7 +753,7 @@ class HNEnhancer {
                                 metadata: metadata,
                                 text: 'Summarizing all child comments...'
                             });
-                            this.summarizeTextWithAI(thread);
+                            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
                         }
                     }
                 });
@@ -798,13 +798,7 @@ class HNEnhancer {
         }
 
         const targetComment = comments[targetIndex];
-        this.currentComment = targetComment;
-
-        // Highlight the author name in the target comment
-        const targetAuthorElement = targetComment.querySelector('.hnuser');
-        if (targetAuthorElement) {
-            this.highlightAuthor(targetAuthorElement);
-        }
+        this.setCurrentComment(targetComment);
     }
 
     setupUserHover() {
@@ -930,7 +924,7 @@ class HNEnhancer {
             if (!this.summaryPanel.isVisible) {
                 this.summaryPanel.toggle();
             }
-            const thread = await this.getHNThread(itemId);
+            const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
             this.summaryPanel.updateContent({
                 title: 'Post Summary',
@@ -938,7 +932,7 @@ class HNEnhancer {
                 text: 'Summarizing all comments in this post...'
             });
 
-            this.summarizeTextWithAI(thread);
+            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
 
         } catch (error) {
             console.error('Error fetching thread:', error);
@@ -971,6 +965,7 @@ class HNEnhancer {
 
     convertToPathFormat(thread) {
         const result = [];
+        const commentPathToIdMap = new Map();
 
         function decodeHTMLEntities(text) {
             const textarea = document.createElement('textarea');
@@ -990,26 +985,30 @@ class HNEnhancer {
                 } else {
                     content = decodeHTMLEntities(content);
                 }
-            }
+                commentPathToIdMap.set(currentPath, node.id);
+                result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
 
-            result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
-
-            if (node && node.children && node.children.length > 0) {
-                node.children.forEach((child, index) => {
-                    const childPath = `${currentPath}.${index + 1}`;
-                    processNode(child, childPath);
-                });
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach((child, index) => {
+                        const childPath = `${currentPath}.${index + 1}`;
+                        processNode(child, childPath);
+                    });
+                }
             }
         }
 
         processNode(thread);
-        return result.join('\n');
+        return {
+            formattedComment: result.join('\n'),
+            commentPathToIdMap: commentPathToIdMap
+        };
     }
 
-    summarizeTextWithAI(text) {
+    summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
             const providerSelection = data.settings?.providerSelection;
+            // const providerSelection = 'none';
             const model = data.settings?.[providerSelection]?.model;
 
             //TODO: if providerSelection is empty, show the extension settings popup to select the provider
@@ -1026,18 +1025,21 @@ class HNEnhancer {
                 case 'chrome-ai':
                     window.postMessage({
                         type: 'HN_AI_SUMMARIZE',
-                        data: {text}
+                        data: {text: formattedComment}
                     });
                     break;
 
                 case 'openai':
                     const apiKey = data.settings?.[providerSelection]?.apiKey;
-
-                    this.summarizeUsingOpenAI(text, model, apiKey);
+                    this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
                     break;
 
                 case 'ollama':
-                    this.summarizeUsingOllama(text, model);
+                    this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
+                    break;
+
+                case 'none':
+                    this.showSummaryInPanel(formattedComment, commentPathToIdMap);
                     break;
             }
         }).catch(error => {
@@ -1083,7 +1085,7 @@ Thread Analysis:
 `;
     }
 
-    summarizeUsingOpenAI(text, model, apiKey) {
+    summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model || !apiKey) {
             console.error('Missing required parameters for OpenAI summarization');
@@ -1136,17 +1138,15 @@ Thread Analysis:
             }
             return response.json();
         }).then(data => {
-            const summary = data.choices[0]?.message?.content;
+            const summary = data?.choices[0]?.message?.content;
 
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
 
             // Update the summary panel with the generated summary
-            const summaryHtml = this.convertMarkdownToHTML(summary);
-            this.summaryPanel.updateContent({
-                text: summaryHtml
-            });
+            this.showSummaryInPanel(summary, commentPathToIdMap);
+
         }).catch(error => {
             console.error('Error in OpenAI summarization:', error);
 
@@ -1167,7 +1167,57 @@ Thread Analysis:
         });
     }
 
-    summarizeUsingOllama(text, model) {
+    // Show the summary in the summary panel - format the summary for two steps:
+    // 1. Replace markdown with HTML
+    // 2. Replace path identifiers with comment IDs
+    showSummaryInPanel(summary, commentPathToIdMap) {
+
+        // Format the summary to replace markdown with HTML
+        const summaryHtml = this.convertMarkdownToHTML(summary);
+
+        // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
+        const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
+
+        this.summaryPanel.updateContent({
+            text: formattedSummary
+        });
+
+        // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
+        document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
+
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = link.dataset.commentId;
+                const comment = document.getElementById(id);
+                if(comment) {
+                    this.setCurrentComment(comment);
+                } else {
+                    console.error('Failed to find DOM element for comment id:', id);
+                }
+            });
+        });
+    }
+
+    replacePathsWithCommentLinks(text, commentPathToIdMap) {
+        // Regular expression to match bracketed numbers with dots
+        // Matches patterns like [1], [1.1], [1.1.2], etc.
+        const pathRegex = /\[(\d+(?:\.\d+)*)\]/g;
+
+        // Replace each match with an HTML link
+        return text.replace(pathRegex, (match, path) => {
+            const id = commentPathToIdMap.get(path);
+            if (!id) {
+                return match; // If no ID found, return original text
+            }
+            return ` <a href="#" 
+                       title="Go to comment #${id}"
+                       data-comment-link="true" data-comment-id="${id}" 
+                       style="color: rgb(130, 130, 130); text-decoration: underline;"
+                    >comment #${id}</a>`;
+        });
+    }
+
+    summarizeUsingOllama(text, model, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model) {
             console.error('Missing required parameters for Ollama summarization');
@@ -1218,10 +1268,8 @@ Thread Analysis:
 
             // Update the summary panel with the generated summary
             // TODO: Get the comment metadata here and pass it to the summary panel
-            const summaryHtml = this.convertMarkdownToHTML(summary);
-            this.summaryPanel.updateContent({
-                text: summaryHtml
-            });
+            this.showSummaryInPanel(summary, commentPathToIdMap);
+
         }).catch(error => {
             console.error('Error in Ollama summarization:', error);
 
