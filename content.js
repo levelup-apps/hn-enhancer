@@ -1020,7 +1020,7 @@ class HNEnhancer {
                     break;
 
                 case 'ollama':
-                    this.summarizeUsingOlama(text, model);
+                    this.summarizeUsingOllama(text, model);
                     break;
             }
         }).catch(error => {
@@ -1103,7 +1103,7 @@ class HNEnhancer {
         });
     }
 
-    summarizeUsingOlama(text, model) {
+    summarizeUsingOllama(text, model) {
         // Validate required parameters
         if (!text || !model) {
             console.error('Missing required parameters for Ollama summarization');
