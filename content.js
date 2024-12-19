@@ -780,7 +780,44 @@ class HNEnhancer {
 
             // Get the parent element of the author element and append the container as second child
             authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
-            // authorElement.appendChild(container);
+
+            // Insert summarize comment link
+            const navsElement = comment.querySelector('.navs');
+            if(navsElement) {
+                navsElement.appendChild(document.createTextNode(' | '));
+
+                const summarizeChildCommentLink = document.createElement('a');
+                summarizeChildCommentLink.href = '#';
+                summarizeChildCommentLink.textContent = 'summarize thread';
+                summarizeChildCommentLink.title = 'Summarize all child comments in this thread';
+
+                summarizeChildCommentLink.addEventListener('click', async (e) => {
+                    e.preventDefault();
+
+                    // Clicking the link should set the current comment state
+                    this.setCurrentComment(comment);
+
+                    const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
+                    if (itemLinkElement) {
+                        const itemId = itemLinkElement.href.split('=')[1];
+                        const thread = await this.getHNThread(itemId);
+
+                        if (thread) {
+                            if (!this.summaryPanel.isVisible) {
+                                this.summaryPanel.toggle();
+                            }
+                            this.summaryPanel.updateContent({
+                                title: 'Post Summary',
+                                metadata: 'All comments',
+                                text: 'Summarizing all child comments...'
+                            });
+                            this.summarizeTextWithAI(thread);
+                        }
+                    }
+                });
+
+                navsElement.appendChild(summarizeChildCommentLink);
+            }
         }
     }
 
