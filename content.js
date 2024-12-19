@@ -1,3 +1,195 @@
+// SummaryPanel - Pure UI Component
+class SummaryPanel {
+    constructor() {
+        this.panel = this.createPanel();
+        this.resizer = this.createResizer();
+
+        this.isResizing = false;
+        this.startX = 0;
+        this.startWidth = 0;
+        this.resizerWidth = 8;
+
+        // set up resize handlers at the resizer and at the window level
+        this.setupResizeHandlers();
+        this.setupWindowResizeHandler();
+
+        // Attach panel and resizer to mainWrapper
+        this.mainWrapper = document.querySelector('.main-content-wrapper');
+
+        this.mainWrapper.appendChild(this.resizer);
+        this.mainWrapper.appendChild(this.panel);
+    }
+
+    get isVisible() {
+        return this.panel && this.panel.style.display !== 'none';
+    }
+
+    createPanel() {
+
+        // Create wrapper for main content, resizer and panel
+        const mainWrapper = document.createElement('div');
+        mainWrapper.className = 'main-content-wrapper';
+
+        // Get the main HN content
+        const mainHnTable = document.querySelector('center > table');
+        if (!mainHnTable) return null;
+
+        // Create main content container
+        const hnContentContainer = document.createElement('div');
+        hnContentContainer.className = 'hn-content-container';
+
+        // Move the main HN content inside our container
+        mainHnTable.parentNode.insertBefore(mainWrapper, mainHnTable); // center > main-content-wrapper
+        hnContentContainer.appendChild(mainHnTable);    // hn-content-container > table
+        mainWrapper.appendChild(hnContentContainer);    // main-content-wrapper > hn-content-container
+
+        const panel = document.createElement('div');
+        panel.className = 'summary-panel';
+        panel.style.display = 'none';
+
+        const header = document.createElement('div');
+        header.className = 'summary-panel-header';
+
+        const title = document.createElement('h3');
+        title.className = 'summary-panel-title';
+        title.textContent = 'Summary';
+        header.appendChild(title);
+
+        const content = document.createElement('div');
+        content.className = 'summary-panel-content';
+        content.innerHTML = `
+            <div class="summary-metadata"></div>
+            <div class="summary-text"></div>
+        `;
+
+        panel.appendChild(header);
+        panel.appendChild(content);
+
+        return panel;
+    }
+
+    createResizer() {
+        const resizer = document.createElement('div');
+        resizer.className = 'panel-resizer';
+        resizer.style.display = 'none';
+        return resizer;
+    }
+
+    setupResizeHandlers() {
+        this.resizer.addEventListener('mousedown', (e) => {
+            this.isResizing = true;
+            this.startX = e.clientX;
+            this.startWidth = this.panel.offsetWidth;
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.isResizing) return;
+
+            const maxAvailableWidth = this.mainWrapper.offsetWidth - this.resizerWidth;
+            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+
+            const deltaX = this.startX - e.clientX;
+            const newPanelWidth = Math.max(minWidth, Math.min(maxWidth, this.startWidth + deltaX));
+
+            this.panel.style.flexBasis = `${newPanelWidth}px`;
+            this.adjustMainContentWidth(newPanelWidth, e.clientX);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (this.isResizing) {
+                this.isResizing = false;
+                document.body.style.userSelect = '';
+            }
+        });
+    }
+
+    setupWindowResizeHandler() {
+        window.addEventListener('resize', () => {
+            if (this.isVisible) {
+                const maxAvailableWidth = this.mainWrapper.offsetWidth - this.resizerWidth;
+                const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+                const currentWidth = this.panel.offsetWidth;
+
+                if (currentWidth < minWidth) {
+                    this.panel.style.flexBasis = `${minWidth}px`;
+                } else if (currentWidth > maxWidth) {
+                    this.panel.style.flexBasis = `${maxWidth}px`;
+                }
+            }
+        });
+    }
+
+    calculatePanelConstraints(maxAvailableWidth) {
+        if (maxAvailableWidth < 768) {
+            return {
+                minWidth: Math.min(200, maxAvailableWidth * 0.85),
+                maxWidth: Math.min(300, maxAvailableWidth * 0.95)
+            };
+        }
+
+        if (maxAvailableWidth < 1024) {
+            return {
+                minWidth: Math.min(350, maxAvailableWidth * 0.6),
+                maxWidth: Math.min(500, maxAvailableWidth * 0.8)
+            };
+        }
+
+        return {
+            minWidth: Math.min(400, maxAvailableWidth * 0.3),
+            maxWidth: Math.min(700, maxAvailableWidth * 0.4)
+        };
+    }
+
+    adjustMainContentWidth(panelWidth, clientX) {
+        const hnTable = document.querySelector('#hnmain');
+        const viewportWidth = window.innerWidth;
+        const availableWidth = viewportWidth - panelWidth - this.resizerWidth;
+        const movePercent = (viewportWidth - clientX) / availableWidth;
+
+        const tableWidthPercent = 85 + (14 * Math.min(1, movePercent * 1.5));
+        const clampedTableWidthPercent = Math.min(99, Math.max(85, tableWidthPercent));
+        hnTable.style.width = `${clampedTableWidthPercent}%`;
+    }
+
+    toggle() {
+        if (!this.panel) return;
+
+        if (!this.isVisible) {
+            const maxAvailableWidth = this.mainWrapper.offsetWidth - this.resizerWidth;
+            const {minWidth} = this.calculatePanelConstraints(maxAvailableWidth);
+            this.panel.style.flexBasis = `${minWidth}px`;
+
+            this.panel.style.display = 'block';
+            this.resizer.style.display = 'block';
+
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.minWidth = '0';
+        } else {
+            this.panel.style.display = 'none';
+            this.resizer.style.display = 'none';
+
+            const hnTable = document.querySelector('#hnmain');
+            hnTable.style.removeProperty('min-width');
+            hnTable.style.removeProperty('width');
+        }
+    }
+
+    updateContent({ title, metadata, text }) {
+        if (!this.isVisible || !this.panel) return;
+
+        const titleElement = this.panel.querySelector('.summary-panel-title');
+        if (title && titleElement) titleElement.textContent = title;
+
+        const metadataElement = this.panel.querySelector('.summary-metadata');
+        if (metadata && metadataElement) metadataElement.innerHTML = metadata;
+
+        const textElement = this.panel.querySelector('.summary-text');
+        if (text && textElement) textElement.innerHTML = text;
+    }
+}
+
 class HNEnhancer {
 
     static AI_AVAILABLE = {
@@ -7,29 +199,29 @@ class HNEnhancer {
     }
 
     constructor() {
+
         this.authorComments = new Map();    // Store comment elements by author
-        this.popup = this.createPopup();
+        this.popup = this.createAuthorPopup();
         this.postAuthor = this.getPostAuthor();
         this.activeHighlight = null;        // Track currently highlighted element
         this.highlightTimeout = null;       // Track highlight timeout
         this.currentComment = null;         // Track currently focused comment
+
         this.helpModal = this.createHelpModal();
-        this.summaryPanel = this.createSummaryPanel(); // Initialize the summary panel
-        this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
 
         this.createHelpIcon();
 
-        // Initialize home page navigation if on the home page
+        // Initialize the page based on type - home page vs. comments page
         if (this.isHomePage) {
             this.initHomePageNavigation();
         } else if (this.isCommentsPage) {
-            // Once the summary panel is loaded, init the comment navigation, which updates the panel with the first comment
-            this.updateCommentCounts();
-            this.setupHoverEvents();
-            this.initCommentNavigation(); // Initialize comment navigation
-            this.addSummarizeCommentsLink(); // Add the 'summarize comments' link
+            // Initialize state for comments experience - author comments, comment navigation and summary panel,
+            this.updateAuthorComments();
+            this.initCommentsNavigation();
+            this.summaryPanel = new SummaryPanel();
         }
 
+        // TODO: move this to a more discrete place
         // Origin -> news.ycombinator.com; Registration for Summarization API
         const otMeta = document.createElement('meta');
         otMeta.httpEquiv = 'origin-trial';
@@ -48,15 +240,18 @@ class HNEnhancer {
         return window.location.pathname === '/item';
     }
 
-    get isSummaryPanelVisible() {
-        return this.summaryPanel && this.summaryPanel.style.display !== 'none';
+    initCommentsNavigation() {
+        this.setupKeyboardNavigation();  // Set up keyboard navigation
+        this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
+        this.setupUserHover();           // Set up hover events for author info
+        this.navigateToFirstComment();   // Navigate to the first comment
     }
 
     toggleHelpModal(show) {
         this.helpModal.style.display = show ? 'flex' : 'none';
     }
 
-    createPopup() {
+    createAuthorPopup() {
         const popup = document.createElement('div');
         popup.className = 'author-popup';
         document.body.appendChild(popup);
@@ -81,57 +276,6 @@ class HNEnhancer {
         }
     }
 
-    async getHNThread(itemId) {
-        try {
-            const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
-            if (!response.ok) {
-                // noinspection ExceptionCaughtLocallyJS
-                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
-            }
-            const jsonData = await response.json();
-            return this.convertToPathFormat(jsonData);
-        } catch (error) {
-            throw new Error(`Error fetching HN thread: ${error.message}`);
-        }
-    }
-
-    convertToPathFormat(thread) {
-        const result = [];
-
-        function decodeHTMLEntities(text) {
-            const textarea = document.createElement('textarea');
-            textarea.innerHTML = text;
-            return textarea.value;
-        }
-
-        function processNode(node, parentPath = "") {
-            const currentPath = parentPath ? parentPath : "1";
-
-            let content = "";
-
-            if (node) {
-                content = node.title || node.text || "";
-                if (content === null || content === undefined) {
-                    content = "";
-                } else {
-                    content = decodeHTMLEntities(content);
-                }
-            }
-
-            result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
-
-            if (node && node.children && node.children.length > 0) {
-                node.children.forEach((child, index) => {
-                    const childPath = `${currentPath}.${index + 1}`;
-                    processNode(child, childPath);
-                });
-            }
-        }
-
-        processNode(thread);
-        return result.join('\n');
-    }
-
     clearHighlight() {
         if (this.activeHighlight) {
             this.activeHighlight.classList.remove('highlight-author');
@@ -151,17 +295,7 @@ class HNEnhancer {
         this.activeHighlight = authorElement;
     }
 
-    initCommentNavigation() {
-        if(!this.summaryPanel) {
-            console.error(`content.js: initCommentNavigation(): Summary panel is not available, so cannot initialize comment navigation.`);
-            return;
-        }
-
-        // Initialize the first comment as current
-        const firstComment = document.querySelector('.athing.comtr');
-        if (firstComment) {
-            this.setCurrentComment(firstComment);
-        }
+    setupKeyboardNavigation() {
 
         // Save the last key press time and last key in order to handle double key press (eg: 'gg')
         let lastKey = '';
@@ -212,7 +346,7 @@ class HNEnhancer {
             case 'l': // Next child
                 if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
                 e.preventDefault();
-                this.navigateNextChild();
+                this.navigateToChildComment();
                 break;
 
             case 'h': // Parent comment (same as 'parent' hyperlink)
@@ -277,10 +411,7 @@ class HNEnhancer {
 
                 const currentTime = Date.now();
                 if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
-                    const firstComment = document.querySelector('.athing.comtr');
-                    if (firstComment) {
-                        this.setCurrentComment(firstComment);
-                    }
+                    this.navigateToFirstComment();
                 }
 
                 // Update the last key and time so that we can handle the repeated press in the next iteration
@@ -299,11 +430,35 @@ class HNEnhancer {
             case 's': // Open the summary panel on the right
                 if (!e.ctrlKey && !e.metaKey) {
                     e.preventDefault();
-                    this.toggleSummaryPanel();
+                    this.summaryPanel.toggle();
                 }
                 break;
         }
         return {lastKey: lastKey, lastKeyPressTime: lastKeyPressTime};
+    }
+
+    navigateToFirstComment() {
+        const firstComment = document.querySelector('.athing.comtr');
+        if (firstComment) {
+            this.setCurrentComment(firstComment);
+        }
+    }
+
+    navigateToChildComment() {
+        if (!this.currentComment) return;
+
+        // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
+        //  So the next child is the next comment element in the array.
+        let next = this.currentComment.nextElementSibling;
+
+        while (next) {
+            // Look for the element with the style classes of comment. If found, return. If not, continue to the next sibling.
+            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
+                this.setCurrentComment(next);
+                return; // Found the next child
+            }
+            next = next.nextElementSibling;
+        }
     }
 
     getNavElementByName(comment, elementName) {
@@ -323,10 +478,7 @@ class HNEnhancer {
     }
 
     setCurrentComment(comment) {
-        if (!comment) {
-            console.log('content.js: setCurrentComment(): comment is null, so cannot set the current comment.');
-            return;
-        }
+        if (!comment) return;
 
         // Remove highlight from previous comment
         if (this.currentComment) {
@@ -345,72 +497,68 @@ class HNEnhancer {
             this.highlightAuthor(authorElement);
         }
 
-        // update the summary panel to show the summary of the current comment
-        // console.log(`content.js: setCurrentComment(): Updating summary panel for comment with author: ${authorElement.textContent}`);
-        this.updateSummaryPanel(comment);
-
         // Scroll into the comment view if needed
         comment.scrollIntoView({behavior: 'smooth', block: 'center'});
     }
 
-    updateSummaryPanel(comment) {
-        if (!this.isSummaryPanelVisible || !comment) {
-            return
-        }
+    // updateSummaryPanel(comment) {
+    //     if (!this.isSummaryPanelVisible || !comment) {
+    //         return
+    //     }
+    //
+    //     // Make sure that the panel to display the new content is available
+    //     if (!this.summaryPanel.querySelector('.summary-panel-content')) {
+    //         console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
+    //         return;
+    //     }
+    //
+    //
+    //     // Get comment metadata
+    //     const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
+    //     const timestamp = comment.querySelector('.age')?.textContent || '';
+    //     const commentText = comment.querySelector('.comment')?.textContent || '';
+    //     const points = comment.querySelector('.score')?.textContent || '0 points';
+    //
+    //     const summary = this.summarizeText(commentText);
+    //
+    //     // Create summary content
+    //     const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
+    //     summaryContentElement.innerHTML = `
+    //         <div class="summary-author">@${author}</div>
+    //         <div class="summary-metadata">
+    //             ${points} • ${timestamp}
+    //         </div>
+    //         <div class="summary-text">
+    //             ${summary}
+    //         </div>
+    //     `;
+    // }
 
-        // Make sure that the panel to display the new content is available
-        if (!this.summaryPanel.querySelector('.summary-panel-content')) {
-            console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
-            return;
-        }
+    // summarizeText(text) {
+    //     text = text.trim(); // trim beginning and ending white spaces
+    //
+    //     // Count sentences by splitting on periods followed by spaces or end of string.
+    //     //  If less than 3 sentences, do NOT summarize the text using AI.
+    //     const sentences = text.split(/[.!?]+(?:\s+|$)/);
+    //
+    //     // Filter out empty strings that might result from the split
+    //     const sentenceCount = sentences.filter(sentence => sentence.trim().length > 0).length;
+    //     if (sentenceCount < 3) {
+    //         return text + '<br /><em>(Not enough content to summarize)</em>';
+    //     }
+    //
+    //     if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
+    //         return text;
+    //     }
+    //     this.summarizeTextWithAI(text);
+    //
+    //     return 'Summarizing...';
+    // }
 
-
-        // Get comment metadata
-        const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
-        const timestamp = comment.querySelector('.age')?.textContent || '';
-        const commentText = comment.querySelector('.comment')?.textContent || '';
-        const points = comment.querySelector('.score')?.textContent || '0 points';
-
-        const summary = this.summarizeText(commentText);
-
-        // Create summary content
-        const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
-        summaryContentElement.innerHTML = `
-            <div class="summary-author">@${author}</div>
-            <div class="summary-metadata">
-                ${points} • ${timestamp}
-            </div>
-            <div class="summary-text">
-                ${summary}
-            </div>
-        `;
-    }
-
-    summarizeText(text) {
-        text = text.trim(); // trim beginning and ending white spaces
-
-        // Count sentences by splitting on periods followed by spaces or end of string.
-        //  If less than 3 sentences, do NOT summarize the text using AI.
-        const sentences = text.split(/[.!?]+(?:\s+|$)/);
-
-        // Filter out empty strings that might result from the split
-        const sentenceCount = sentences.filter(sentence => sentence.trim().length > 0).length;
-        if (sentenceCount < 3) {
-            return text + '<br /><em>(Not enough content to summarize)</em>';
-        }
-
-        if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
-            return text;
-        }
-        this.summarizeTextWithAI(text);
-
-        return 'Summarizing...';
-    }
-
-    updateSummaryText(text) {
-        const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
-        summaryTextElement.innerHTML = this.convertMarkdownToHTML(text);
-    }
+    // updateSummaryText(text) {
+    //     const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
+    //     summaryTextElement.innerHTML = this.convertMarkdownToHTML(text);
+    // }
 
     convertMarkdownToHTML(markdown) {
         // Helper function to wrap all lists as unordered lists
@@ -469,25 +617,6 @@ class HNEnhancer {
         }
 
         return html.trim();
-    }
-
-    navigateNextChild() {
-        if (!this.currentComment) return;
-
-        // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
-        //  So the next child is the next comment element in the array.
-
-        let next = this.currentComment.nextElementSibling;
-
-        while (next) {
-            // Look for the element with the style classes of comment. If found, return. If not, continue to the next sibling.
-            if (next.classList.contains('athing') && next.classList.contains('comtr')) {
-
-                this.setCurrentComment(next);
-                return; // Found the next child
-            }
-            next = next.nextElementSibling;
-        }
     }
 
     createHelpModal() {
@@ -575,7 +704,7 @@ class HNEnhancer {
         return icon;
     }
 
-    updateCommentCounts() {
+    updateAuthorComments() {
         this.authorComments.clear();
 
         // Get all comments
@@ -690,7 +819,7 @@ class HNEnhancer {
         }
 
         const targetComment = comments[targetIndex];
-        this.setCurrentComment(targetComment);
+        this.currentComment = targetComment;
 
         // Highlight the author name in the target comment
         const targetAuthorElement = targetComment.querySelector('.hnuser');
@@ -699,7 +828,7 @@ class HNEnhancer {
         }
     }
 
-    setupHoverEvents() {
+    setupUserHover() {
         document.querySelectorAll('.hnuser').forEach(authorElement => {
             authorElement.addEventListener('mouseenter', async (e) => {
                 const username = e.target.textContent.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -739,205 +868,9 @@ class HNEnhancer {
         });
     }
 
-    calculatePanelConstraints(maxAvailableWidth) {
-
-        // Calculate the min and max width based on the max available width
-        // - on small screens, the panel should take 85%-95% of the available width
-        // - on medium screens, the panel should take 30%-50% of the available width
-        // - on large screens, the panel should take 20%-35% of the available width
-        if (maxAvailableWidth < 768) {
-            return {
-                minWidth: Math.min(200, maxAvailableWidth * 0.85),
-                maxWidth: Math.min(300, maxAvailableWidth * 0.95)
-            };
-        }
-
-        if (maxAvailableWidth < 1024) {
-            return {
-                minWidth: Math.min(350, maxAvailableWidth * 0.6),
-                maxWidth: Math.min(500, maxAvailableWidth * 0.8)
-            };
-        }
-
-        return {
-            minWidth: Math.min(400, maxAvailableWidth * 0.3),
-            maxWidth: Math.min(700, maxAvailableWidth * 0.4)
-        };
-    }
-
-    createSummaryPanel() {
-        // Create wrapper for main content, resizer and panel
-        const mainWrapper = document.createElement('div');
-        mainWrapper.className = 'main-content-wrapper';
-
-        // Get the main HN content
-        const mainHnTable = document.querySelector('center > table');
-        if (!mainHnTable) return null;
-
-        // Create main content container
-        const hnContentContainer = document.createElement('div');
-        hnContentContainer.className = 'hn-content-container';
-
-        // Move the main HN content inside our container
-        mainHnTable.parentNode.insertBefore(mainWrapper, mainHnTable); // center > main-content-wrapper
-        hnContentContainer.appendChild(mainHnTable);    // hn-content-container > table
-        mainWrapper.appendChild(hnContentContainer);    // main-content-wrapper > hn-content-container
-
-        // Create the summary panel element
-        const panel = document.createElement('div');
-        panel.className = 'summary-panel';
-
-        // Create header
-        const header = document.createElement('div');
-        header.className = 'summary-panel-header';
-
-        const title = document.createElement('h3');
-        title.className = 'summary-panel-title';
-        title.textContent = 'Comment Summary';
-        header.appendChild(title);
-
-        // Create content container
-        const content = document.createElement('div');
-        content.className = 'summary-panel-content';
-        content.innerHTML = `
-            <div class="summary-author">Loading...</div>
-            <div class="summary-metadata"></div>
-            <div class="summary-text"></div>
-        `;
-
-        panel.appendChild(header);
-        panel.appendChild(content);
-
-        // Create a vertical element to resize the panel
-        const resizer = document.createElement('div');
-        resizer.className = 'panel-resizer';
-
-        // Add resize functionality
-        let isResizing = false;
-        let startX;
-        let startWidth;
-
-        // define the constants that are required to compute the new width - constants are better than computing
-        // it dynamically using getComputedStyle() for better performance.
-        const resizerWidth = 8;
-
-        resizer.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            startX = e.clientX;
-            startWidth = panel.offsetWidth; // This will be the flex-basis value including the 16px padding on each side
-            // Prevent text selection while resizing
-            document.body.style.userSelect = 'none';
-
-            // Prevent default dragging behavior
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            // Calculate the new width of summary panel based on the delta between start and current mouse position
-
-            // Calculate the min and max width of the panel based on the max available width
-            //   Note - Summary panel and HN table can shrink/grow as the panel resizer moves left/right
-            const maxAvailableWidth = mainWrapper.offsetWidth - resizerWidth;
-            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
-
-            // console.log(`viewport width: ${window.innerWidth}, mainContentWrapper ow: ${mainWrapper.offsetWidth}, panel ow: ${panel.offsetWidth}`);
-            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
-
-            // panel is moving from right to left, so x is decreasing from start to current position
-            const deltaX = startX - e.clientX ;
-            const newPanelWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
-
-            // Update panel width (when the flex-direction is row, flex-basis is the width)
-            panel.style.flexBasis = `${newPanelWidth}px`;
-
-            // console.log(`BEFORE: hnTable.width: ${hnTable.offsetWidth}, startWidth:${startWidth}, startX: ${startX}, e.clientX: ${e.clientX}, newWidth: ${newPanelWidth}`);
-
-            // Calculate the new width of the main HN table based on the new panel width. This is in 85% by default.
-            const hnTable = document.querySelector('#hnmain');
-
-            const viewportWidth = window.innerWidth;
-            const availableWidth = viewportWidth - newPanelWidth - resizerWidth; // 8px resizer width, 32px padding
-            const movePercent = (viewportWidth - e.clientX) / availableWidth; // Adjust range
-
-            // Scale from 85 to 99 more aggressively
-            const tableWidthPercent = 85 + (14 * Math.min(1, movePercent * 1.5)); // Increase scaling factor
-            const clampedTableWidthPercent = Math.min(99, Math.max(85, tableWidthPercent));
-            hnTable.style.width = `${clampedTableWidthPercent}%`;
-
-            // console.log(`AFTER: hnTable.width: ${hnTable.offsetWidth}, newWidth: ${newPanelWidth}, clampedTableWidth: ${clampedTableWidthPercent}`);
-        });
-
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                document.body.style.userSelect = '';
-            }
-        });
-
-        window.addEventListener('resize', () => {
-            // Adjust the panel width if it's available and visible
-            if (this.summaryPanel && this.summaryPanel.style.display !== 'none') {
-                const {minWidth, maxWidth} = this.calculatePanelConstraints();
-                const currentWidth = panel.offsetWidth;
-
-                if (currentWidth < minWidth) {
-                    panel.style.flexBasis = `${minWidth}px`;
-                } else if (currentWidth > maxWidth) {
-                    panel.style.flexBasis = `${maxWidth}px`;
-                }
-            }
-        });
-
-        // Hide the resizer and add it to the main wrapper. We will show it when the panel is visible.
-        resizer.style.display = 'none';
-        mainWrapper.appendChild(resizer);   // main-content-wrapper > panel-resizer
-
-        // Hide the panel and add to the main wrapper. We will show it when the user opens it with the shortcut key.
-        panel.style.display = 'none';
-        mainWrapper.appendChild(panel);     // main-content-wrapper > summary-panel
-
-        return panel;
-    }
-
-    toggleSummaryPanel() {
-        if(!this.summaryPanel) {
-            console.error(`content.js: toggleSummaryPanel(): Summary panel is not available, so cannot toggle the summary panel.`);
-            return;
-        }
-
-        const summaryPanel = this.summaryPanel;
-        const resizer = document.querySelector('.panel-resizer');
-
-        // if summary panel and resizer are hidden, show it. Otherwise, hide it.
-        if (summaryPanel.style.display === 'none') {
-
-            // Reset the width of the summary panel width based on the available size
-            const mainWrapper = document.querySelector('.main-content-wrapper');
-            const maxAvailableWidth = mainWrapper.offsetWidth - 8;  // 8px resizer width
-            const {minWidth, maxWidth} = this.calculatePanelConstraints(maxAvailableWidth);
-            console.log(`maxAvailableWidth: ${maxAvailableWidth}, minWidth: ${minWidth}, maxWidth: ${maxWidth}`);
-            summaryPanel.style.flexBasis = `${minWidth}px`;
-
-            summaryPanel.style.display = 'block';
-            resizer.style.display = 'block';
-
-            // remove the min-width of HN table so that the summary panel can take more space
-            const hnTable = document.querySelector('#hnmain');
-            hnTable.style.minWidth = '0';
-        } else {
-            summaryPanel.style.display = 'none';
-            resizer.style.display = 'none';
-
-            // restore the min-width and width of HN table so that the default behavior is restored
-            const hnTable = document.querySelector('#hnmain');
-            hnTable.style.removeProperty('min-width');
-            hnTable.style.removeProperty('width');
-        }
-    }
-
     initSummarizationAI() {
+
+        this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
 
         function parseAvailable(available) {
             switch (available) {
@@ -986,10 +919,112 @@ class HNEnhancer {
                     break;
                 case 'HN_AI_SUMMARIZE_RESPONSE':
                     const summary = event.data.data.summary;
-                    document.hnEnhancer.updateSummaryText(summary);
+                    document.hnEnhancer.summaryPanel.updateContent({
+                        text: summary
+                    });
                     break;
             }
         });
+    }
+
+    addSummarizeCommentsLink() {
+        const navLinks = document.querySelector('.subtext .subline');
+        if (navLinks) {
+            const summarizeLink = document.createElement('a');
+            summarizeLink.href = '#';
+            summarizeLink.textContent = 'summarize all comments';
+
+            summarizeLink.addEventListener('click', (e) => this.handleSummarizeAllCommentsClick(e));
+
+            navLinks.appendChild(document.createTextNode(' | '));
+            navLinks.appendChild(summarizeLink);
+        }
+    }
+
+    async handleSummarizeAllCommentsClick(e) {
+        e.preventDefault();
+        const itemId = this.getCurrentHNItemId();
+        if (!itemId) {
+            return;
+        }
+        try {
+            if (!this.summaryPanel.isVisible) {
+                this.summaryPanel.toggle();
+            }
+            const thread = await this.getHNThread(itemId);
+
+            this.summaryPanel.updateContent({
+                title: 'Post Summary',
+                metadata: 'All comments',
+                text: 'Summarizing all comments in this post...'
+            });
+
+            this.summarizeTextWithAI(thread);
+
+        } catch (error) {
+            console.error('Error fetching thread:', error);
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                metadata: '',
+                text: 'Failed to fetch thread content'
+            });
+        }
+    }
+
+    getCurrentHNItemId() {
+        const itemIdMatch = window.location.search.match(/id=(\d+)/);
+        return itemIdMatch ? itemIdMatch[1] : null;
+    }
+
+    async getHNThread(itemId) {
+        try {
+            const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
+            if (!response.ok) {
+                // noinspection ExceptionCaughtLocallyJS
+                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+            }
+            const jsonData = await response.json();
+            return this.convertToPathFormat(jsonData);
+        } catch (error) {
+            throw new Error(`Error fetching HN thread: ${error.message}`);
+        }
+    }
+
+    convertToPathFormat(thread) {
+        const result = [];
+
+        function decodeHTMLEntities(text) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+
+        function processNode(node, parentPath = "") {
+            const currentPath = parentPath ? parentPath : "1";
+
+            let content = "";
+
+            if (node) {
+                content = node.title || node.text || "";
+                if (content === null || content === undefined) {
+                    content = "";
+                } else {
+                    content = decodeHTMLEntities(content);
+                }
+            }
+
+            result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
+
+            if (node && node.children && node.children.length > 0) {
+                node.children.forEach((child, index) => {
+                    const childPath = `${currentPath}.${index + 1}`;
+                    processNode(child, childPath);
+                });
+            }
+        }
+
+        processNode(thread);
+        return result.join('\n');
     }
 
     summarizeTextWithAI(text) {
@@ -1035,7 +1070,10 @@ class HNEnhancer {
         // Validate required parameters
         if (!text || !model || !apiKey) {
             console.error('Missing required parameters for OpenAI summarization');
-            this.updateSummaryText('Error: Missing API configuration');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
             return;
         }
 
@@ -1088,7 +1126,10 @@ class HNEnhancer {
             }
 
             // Update the summary panel with the generated summary
-            this.updateSummaryText(summary);
+            const summaryHtml = this.convertMarkdownToHTML(summary);
+            this.summaryPanel.updateContent({
+                text: summaryHtml
+            });
         }).catch(error => {
             console.error('Error in OpenAI summarization:', error);
 
@@ -1102,7 +1143,10 @@ class HNEnhancer {
                 errorMessage += 'Please try again later.';
             }
 
-            this.updateSummaryText(errorMessage);
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
         });
     }
 
@@ -1110,7 +1154,10 @@ class HNEnhancer {
         // Validate required parameters
         if (!text || !model) {
             console.error('Missing required parameters for Ollama summarization');
-            this.updateSummaryText('Error: Missing API configuration');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
             return;
         }
 
@@ -1153,13 +1200,20 @@ class HNEnhancer {
             }
 
             // Update the summary panel with the generated summary
-            this.updateSummaryText(summary);
+            // TODO: Get the comment metadata here and pass it to the summary panel
+            const summaryHtml = this.convertMarkdownToHTML(summary);
+            this.summaryPanel.updateContent({
+                text: summaryHtml
+            });
         }).catch(error => {
             console.error('Error in Ollama summarization:', error);
 
             // Update the summary panel with an error message
             let errorMessage = 'Error generating summary. ' + error.message;
-            this.updateSummaryText(errorMessage);
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
         });
     }
 
@@ -1241,34 +1295,10 @@ class HNEnhancer {
         });
     }
 
-    addSummarizeCommentsLink() {
-        const navLinks = document.querySelector('.subtext .subline');
-        if (navLinks) {
-            const summarizeLink = document.createElement('a');
-            summarizeLink.href = '#';
-            summarizeLink.textContent = 'summarize all comments';
-            // summarizeLink.style.marginLeft = '10px';
-            summarizeLink.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const itemId = this.getCurrentHNItemId();
-                if (itemId) {
-                    const thread = await this.getHNThread(itemId);
-                    if (this.summaryPanel.style.display === 'none') {
-                        this.toggleSummaryPanel();
-                    }
-                    this.updateSummaryText('Summarizing all comments in this post...');
-                    this.summarizeTextWithAI(thread);
-
-                }
-            });
-            navLinks.appendChild(document.createTextNode(' | '));
-            navLinks.appendChild(summarizeLink);
-        }
-    }
-
-    getCurrentHNItemId() {
-        const itemIdMatch = window.location.search.match(/id=(\d+)/);
-        return itemIdMatch ? itemIdMatch[1] : null;
+    shouldSummarizeText(text) {
+        const sentences = text.split(/[.!?]+(?:\s+|$)/)
+            .filter(sentence => sentence.trim().length > 0);
+        return sentences.length >= 3;
     }
 
     getHNThreadTitle() {
