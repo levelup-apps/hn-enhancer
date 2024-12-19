@@ -27,6 +27,7 @@ class HNEnhancer {
             this.updateCommentCounts();
             this.setupHoverEvents();
             this.initCommentNavigation(); // Initialize comment navigation
+            this.addSummarizeCommentsLink(); // Add the 'summarize comments' link
         }
 
         // Origin -> news.ycombinator.com; Registration for Summarization API
@@ -36,7 +37,7 @@ class HNEnhancer {
         document.head.prepend(otMeta);
 
         this.initSummarizationAI();
-        this.addSummarizeCommentsLink(); // Add the 'summarize comments' link
+
     }
 
     get isHomePage() {
@@ -80,6 +81,7 @@ class HNEnhancer {
         try {
             const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
             if (!response.ok) {
+                // noinspection ExceptionCaughtLocallyJS
                 throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
             }
             const jsonData = await response.json();
@@ -422,6 +424,7 @@ class HNEnhancer {
             .replace(/>/g, '&gt;');
 
         // Convert markdown to HTML
+        // noinspection RegExpRedundantEscape,HtmlUnknownTarget
         html = html
             // Headers
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
@@ -996,7 +999,7 @@ class HNEnhancer {
             if (!providerSelection ) {
                 console.error('Missing AI summarization configuration');
                 // use the chrome runtime to open the settings page
-                chrome.runtime.openOptionsPage();
+                // chrome.runtime.openOptionsPage();
                 return;
             }
 
