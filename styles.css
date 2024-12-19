@@ -287,6 +287,9 @@
     font-family: Verdana, Geneva, sans-serif;
     font-size: 8pt;
     color: #828282;
+    overflow-y: auto; /* Enable vertical scrolling within the content */
+    max-height: 100%; /* Ensure it takes the full height of the panel */
+    padding-bottom: 12px;
 }
 
 .summary-author {
