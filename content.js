@@ -788,7 +788,8 @@ class HNEnhancer {
 
                 const summarizeChildCommentLink = document.createElement('a');
                 summarizeChildCommentLink.href = '#';
-                summarizeChildCommentLink.textContent = 'summarize child comments';
+                summarizeChildCommentLink.textContent = 'summarize thread';
+                summarizeChildCommentLink.title = 'Summarize all child comments in this thread';
 
                 summarizeChildCommentLink.addEventListener('click', async (e) => {
                     e.preventDefault();
@@ -802,10 +803,14 @@ class HNEnhancer {
                         const thread = await this.getHNThread(itemId);
 
                         if (thread) {
-                            if (this.summaryPanel.style.display === 'none') {
-                                this.toggleSummaryPanel();
+                            if (!this.summaryPanel.isVisible) {
+                                this.summaryPanel.toggle();
                             }
-                            this.updateSummaryText('Summarizing all child comments...');
+                            this.summaryPanel.updateContent({
+                                title: 'Post Summary',
+                                metadata: 'All comments',
+                                text: 'Summarizing all child comments...'
+                            });
                             this.summarizeTextWithAI(thread);
                         }
                     }
