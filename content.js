@@ -653,34 +653,37 @@ class HNEnhancer {
             authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
 
             // Insert summarize comment link
-            comment.querySelector('.navs').appendChild(document.createTextNode(' | '));
+            const navsElement = comment.querySelector('.navs');
+            if(navsElement) {
+                navsElement.appendChild(document.createTextNode(' | '));
 
-            const summarizeChildCommentLink = document.createElement('a');
-            summarizeChildCommentLink.href = '#';
-            summarizeChildCommentLink.textContent = 'summarize child comments';
+                const summarizeChildCommentLink = document.createElement('a');
+                summarizeChildCommentLink.href = '#';
+                summarizeChildCommentLink.textContent = 'summarize child comments';
 
-            summarizeChildCommentLink.addEventListener('click', async (e) => {
-                e.preventDefault();
+                summarizeChildCommentLink.addEventListener('click', async (e) => {
+                    e.preventDefault();
 
-                // Clicking the link should set the current comment state
-                this.setCurrentComment(comment);
+                    // Clicking the link should set the current comment state
+                    this.setCurrentComment(comment);
 
-                const itemLinkElement = comment.querySelector('.age').getElementsByTagName('a')[0];
-                if (itemLinkElement) {
-                    const itemId = itemLinkElement.href.split('=')[1];
-                    const thread = await this.getHNThread(itemId);
+                    const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
+                    if (itemLinkElement) {
+                        const itemId = itemLinkElement.href.split('=')[1];
+                        const thread = await this.getHNThread(itemId);
 
-                    if (thread) {
-                        if (this.summaryPanel.style.display === 'none') {
-                            this.toggleSummaryPanel();
+                        if (thread) {
+                            if (this.summaryPanel.style.display === 'none') {
+                                this.toggleSummaryPanel();
+                            }
+                            this.updateSummaryText('Summarizing all child comments...');
+                            this.summarizeTextWithAI(thread);
                         }
-                        this.updateSummaryText('Summarizing all child comments...');
-                        this.summarizeTextWithAI(thread);
                     }
-                }
-            });
+                });
 
-            comment.querySelector('.navs').appendChild(summarizeChildCommentLink);
+                navsElement.appendChild(summarizeChildCommentLink);
+            }
         }
     }
 
