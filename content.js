@@ -501,65 +501,6 @@ class HNEnhancer {
         comment.scrollIntoView({behavior: 'smooth', block: 'center'});
     }
 
-    // updateSummaryPanel(comment) {
-    //     if (!this.isSummaryPanelVisible || !comment) {
-    //         return
-    //     }
-    //
-    //     // Make sure that the panel to display the new content is available
-    //     if (!this.summaryPanel.querySelector('.summary-panel-content')) {
-    //         console.error(`content.js: updateSummaryPanel(): Element .summary-panel-content not found in the summary panel.`);
-    //         return;
-    //     }
-    //
-    //
-    //     // Get comment metadata
-    //     const author = comment.querySelector('.hnuser')?.textContent || 'Unknown';
-    //     const timestamp = comment.querySelector('.age')?.textContent || '';
-    //     const commentText = comment.querySelector('.comment')?.textContent || '';
-    //     const points = comment.querySelector('.score')?.textContent || '0 points';
-    //
-    //     const summary = this.summarizeText(commentText);
-    //
-    //     // Create summary content
-    //     const summaryContentElement = this.summaryPanel.querySelector('.summary-panel-content');
-    //     summaryContentElement.innerHTML = `
-    //         <div class="summary-author">@${author}</div>
-    //         <div class="summary-metadata">
-    //             ${points} • ${timestamp}
-    //         </div>
-    //         <div class="summary-text">
-    //             ${summary}
-    //         </div>
-    //     `;
-    // }
-
-    // summarizeText(text) {
-    //     text = text.trim(); // trim beginning and ending white spaces
-    //
-    //     // Count sentences by splitting on periods followed by spaces or end of string.
-    //     //  If less than 3 sentences, do NOT summarize the text using AI.
-    //     const sentences = text.split(/[.!?]+(?:\s+|$)/);
-    //
-    //     // Filter out empty strings that might result from the split
-    //     const sentenceCount = sentences.filter(sentence => sentence.trim().length > 0).length;
-    //     if (sentenceCount < 3) {
-    //         return text + '<br /><em>(Not enough content to summarize)</em>';
-    //     }
-    //
-    //     if (this.isAiAvailable !== HNEnhancer.AI_AVAILABLE.YES) {
-    //         return text;
-    //     }
-    //     this.summarizeTextWithAI(text);
-    //
-    //     return 'Summarizing...';
-    // }
-
-    // updateSummaryText(text) {
-    //     const summaryTextElement = this.summaryPanel.querySelector('.summary-text');
-    //     summaryTextElement.innerHTML = this.convertMarkdownToHTML(text);
-    // }
-
     convertMarkdownToHTML(markdown) {
         // Helper function to wrap all lists as unordered lists
         function wrapLists(html) {
