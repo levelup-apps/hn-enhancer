@@ -651,7 +651,32 @@ class HNEnhancer {
 
             // Get the parent element of the author element and append the container as second child
             authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
-            // authorElement.appendChild(container);
+
+            // Insert summarize comment link
+            comment.querySelector('.navs').appendChild(document.createTextNode(' | '));
+
+            const summarizeChildCommentLink = document.createElement('a');
+            summarizeChildCommentLink.href = '#';
+            summarizeChildCommentLink.textContent = 'summarize child comments';
+
+            summarizeChildCommentLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const itemLinkElement = comment.querySelector('.age').getElementsByTagName('a')[0];
+                if (itemLinkElement) {
+                    const itemId = itemLinkElement.href.split('=')[1];
+                    const thread = await this.getHNThread(itemId);
+
+                    if (thread) {
+                        if (this.summaryPanel.style.display === 'none') {
+                            this.toggleSummaryPanel();
+                        }
+                        this.updateSummaryText('Summarizing all child comments...');
+                        this.summarizeTextWithAI(thread);
+                    }
+                }
+            });
+
+            comment.querySelector('.navs').appendChild(summarizeChildCommentLink);
         }
     }
 
