@@ -48,6 +48,10 @@ class HNEnhancer {
         return window.location.pathname === '/item';
     }
 
+    get isSummaryPanelVisible() {
+        return this.summaryPanel && this.summaryPanel.style.display !== 'none';
+    }
+
     toggleHelpModal(show) {
         this.helpModal.style.display = show ? 'flex' : 'none';
     }
@@ -350,9 +354,8 @@ class HNEnhancer {
     }
 
     updateSummaryPanel(comment) {
-        if (!comment) {
-            console.log('content.js: updateSummaryPanel(): No comment provided to updateSummaryPanel, so not updating the summary panel.');
-            return;
+        if (!this.isSummaryPanelVisible || !comment) {
+            return
         }
 
         // Make sure that the panel to display the new content is available
