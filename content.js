@@ -661,6 +661,10 @@ class HNEnhancer {
 
             summarizeChildCommentLink.addEventListener('click', async (e) => {
                 e.preventDefault();
+
+                // Clicking the link should set the current comment state
+                this.setCurrentComment(comment);
+
                 const itemLinkElement = comment.querySelector('.age').getElementsByTagName('a')[0];
                 if (itemLinkElement) {
                     const itemId = itemLinkElement.href.split('=')[1];
