@@ -1,4 +1,3 @@
-// SummaryPanel - Pure UI Component
 class SummaryPanel {
     constructor() {
         this.panel = this.createPanel();
@@ -9,11 +8,9 @@ class SummaryPanel {
         this.startWidth = 0;
         this.resizerWidth = 8;
 
-        // set up resize handlers at the resizer and at the window level
         this.setupResizeHandlers();
         this.setupWindowResizeHandler();
 
-        // Attach panel and resizer to mainWrapper
         this.mainWrapper = document.querySelector('.main-content-wrapper');
 
         this.mainWrapper.appendChild(this.resizer);
@@ -25,23 +22,18 @@ class SummaryPanel {
     }
 
     createPanel() {
-
-        // Create wrapper for main content, resizer and panel
         const mainWrapper = document.createElement('div');
         mainWrapper.className = 'main-content-wrapper';
 
-        // Get the main HN content
         const mainHnTable = document.querySelector('center > table');
         if (!mainHnTable) return null;
 
-        // Create main content container
         const hnContentContainer = document.createElement('div');
         hnContentContainer.className = 'hn-content-container';
 
-        // Move the main HN content inside our container
-        mainHnTable.parentNode.insertBefore(mainWrapper, mainHnTable); // center > main-content-wrapper
-        hnContentContainer.appendChild(mainHnTable);    // hn-content-container > table
-        mainWrapper.appendChild(hnContentContainer);    // main-content-wrapper > hn-content-container
+        mainHnTable.parentNode.insertBefore(mainWrapper, mainHnTable);
+        hnContentContainer.appendChild(mainHnTable);
+        mainWrapper.appendChild(hnContentContainer);
 
         const panel = document.createElement('div');
         panel.className = 'summary-panel';
@@ -200,29 +192,25 @@ class HNEnhancer {
 
     constructor() {
 
-        this.authorComments = new Map();    // Store comment elements by author
+        this.authorComments = new Map();
         this.popup = this.createAuthorPopup();
         this.postAuthor = this.getPostAuthor();
-        this.activeHighlight = null;        // Track currently highlighted element
-        this.highlightTimeout = null;       // Track highlight timeout
-        this.currentComment = null;         // Track currently focused comment
+        this.activeHighlight = null;
+        this.highlightTimeout = null;
+        this.currentComment = null;
 
         this.helpModal = this.createHelpModal();
 
         this.createHelpIcon();
 
-        // Initialize the page based on type - home page vs. comments page
         if (this.isHomePage) {
             this.initHomePageNavigation();
         } else if (this.isCommentsPage) {
-            // Initialize state for comments experience - author comments, comment navigation and summary panel,
             this.updateAuthorComments();
             this.initCommentsNavigation();
             this.summaryPanel = new SummaryPanel();
         }
 
-        // TODO: move this to a more discrete place
-        // Origin -> news.ycombinator.com; Registration for Summarization API
         const otMeta = document.createElement('meta');
         otMeta.httpEquiv = 'origin-trial';
         otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
@@ -241,10 +229,10 @@ class HNEnhancer {
     }
 
     initCommentsNavigation() {
-        this.setupKeyboardNavigation();  // Set up keyboard navigation
-        this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
-        this.setupUserHover();           // Set up hover events for author info
-        this.navigateToFirstComment();   // Navigate to the first comment
+        this.setupKeyboardNavigation();
+        this.addSummarizeCommentsLink();
+        this.setupUserHover();
+        this.navigateToFirstComment();
     }
 
     toggleHelpModal(show) {
@@ -263,19 +251,6 @@ class HNEnhancer {
         return postAuthorElement ? postAuthorElement.textContent : null;
     }
 
-    async fetchUserInfo(username) {
-        try {
-            const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`, {cache: 'force-cache'});
-            const userInfoResponse = await response.json();
-            return {
-                karma: userInfoResponse.karma || 'Not found', about: userInfoResponse.about || 'No about information'
-            };
-        } catch (error) {
-            console.error('Error fetching user info:', error);
-            return null;
-        }
-    }
-
     clearHighlight() {
         if (this.activeHighlight) {
             this.activeHighlight.classList.remove('highlight-author');
@@ -290,20 +265,15 @@ class HNEnhancer {
     highlightAuthor(authorElement) {
         this.clearHighlight();
 
-        // Add highlight class to trigger animation
         authorElement.classList.add('highlight-author');
         this.activeHighlight = authorElement;
     }
 
     setupKeyboardNavigation() {
-
-        // Save the last key press time and last key in order to handle double key press (eg: 'gg')
         let lastKey = '';
         let lastKeyPressTime = 0;
 
-        // Add keyboard event listener
         document.addEventListener('keydown', (e) => {
-            // Handle key press only when it is not in an input field
             const isInputField = e.target.matches('input, textarea, [contenteditable="true"]');
             if (isInputField) {
                 return;
@@ -323,46 +293,42 @@ class HNEnhancer {
 
         switch (e.key) {
 
-            case 'j': // Next comment at same depth (same as 'next' hyperlink)
+            case 'j':
                 e.preventDefault();
 
-                // Find the 'next' hyperlink in the HN nav panel and navigate to it.
                 const nextComment = this.getNavElementByName(this.currentComment, 'next');
                 if (nextComment) {
                     this.setCurrentComment(nextComment);
                 }
                 break;
 
-            case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
+            case 'k':
                 e.preventDefault();
 
-                // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
                 const prevComment = this.getNavElementByName(this.currentComment, 'prev');
                 if (prevComment) {
                     this.setCurrentComment(prevComment);
                 }
                 break;
 
-            case 'l': // Next child
-                if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
+            case 'l':
+                if (e.ctrlKey || e.metaKey) return;
                 e.preventDefault();
                 this.navigateToChildComment();
                 break;
 
-            case 'h': // Parent comment (same as 'parent' hyperlink)
+            case 'h':
                 e.preventDefault();
 
-                // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
                 const parentComment = this.getNavElementByName(this.currentComment, 'parent');
                 if (parentComment) {
                     this.setCurrentComment(parentComment);
                 }
                 break;
 
-            case 'r': // Root comment (same as 'root' hyperlink)
+            case 'r':
                 e.preventDefault();
 
-                // Find the 'root' hyperlink in the HN nav panel and navigate to it.
                 const rootComment = this.getNavElementByName(this.currentComment, 'root');
                 if (rootComment) {
                     this.setCurrentComment(rootComment);
@@ -389,14 +355,14 @@ class HNEnhancer {
                 break;
             }
 
-            case 'z': // Scroll to current comment
+            case 'z':
                 e.preventDefault();
                 if (this.currentComment) {
                     this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
                 break;
 
-            case ' ': // Collapse current comment
+            case ' ':
                 e.preventDefault();
                 if (this.currentComment) {
                     const toggleLink = this.currentComment.querySelector('.togg');
@@ -406,7 +372,7 @@ class HNEnhancer {
                 }
                 break;
 
-            case 'g': // Go to first comment (when pressed twice)
+            case 'g':
                 e.preventDefault();
 
                 const currentTime = Date.now();
@@ -414,12 +380,11 @@ class HNEnhancer {
                     this.navigateToFirstComment();
                 }
 
-                // Update the last key and time so that we can handle the repeated press in the next iteration
                 lastKey = 'g';
                 lastKeyPressTime = currentTime;
                 break;
 
-            case 'o': // Open the original post in new window
+            case 'o':
                 e.preventDefault();
                 const postLink = document.querySelector('.titleline a');
                 if (postLink) {
@@ -427,7 +392,7 @@ class HNEnhancer {
                 }
                 break;
 
-            case 's': // Open the summary panel on the right
+            case 's':
                 if (!e.ctrlKey && !e.metaKey) {
                     e.preventDefault();
                     this.summaryPanel.toggle();
@@ -447,15 +412,12 @@ class HNEnhancer {
     navigateToChildComment() {
         if (!this.currentComment) return;
 
-        // The comments are arranged as a flat array of table rows where the hierarchy is represented by the depth of the element.
-        //  So the next child is the next comment element in the array.
         let next = this.currentComment.nextElementSibling;
 
         while (next) {
-            // Look for the element with the style classes of comment. If found, return. If not, continue to the next sibling.
             if (next.classList.contains('athing') && next.classList.contains('comtr')) {
                 this.setCurrentComment(next);
-                return; // Found the next child
+                return;
             }
             next = next.nextElementSibling;
         }
@@ -464,10 +426,8 @@ class HNEnhancer {
     getNavElementByName(comment, elementName) {
         if (!comment) return;
 
-        // Get HN's default navigation panel and locate the nav element by the given name ('root', 'parent', 'next' or 'prev').
         const hyperLinks = comment.querySelectorAll('.comhead .navs a');
         if (hyperLinks) {
-            // Find the <a href> with text that matches the given name
             const hyperLink = Array.from(hyperLinks).find(a => a.textContent.trim() === elementName);
             if (hyperLink) {
                 const commentId = hyperLink.hash.split('#')[1];
@@ -480,7 +440,6 @@ class HNEnhancer {
     setCurrentComment(comment) {
         if (!comment) return;
 
-        // Remove highlight from previous comment
         if (this.currentComment) {
             const prevIndicator = this.currentComment.querySelector('.current-comment-indicator');
             if (prevIndicator) {
@@ -488,71 +447,45 @@ class HNEnhancer {
             }
         }
 
-        // Set and highlight new current comment
         this.currentComment = comment;
 
-        // Highlight the author name
         const authorElement = comment.querySelector('.hnuser');
         if (authorElement) {
             this.highlightAuthor(authorElement);
         }
 
-        // Scroll into the comment view if needed
         comment.scrollIntoView({behavior: 'smooth', block: 'center'});
     }
 
     convertMarkdownToHTML(markdown) {
-        // Helper function to wrap all lists as unordered lists
         function wrapLists(html) {
-            // Wrap any sequence of list items in ul tags
             return html.replace(/<li>(?:[^<]|<(?!\/li>))*<\/li>(?:\s*<li>(?:[^<]|<(?!\/li>))*<\/li>)*/g,
                 match => `<ul>${match}</ul>`);
         }
 
-        // First escape HTML special characters
         let html = markdown
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        // Convert markdown to HTML
-        // noinspection RegExpRedundantEscape,HtmlUnknownTarget
         html = html
-            // Headers
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-
-            // Blockquotes
             .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
-
-            // Code blocks and inline code
             .replace(/```([^`]+)```/g, '<pre><code>$1</code></pre>')
             .replace(/`([^`]+)`/g, '<code>$1</code>')
-
-            // Convert both bullet points and numbered lists to li elements
             .replace(/^\s*[\-\*]\s(.+)/gim, '<li>$1</li>')
             .replace(/^\s*(\d+)\.\s(.+)/gim, '<li>$2</li>')
-
-            // Bold and Italic
             .replace(/\*\*(?=\S)([^\*]+?\S)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(?=\S)([^\*]+?\S)\*/g, '<em>$1</em>')
-
-            // Images and links
             .replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
             .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
-
-            // Horizontal rules
             .replace(/^\s*[\*\-_]{3,}\s*$/gm, '<hr>')
+            .replace(/\n\s*\n/g, '</p><p>');
 
-            // Paragraphs and line breaks
-            .replace(/\n\s*\n/g, '</p><p>')
-            // .replace(/\n/g, '<br />');
-
-        // Wrap all lists as unordered lists
         html = wrapLists(html);
 
-        // Wrap everything in paragraphs if not already wrapped
         if (!html.startsWith('<')) {
             html = `<p>${html}</p>`;
         }
@@ -598,7 +531,6 @@ class HNEnhancer {
 
             const keyCell = row.insertCell();
 
-            // Keys could be 'l', 'h' for single keys, 'gg' for repeated keys or '?|/' for multiple keys
             const keys = key.split('|');
             keys.forEach((k, index) => {
                 const keySpan = document.createElement('span');
@@ -623,7 +555,6 @@ class HNEnhancer {
         modal.appendChild(content);
         document.body.appendChild(modal);
 
-        // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 this.toggleHelpModal(false);
@@ -648,13 +579,9 @@ class HNEnhancer {
     updateAuthorComments() {
         this.authorComments.clear();
 
-        // Get all comments
         const comments = document.querySelectorAll('.athing.comtr');
 
-        // Count comments by author and the author comments elements by author
         comments.forEach(comment => {
-
-            // save the author comments mapping (comments from each user in this post)
             const authorElement = comment.querySelector('.hnuser');
             if (authorElement) {
                 const author = authorElement.textContent;
@@ -719,10 +646,8 @@ class HNEnhancer {
             separator.textContent = "|";
             container.appendChild(separator);
 
-            // Get the parent element of the author element and append the container as second child
             authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
 
-            // Insert summarize comment link
             const navsElement = comment.querySelector('.navs');
             if(navsElement) {
                 navsElement.appendChild(document.createTextNode(' | '));
@@ -735,7 +660,6 @@ class HNEnhancer {
                 summarizeChildCommentLink.addEventListener('click', async (e) => {
                     e.preventDefault();
 
-                    // Clicking the link should set the current comment state
                     this.setCurrentComment(comment);
 
                     const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
@@ -767,13 +691,12 @@ class HNEnhancer {
         const hyperLinks = comment.querySelectorAll('.comhead .navs a');
         if (!hyperLinks) return;
 
-        // Find the <a href> with text that have a hash ('#<comment_id>') and add click event listener
         const navLinks = Array.from(hyperLinks).filter(link => link.hash.length > 0);
 
         navLinks.forEach(link => {
             link.onclick = (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // stop the default link navigation
+                e.stopPropagation();
 
                 const targetComment = this.getNavElementByName(comment, link.textContent.trim());
                 if (targetComment) {
@@ -805,7 +728,7 @@ class HNEnhancer {
         document.querySelectorAll('.hnuser').forEach(authorElement => {
             authorElement.addEventListener('mouseenter', async (e) => {
                 const username = e.target.textContent.replace(/[^a-zA-Z0-9_-]/g, '');
-                const userInfo = await this.fetchUserInfo(username);
+                const userInfo = await this.sendMessageToServiceWorker('FETCH_USER_INFO', { username });
 
                 if (userInfo) {
                     this.popup.innerHTML = `
@@ -825,14 +748,12 @@ class HNEnhancer {
                 this.popup.style.display = 'none';
             });
 
-            // Add event listener for Esc key
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     this.popup.style.display = 'none';
                 }
             });
 
-            // Add event listener for clicks outside the popup
             document.addEventListener('click', (e) => {
                 if (!this.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
                     this.popup.style.display = 'none';
@@ -842,7 +763,6 @@ class HNEnhancer {
     }
 
     initSummarizationAI() {
-
         this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
 
         function parseAvailable(available) {
@@ -857,8 +777,6 @@ class HNEnhancer {
             return HNEnhancer.AI_AVAILABLE.NO;
         }
 
-
-        // 1. Inject the script into the webpage's context
         const pageScript = document.createElement('script');
         pageScript.src = chrome.runtime.getURL('page-script.js');
         (document.head || document.documentElement).appendChild(pageScript);
@@ -870,21 +788,15 @@ class HNEnhancer {
             });
         }
 
-        // 2. Listen for messages from the webpage
         window.addEventListener('message', function (event) {
-            // reject all messages from other domains
             if (event.origin !== window.location.origin) {
                 return;
             }
 
-            // console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
-
-            // Handle different message types
             switch (event.data.type) {
                 case 'HN_CHECK_AI_AVAILABLE_RESPONSE':
                     const available = event.data.data.available;
 
-                    // TODO: Find a better way to set the HNEnhancer instance
                     document.hnEnhancer.isAiAvailable = parseAvailable(available);
                     console.log('HN_CHECK_AI_AVAILABLE_RESPONSE', document.hnEnhancer.isAiAvailable);
                     break;
@@ -953,7 +865,6 @@ class HNEnhancer {
         try {
             const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
             if (!response.ok) {
-                // noinspection ExceptionCaughtLocallyJS
                 throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
             }
             const jsonData = await response.json();
@@ -1008,14 +919,9 @@ class HNEnhancer {
         chrome.storage.sync.get('settings').then(data => {
 
             const providerSelection = data.settings?.providerSelection;
-            // const providerSelection = 'none';
-            const model = data.settings?.[providerSelection]?.model;
 
-            //TODO: if providerSelection is empty, show the extension settings popup to select the provider
             if (!providerSelection ) {
                 console.error('Missing AI summarization configuration');
-                // use the chrome runtime to open the settings page
-                // chrome.runtime.openOptionsPage();
                 return;
             }
 
@@ -1086,7 +992,6 @@ Thread Analysis:
     }
 
     summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
         if (!text || !model || !apiKey) {
             console.error('Missing required parameters for OpenAI summarization');
             this.summaryPanel.updateContent({
@@ -1096,24 +1001,20 @@ Thread Analysis:
             return;
         }
 
-        // Set up the API request
         const endpoint = 'https://api.openai.com/v1/chat/completions';
 
-        // Create the system message for better summarization
         const message = this.getSystemMessage();
         const systemMessage = {
             role: "system",
             content: message
         };
 
-        // Create the user message with the text to summarize
         const postTitle = this.getHNPostTitle()
         const userMessage = {
             role: "user",
             content: `Please summarize the comments for a post with the title '${postTitle}'. \n Following are the formatted comments: \n ${text}`
         };
 
-        // Prepare the request payload
         const payload = {
             model: model,
             messages: [systemMessage, userMessage],
@@ -1122,7 +1023,6 @@ Thread Analysis:
             presence_penalty: 0
         };
 
-        // Make the API request using Promise chains
         fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -1144,13 +1044,11 @@ Thread Analysis:
                 throw new Error('No summary generated from API response');
             }
 
-            // Update the summary panel with the generated summary
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
             console.error('Error in OpenAI summarization:', error);
 
-            // Update the summary panel with an error message
             let errorMessage = 'Error generating summary. ';
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
@@ -1167,22 +1065,15 @@ Thread Analysis:
         });
     }
 
-    // Show the summary in the summary panel - format the summary for two steps:
-    // 1. Replace markdown with HTML
-    // 2. Replace path identifiers with comment IDs
     showSummaryInPanel(summary, commentPathToIdMap) {
-
-        // Format the summary to replace markdown with HTML
         const summaryHtml = this.convertMarkdownToHTML(summary);
 
-        // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
         const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
 
         this.summaryPanel.updateContent({
             text: formattedSummary
         });
 
-        // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
         document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
 
             link.addEventListener('click', (e) => {
@@ -1199,15 +1090,12 @@ Thread Analysis:
     }
 
     replacePathsWithCommentLinks(text, commentPathToIdMap) {
-        // Regular expression to match bracketed numbers with dots
-        // Matches patterns like [1], [1.1], [1.1.2], etc.
         const pathRegex = /\[(\d+(?:\.\d+)*)\]/g;
 
-        // Replace each match with an HTML link
         return text.replace(pathRegex, (match, path) => {
             const id = commentPathToIdMap.get(path);
             if (!id) {
-                return match; // If no ID found, return original text
+                return match;
             }
             return ` <a href="#" 
                        title="Go to comment #${id}"
@@ -1218,7 +1106,6 @@ Thread Analysis:
     }
 
     summarizeUsingOllama(text, model, commentPathToIdMap) {
-        // Validate required parameters
         if (!text || !model) {
             console.error('Missing required parameters for Ollama summarization');
             this.summaryPanel.updateContent({
@@ -1228,16 +1115,12 @@ Thread Analysis:
             return;
         }
 
-        // Set up the API request
         const endpoint = 'http://localhost:11434/api/generate';
 
-        // Create the system message for better summarization
         const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
 
-        // Create the user message with the text to summarize
         const userMessage = `Please summarize the following text concisely: ${text}`;
 
-        // Prepare the request payload
         const payload = {
             model: model,
             system: systemMessage,
@@ -1245,7 +1128,6 @@ Thread Analysis:
             stream: false
         };
 
-        // Make the API request using Promise chains
         fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -1266,14 +1148,11 @@ Thread Analysis:
                 throw new Error('No summary generated from API response');
             }
 
-            // Update the summary panel with the generated summary
-            // TODO: Get the comment metadata here and pass it to the summary panel
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
             console.error('Error in Ollama summarization:', error);
 
-            // Update the summary panel with an error message
             let errorMessage = 'Error generating summary. ' + error.message;
             this.summaryPanel.updateContent({
                 title: 'Error',
@@ -1373,10 +1252,26 @@ Thread Analysis:
         return document.title;
     }
 
+    async sendMessageToServiceWorker(type, data) {
+        return new Promise((resolve, reject) => {
+            if (!navigator.serviceWorker.controller) {
+                reject('No active service worker');
+                return;
+            }
+
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = (event) => {
+                if (event.data.type === 'ERROR') {
+                    reject(event.data.data);
+                } else {
+                    resolve(event.data.data);
+                }
+            };
+
+            navigator.serviceWorker.controller.postMessage({ type, data }, [messageChannel.port2]);
+        });
+    }
 }
 
-// Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
-// So this script is injected only after the DOM is loaded and all other scripts have finished executing.
-// This guarantees that the DOM of the main HN page is loaded by the time this script runs.
 document.hnEnhancer = new HNEnhancer();
 console.log('HN Enhancer initialized and ready');

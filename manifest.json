@@ -15,7 +15,8 @@
     "AmvawA4HIg2FLhHRUdEaYpysamI5CI2wqhOkrSBLAe6gEwwNomjZYSeI/0Ni3gFZFQ6ED9BkQRwp31jRxRQbbwAAAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8va2hmY2FpbmVsY2FlZG1taGppY3BoYmtwaWdrbGVqZ2YiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ=="
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "background"
   ],
   "host_permissions": [
     "https://news.ycombinator.com/*",
@@ -29,6 +30,10 @@
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
   },
   "content_scripts": [
     {
