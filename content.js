@@ -1090,6 +1090,65 @@ Thread Analysis:
 `;
     }
 
+    getAnthropicMessage(title, text) {
+        return `
+You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
+Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
+
+Here is the title of the Hacker News post you will be analyzing:
+<post_title>
+${title}
+</post_title>
+
+Below are the formatted comments for this post. Each comment is preceded by a path-based identifier showing its position in the hierarchical structure:
+<comments>
+${text}
+</comments>
+
+Instructions:
+1. Carefully read through the post title and all comments.
+2. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+3. Identify the major discussion points across all branches of the conversation.
+4. Track how topics evolve within each branch and across branch boundaries.
+5. Identify topic relationships between different branches.
+6. Note where significant conversation shifts occur.
+
+Summary:
+- Major Discussion Points: [List the main topics discussed across all branches]
+- Key Takeaways: [Summarize the most important insights or conclusions from the entire discussion]
+
+Thread Analysis:
+- Primary Branches: [Number and brief description of main conversation branches]
+- Interaction Patterns: [Notable patterns in how the discussion branched and evolved]
+- Branch Effectiveness: [For each significant branch, specify the branch path and evaluate its productivity or engagement level]
+
+Example output structure (do not copy the content, only the format):
+
+Summary:
+- Major Discussion Points:
+  1. [Topic 1]
+  2. [Topic 2]
+  3. [Topic 3]
+- Key Takeaways:
+  1. [Takeaway 1]
+  2. [Takeaway 2]
+
+Thread Analysis:
+- Primary Branches: 
+  1. [Branch 1 description]
+  2. [Branch 2 description]
+- Interaction Patterns: [Description of how the conversation flowed and branched]
+- Branch Effectiveness:
+  - [Branch 1 path]: [Evaluation]
+  - [Branch 2 path]: [Evaluation]
+
+<discussion_breakdown>
+[Detailed breakdown as per the instructions above]
+</discussion_breakdown>
+
+Please proceed with your analysis and summary of the Hacker News discussion.`;
+    }
+
     summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model || !apiKey) {
@@ -1116,12 +1175,13 @@ Thread Analysis:
         const postTitle = this.getHNPostTitle()
         const userMessage = {
             role: "user",
-            content: `Please summarize the comments for a post with the title '${postTitle}'. \n Following are the formatted comments: \n ${text}`
+            content: this.getAnthropicMessage(postTitle, text)
         };
 
         // Prepare the request payload
         const payload = {
             model: model,
+            "max_tokens": 1024,
             messages: [userMessage]
         };
 
@@ -1132,7 +1192,7 @@ Thread Analysis:
                 'Content-Type': 'application/json',
                 // 'Authorization': `Bearer ${apiKey}`
                 'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
+                'anthropic-dangerous-direct-browser-access': 'true'
             },
             body: JSON.stringify(payload)
         }).then(response => {
