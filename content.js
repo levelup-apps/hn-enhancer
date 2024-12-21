@@ -1034,6 +1034,11 @@ class HNEnhancer {
                     this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
                     break;
 
+                case 'anthropic':
+                    const endpoint = 'https://api.anthropic.com/v1/complete';
+                    const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingOpenAI(formattedComment, model, claudeApiKey, commentPathToIdMap);
+                    break;
                 case 'ollama':
                     this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
                     break;
@@ -1097,7 +1102,8 @@ Thread Analysis:
         }
 
         // Set up the API request
-        const endpoint = 'https://api.openai.com/v1/chat/completions';
+        // const endpoint = 'https://api.openai.com/v1/chat/completions';
+        const endpoint = 'https://api.anthropic.com/v1/messages';
 
         // Create the system message for better summarization
         const message = this.getSystemMessage();
@@ -1116,10 +1122,7 @@ Thread Analysis:
         // Prepare the request payload
         const payload = {
             model: model,
-            messages: [systemMessage, userMessage],
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
+            messages: [userMessage]
         };
 
         // Make the API request using Promise chains
@@ -1127,7 +1130,9 @@ Thread Analysis:
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                // 'Authorization': `Bearer ${apiKey}`
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify(payload)
         }).then(response => {
@@ -1138,7 +1143,7 @@ Thread Analysis:
             }
             return response.json();
         }).then(data => {
-            const summary = data?.choices[0]?.message?.content;
+            const summary = data?.content[0]?.text;
 
             if (!summary) {
                 throw new Error('No summary generated from API response');
