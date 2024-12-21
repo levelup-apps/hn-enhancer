@@ -919,8 +919,9 @@ class HNEnhancer {
         chrome.storage.sync.get('settings').then(data => {
 
             const providerSelection = data.settings?.providerSelection;
+            const model = data.settings?.[providerSelection]?.model;
 
-            if (!providerSelection ) {
+            if (!providerSelection || !model) {
                 console.error('Missing AI summarization configuration');
                 return;
             }
