@@ -17,12 +17,102 @@
 
             <div class="mt-6 space-y-6">
 
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="bg-white px-2 text-sm text-gray-500">Local LLMs (Free)</span>
+                    </div>
+                </div>
+
                 <!--Chrome Built-in AI-->
                 <div class="space-y-3">
                     <div class="flex items-center ">
                         <input id="chrome-ai" name="provider-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="chrome-ai" class="ml-3 block text-sm font-medium text-gray-900">Chrome Built-in AI</label>
+                        <span class="inline-flex items-center rounded-md ml-3 bg-pink-50 px-2 py-1 text-xs font-medium text-pink-700 ring-1 ring-inset ring-pink-700/10 ">Experimental</span>
+
+
+                        <details class="ml-2 inline-block relative">
+                            <summary class="list-none text-gray-400 hover:text-gray-500 cursor-pointer">
+                                <svg class="size-5 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.459.134-1.033.566-1.033 1.29v.25a.75.75 0 1 0 1.5 0v-.115a2.5 2.5 0 1 0-2.518-4.153.75.75 0 1 0 1.061 1.06Z" clip-rule="evenodd" />
+                                </svg>
+                            </summary>
+                            <div class="absolute right-0 -translate-x-1 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
+                                <p class="font-medium mb-2">💡 Free local summarization using Chrome's built-in AI</p>
+                                <p class="mb-3">Requires a one-time model download and Chrome 131+</p>
+                                <p class="font-medium mb-1">Setup instructions:</p>
+                                <ol class="list-decimal ml-4 space-y-1">
+                                    <li>Type <code class="bg-gray-100 px-1 rounded">chrome://flags</code> in address bar</li>
+                                    <li>Search for "Summarization"</li>
+                                    <li>Enable "Generative text summarization"</li>
+                                    <li>Restart Chrome</li>
+                                </ol>
+                            </div>
+                        </details>
+
+
+                    </div>
+                </div>
+                <span class="pt-2 ml-7 text-sm/6 text-gray-600"><a class="underline" href="https://developer.chrome.com/docs/ai/summarizer-api" target="_blank">Instructions</a> on how to enable this feature.</span>
+
+                <!-- Ollama -->
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="ollama" name="provider-selection" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="ollama" class="ml-3 block text-sm font-medium text-gray-900">Ollama</label>
+
+
+                        <details class="ml-2 inline-block relative">
+                            <summary class="list-none text-gray-400 hover:text-gray-500 cursor-pointer">
+                                <svg class="size-5 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.459.134-1.033.566-1.033 1.29v.25a.75.75 0 1 0 1.5 0v-.115a2.5 2.5 0 1 0-2.518-4.153.75.75 0 1 0 1.061 1.06Z" clip-rule="evenodd" />
+                                </svg>
+                            </summary>
+                            <div class="absolute left-0 -translate-x-20 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
+                                <p class="font-medium mb-2">💡 Free local summarization using <a class="underline" href="https://ollama.com/" target="_blank">Ollama</a></p>
+                                <p class="mb-3">Make sure Ollama is running to see your downloaded models in the dropdown<</p>
+                                <p class="font-medium mb-1">Enable CORS for Ollama API:</p>
+                                <ol class="list-decimal ml-4 space-y-1">
+                                    <li>Setup <code class="bg-gray-100 px-1 rounded">OLLAMA_ORIGINS</code> environment variable</li>
+                                    <li>Step 2</li>
+                                    <li>Step 3</li>
+                                    <li>Restart Ollama</li>
+                                </ol>
+                            </div>
+                        </details>
+
+
+
+
+                    </div>
+                    <div class="ml-7 space-y-3">
+                        <div>
+                            <label for="ollama-model" class="block text-sm font-medium text-gray-900">Select Ollama Model</label>
+                            <div class="mt-2 grid grid-cols-1">
+                                <select id="ollama-model"
+                                        name="ollama-model"
+                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                                    <option value="llama2"></option>
+                                </select>
+                                <svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+                                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="bg-white px-2 text-sm text-gray-500">Remote LLMs (API Key Required)</span>
                     </div>
                 </div>
 
@@ -70,13 +160,13 @@
                     </div>
                 </div>
 
-
                 <!-- Anthropic -->
                 <div class="space-y-3">
                     <div class="flex items-center">
                         <input id="anthropic" name="provider-selection" type="radio"
                                class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
                         <label for="anthropic" class="ml-3 block text-sm font-medium text-gray-900">Anthropic</label>
+                        <span class="inline-flex items-center rounded-md ml-3 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">🌟 Best performance 🌟</span>
                     </div>
                     <div class="ml-7 space-y-3">
                         <div class="mt-2 grid grid-cols-1">
@@ -115,29 +205,6 @@
                     </div>
                 </div>
 
-                <!-- Ollama -->
-                <div class="space-y-3">
-                    <div class="flex items-center">
-                        <input id="ollama" name="provider-selection" type="radio"
-                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
-                        <label for="ollama" class="ml-3 block text-sm font-medium text-gray-900">Ollama</label>
-                    </div>
-                    <div class="ml-7 space-y-3">
-                        <div>
-                            <label for="ollama-model" class="block text-sm font-medium text-gray-900">Select Ollama Model</label>
-                            <div class="mt-2 grid grid-cols-1">
-                                <select id="ollama-model"
-                                        name="ollama-model"
-                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
-                                    <option value="llama2"></option>
-                                </select>
-                                <svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
-                                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </fieldset>
 
