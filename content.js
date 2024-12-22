@@ -1113,44 +1113,6 @@ class HNEnhancer {
         });
     }
 
-    getSystemMessage() {
-        return `
-You are a skilled discussion analyzer specializing in hierarchical conversation in Hacker News comments. 
-Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
-
-Input Format:
-The conversation will be provided as text with path-based identifiers showing the hierarchical structure:
-[path_id] Author: Message
-
-Example:
-[1] Author: Initial message
-[1.1] Author2: First-level reply
-[1.1.1] Author3: Second-level reply
-
-Follow these guidelines to generate the summary:
-- Pay special attention to path numbers when tracking reply relationships
-- Identify if certain branches were more productive than others
-- Track how ideas evolve and transform across branch boundaries
-- Map how topics evolve within each branch
-- Identify topic relationships between branches
-- Note where conversation shifts occur
-
-Respond in this format:
-
-Summary
-- Major Discussion Points
-- Key takeaways across all branches
-
-Thread Analysis:
-- Primary Branches: [Number and brief description of main conversation branches]
-- Interaction Patterns: [Notable patterns in how the discussion branched]
-- Branch Effectiveness: [Specify Branch path]
-
-[Repeat for other significant branches]
-
-`;
-    }
-
     summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model || !apiKey) {
@@ -1165,27 +1127,27 @@ Thread Analysis:
         // Set up the API request
         const endpoint = 'https://api.openai.com/v1/chat/completions';
 
-        // Create the system message for better summarization
-        const message = this.getSystemMessage();
-        const systemMessage = {
-            role: "system",
-            content: message
-        };
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        console.log('2. System prompt:', systemPrompt);
 
-        // Create the user message with the text to summarize
         const postTitle = this.getHNPostTitle()
-        const userMessage = {
-            role: "user",
-            content: `Please summarize the comments for a post with the title '${postTitle}'. \n Following are the formatted comments: \n ${text}`
-        };
+        const userPrompt = this.getUserMessage(postTitle, text);
+        console.log('3. User prompt:', userPrompt);
 
-        console.log('2. System message:', systemMessage.content);
-        console.log('3. User message:', userMessage.content);
+        // OpenAI takes system and user messages as an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
 
         // Prepare the request payload
         const payload = {
             model: model,
-            messages: [systemMessage, userMessage],
+            messages: messages,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0
@@ -1250,26 +1212,26 @@ Thread Analysis:
         // Set up the API request
         const endpoint = 'https://api.anthropic.com/v1/messages';
 
-        // Create the user message for better summarization
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        console.log('2. System prompt:', systemPrompt);
 
-        // Create the user message with the text to summarize
         const postTitle = this.getHNPostTitle()
-        const systemMessage = this.getAnthropicSystemMessage();
+        const userPrompt = this.getUserMessage(postTitle, text);
+        console.log('3. User prompt:', userPrompt);
 
-        const userMessage = {
+        // Anthropic takes system messages at the top level, whereas user messages as an array with role "user" and content.
+        const messages = [{
             role: "user",
-            content: this.getAnthropicUserMessage(postTitle, text)
-        };
-
-        console.log('2. System message:', systemMessage);
-        console.log('3. User message:', userMessage.content);
+            content: userPrompt
+        }];
 
         // Prepare the request payload
         const payload = {
             model: model,
             max_tokens: 1024,
-            system: systemMessage,
-            messages: [userMessage]
+            system: systemPrompt,
+            messages: messages
         };
 
         // Make the API request using Promise chains
@@ -1322,7 +1284,7 @@ Thread Analysis:
         });
     }
 
-    getAnthropicSystemMessage() {
+    getSystemMessage() {
         return `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
 1. Identify and highlight the main topics and key arguments.
 2. Capture diverse viewpoints and notable opinions.
@@ -1344,7 +1306,7 @@ Example:
 Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. Use markdown formatting for clarity and readability.`;
     }
 
-    getAnthropicUserMessage(title, text) {
+    getUserMessage(title, text) {
         return `Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
 -----
 Post Title: ${title}
@@ -1444,18 +1406,11 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         // Set up the API request
         const endpoint = 'http://localhost:11434/api/generate';
 
-        // // Create the system message for better summarization
-        // const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
-        //
-        // // Create the user message with the text to summarize
-        // const userMessage = `Please summarize the following text concisely: ${text}`;
+        // Create the system message for better summarization
+        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
 
-        const postTitle = this.getHNPostTitle()
-        const systemMessage = `You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
-            Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
-            Format your response in MARKDOWN format.`;
-
-        const userMessage = this.getAnthropicUserMessage(postTitle, text);
+        // Create the user message with the text to summarize
+        const userMessage = `Please summarize the following text concisely: ${text}`;
 
         console.log('2. System message:', systemMessage);
         console.log('3. User message:', userMessage);
