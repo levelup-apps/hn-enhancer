@@ -30,6 +30,9 @@
     "page": "options.html",
     "open_in_tab": false
   },
+  "action": {
+    "default_popup": "options.html"
+  },
   "content_scripts": [
     {
       "matches": [
