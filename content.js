@@ -401,7 +401,7 @@ class HNEnhancer {
                 }
                 break;
 
-            case ' ': // Collapse current comment
+            case 'c': // Collapse current comment
                 e.preventDefault();
                 if (this.currentComment) {
                     const toggleLink = this.currentComment.querySelector('.togg');
@@ -594,7 +594,7 @@ class HNEnhancer {
             {key: ']', description: 'Go to next comment by current comment author'},
             {key: 'gg', description: 'Go to first comment'},
             {key: 'z', description: 'Scroll to current comment'},
-            {key: 'Space', description: 'Collapse/expand current comment'},
+            {key: 'c', description: 'Collapse/expand current comment'},
             {key: 'o', description: 'Open original post in new window'},
             {key: 's', description: 'Open summary panel'},
             {key: '?|/', description: 'Toggle this help panel'}
