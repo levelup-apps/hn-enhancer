@@ -1080,6 +1080,7 @@ class HNEnhancer {
             }
 
             console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
+            console.log('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
                 case 'chrome-ai':
@@ -1178,6 +1179,9 @@ Thread Analysis:
             content: `Please summarize the comments for a post with the title '${postTitle}'. \n Following are the formatted comments: \n ${text}`
         };
 
+        console.log('2. System message:', systemMessage.content);
+        console.log('3. User message:', userMessage.content);
+
         // Prepare the request payload
         const payload = {
             model: model,
@@ -1208,7 +1212,7 @@ Thread Analysis:
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-
+            console.log('4. Summary:', summary);
             // Update the summary panel with the generated summary
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
@@ -1250,14 +1254,15 @@ Thread Analysis:
 
         // Create the user message with the text to summarize
         const postTitle = this.getHNPostTitle()
-        const systemMessage = `You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
-            Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
-            Format your response in MARKDOWN format.`;
+        const systemMessage = this.getAnthropicSystemMessage();
 
         const userMessage = {
             role: "user",
             content: this.getAnthropicUserMessage(postTitle, text)
         };
+
+        console.log('2. System message:', systemMessage);
+        console.log('3. User message:', userMessage.content);
 
         // Prepare the request payload
         const payload = {
@@ -1293,7 +1298,7 @@ Thread Analysis:
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-
+            console.log('4. Summary:', summary);
             // Update the summary panel with the generated summary
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
@@ -1317,64 +1322,60 @@ Thread Analysis:
         });
     }
 
+    getAnthropicSystemMessage() {
+        return `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
+1. Identify and highlight the main topics and key arguments.
+2. Capture diverse viewpoints and notable opinions.
+3. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+4. Note where significant conversation shifts occur.
+5. Include brief, relevant quotes to support main points.
+6. Maintain a neutral, objective tone.
+7. Aim for a summary length of 150-300 words, adjusting based on thread complexity.
+
+Input Format:
+The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
+
+Example:
+[1] author1: First reply to the post
+[1.1] author2: First reply to [1]
+[1.1.1] author3: Second-level reply to [1.1]
+[1.2] author4: Second reply to [1]
+
+Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. Use markdown formatting for clarity and readability.`;
+    }
+
     getAnthropicUserMessage(title, text) {
-        return `Please summarize the following text:
-Here is the title of the Hacker News post you will be analyzing:
-<post_title>
-${title}
-</post_title>
-
-Below are the formatted comments for this post. Each comment is preceded by a path-based identifier showing its position in the hierarchical structure:
-<comments>
+        return `Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+-----
+Post Title: ${title}
+-----
+Comments: 
 ${text}
-</comments>
+-----
 
-Instructions:
-1. Carefully read through the post title and all comments.
-2. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
-3. Identify the major discussion points across all branches of the conversation.
-4. Track how topics evolve within each branch and across branch boundaries.
-5. Identify topic relationships between different branches.
-6. Note where significant conversation shifts occur.
+Use the following structure as an example of the output (do not copy the content, only use the format). 
+Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. If you add new sections, format them as markdown headers (e.g., ## New Section). If you add 'Notable Quotes' sections, the quotes should be enclosed in italics and should have path-based identifiers of the quoted comment.
 
-Summary:
-- Major Discussion Points: [List the main topics discussed across all branches]
-- Key Takeaways: [Summarize the most important insights or conclusions from the entire discussion]
-
-Thread Analysis:
-- Primary Branches: [Number and brief description of main conversation branches]
-- Interaction Patterns: [Notable patterns in how the discussion branched and evolved]
-- Branch Effectiveness: [For each significant branch, specify the branch path and evaluate its productivity or engagement level]
-
-Example output structure (do not copy the content, only the format):
-
-Summary:
-
-Major Discussion Points:
+# Summary
+## Main discussion points
+[List the main topics discussed across all branches as a list]
   1. [Topic 1]
   2. [Topic 2]
   3. [Topic 3]
-
-Key Takeaways:
+  
+## Key takeaways
+[Summarize the most important insights or conclusions from the entire discussion]
   1. [Takeaway 1]
   2. [Takeaway 2]
-
-Thread Analysis:
-
-Primary Branches: 
-  1. [Branch 1 description]
-  2. [Branch 2 description]
-
-Interaction Patterns: 
-[Description of how the conversation flowed and branched]
-
-Branch Effectiveness:
-  - [Branch 1 path]: [Evaluation]
+  
+#Thread analysis
+## Primary branches
+[Number and brief description of main conversation branches. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
+  - [Branch 1 path]: [ Summary]. [Evaluation of branch effectiveness]
   - [Branch 2 path]: [Evaluation]
-
-<discussion_breakdown>
-[Detailed breakdown as per the instructions above]
-</discussion_breakdown>
+  
+## Interaction patterns
+[Notable patterns in how the discussion branched and evolved]
 
 Please proceed with your analysis and summary of the Hacker News discussion.`;
     }
@@ -1443,11 +1444,21 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         // Set up the API request
         const endpoint = 'http://localhost:11434/api/generate';
 
-        // Create the system message for better summarization
-        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
+        // // Create the system message for better summarization
+        // const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
+        //
+        // // Create the user message with the text to summarize
+        // const userMessage = `Please summarize the following text concisely: ${text}`;
 
-        // Create the user message with the text to summarize
-        const userMessage = `Please summarize the following text concisely: ${text}`;
+        const postTitle = this.getHNPostTitle()
+        const systemMessage = `You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
+            Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
+            Format your response in MARKDOWN format.`;
+
+        const userMessage = this.getAnthropicUserMessage(postTitle, text);
+
+        console.log('2. System message:', systemMessage);
+        console.log('3. User message:', userMessage);
 
         // Prepare the request payload
         const payload = {
@@ -1477,7 +1488,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-
+            console.log('4. Summary:', summary);
             // Update the summary panel with the generated summary
             // TODO: Get the comment metadata here and pass it to the summary panel
             this.showSummaryInPanel(summary, commentPathToIdMap);
