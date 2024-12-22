@@ -366,3 +366,8 @@
         margin: 0.25rem 0 0.25rem 1.25rem;
     }
 }
+
+.summary-text #options-page-link {
+    color: #ff6600;
+    text-decoration: underline;
+}
