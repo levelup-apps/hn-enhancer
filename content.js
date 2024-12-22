@@ -544,6 +544,7 @@ class HNEnhancer {
             // Bold and Italic
             .replace(/\*\*(?=\S)([^\*]+?\S)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(?=\S)([^\*]+?\S)\*/g, '<em>$1</em>')
+            .replace(/_(?=\S)([^\*]+?\S)_/g, '<em>$1</em>')
 
             // Images and links
             .replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
@@ -731,82 +732,99 @@ class HNEnhancer {
 
             // Insert summarize comment link
             const navsElement = comment.querySelector('.navs');
-            if(navsElement) {
-                navsElement.appendChild(document.createTextNode(' | '));
+            if(!navsElement) {
+                console.error('Could not find the navs element to inject the summarize link');
+                return;
+            }
 
-                const summarizeChildCommentLink = document.createElement('a');
-                summarizeChildCommentLink.href = '#';
-                summarizeChildCommentLink.textContent = 'summarize thread';
-                summarizeChildCommentLink.title = 'Summarize all child comments in this thread';
+            navsElement.appendChild(document.createTextNode(' | '));
 
-                summarizeChildCommentLink.addEventListener('click', async (e) => {
-                    e.preventDefault();
+            const summarizeThreadLink = document.createElement('a');
+            summarizeThreadLink.href = '#';
+            summarizeThreadLink.textContent = 'summarize thread';
+            summarizeThreadLink.title = 'Summarize all child comments in this thread';
 
-                    // Clicking the link should set the current comment state
-                    this.setCurrentComment(comment);
+            summarizeThreadLink.addEventListener('click', async (e) => {
+                e.preventDefault();
 
-                    const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
-                    if (itemLinkElement) {
-                        const itemId = itemLinkElement.href.split('=')[1];
-                        const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+                // Clicking the link should set the current comment state
+                this.setCurrentComment(comment);
 
-                        const commentDepth = commentPathToIdMap.size;
+                // Get the item id from the 'age' link that shows '10 hours ago' or similar
+                const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
+                if (!itemLinkElement) {
+                    console.error('Could not find the item link element to get the item id for summarization');
+                    return;
+                }
 
-                        const settings = await chrome.storage.sync.get('settings');
-                        const providerSelection = settings?.settings?.providerSelection;
+                const itemId = itemLinkElement.href.split('=')[1];
+                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+                if (!formattedComment) {
+                    console.error('Could not get the thread for summarization');
+                    return;
+                }
 
-                        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, providerSelection);
+                const commentDepth = commentPathToIdMap.size;
+                const {aiProvider, model} = await this.getAIProviderModel();
+                const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
 
-                        if(!shouldSummarize) {
-                            this.summaryPanel.updateContent({
-                                title: 'Thread Too Brief for Summary',
-                                metadata: `Thread: ${author} and child comments`,
-                                text: `This conversation thread is concise enough to read directly. Summarizing short threads with a remote AI service would be inefficient. <br/><br/>
+                if (!shouldSummarize) {
+                    this.summaryPanel.updateContent({
+                        title: 'Thread Too Brief for Summary',
+                        metadata: `Thread: ${author} and child comments`,
+                        text: `This conversation thread is concise enough to read directly. Summarizing short threads with a remote AI service would be inefficient. <br/><br/>
                                       However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
                                       like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
                                       <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
-                            });
+                    });
 
-                            const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                            if (optionsLink) {
-                                optionsLink.addEventListener('click', (e) => {
-                                    e.preventDefault();
-                                    this.openOptionsPage();
-                                });
-                            }
-                            return;
-                        }
-
-                        if (formattedComment) {
-                            const metadata = `Thread: ${author} and child comments`
-                            this.summaryPanel.updateContent({
-                                title: 'Thread Summary',
-                                metadata: metadata,
-                                text: 'Summarizing all child comments...'
-                            });
-                            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
-                        }
+                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                    if (optionsLink) {
+                        optionsLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this.openOptionsPage();
+                        });
                     }
+                    return;
+                }
+
+                const modelInfo = aiProvider ? ` using ${aiProvider} ${model || ''}` : '';
+                const metadata = `Thread: ${author} and child comments`;
+
+                this.summaryPanel.updateContent({
+                    title: 'Thread Summary',
+                    metadata: metadata,
+                    text: `Summarizing thread and all its children${modelInfo} ...`
                 });
 
-                navsElement.appendChild(summarizeChildCommentLink);
-            }
+                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+            });
+
+            navsElement.appendChild(summarizeThreadLink);
         }
     }
 
-    shouldSummarizeText(formattedText, commentDepth, providerSelection) {
-        if (providerSelection === 'ollama' || providerSelection === 'chrome-ai') {
+    shouldSummarizeText(formattedText, commentDepth, aiProvider) {
+
+        // Ollama can handle larger data, so summarize longer threads and deeper comments
+        if (aiProvider === 'ollama') {
             return true;
         }
 
-        const max_sentences = 8;
-        const maxDepth = 3;
+        // Chrome Built-in AI cannot handle a lot of data, so limit the summarization to a certain depth
+        if (aiProvider === 'chrome-ai') {
+            return commentDepth <= 5;
+        }
+
+        // OpenAI and Claude can handle larger data, but it is expensive, so there should be a minimum length and depth
+        const minSentenceLength = 8;
+        const minCommentDepth = 3;
 
         const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
             .filter(sentence => sentence.trim().length > 0);
 
-        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > max_sentences && commentDepth > maxDepth);
-        return sentences.length > max_sentences && commentDepth > maxDepth;
+        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > minSentenceLength && commentDepth > maxDepth);
+        return sentences.length > minSentenceLength && commentDepth > minCommentDepth;
     }
 
     overrideHNDefaultNavigation(comment) {
@@ -960,6 +978,13 @@ class HNEnhancer {
         }
     }
 
+    async getAIProviderModel() {
+        const settingsData = await chrome.storage.sync.get('settings');
+        const aiProvider = settingsData.settings?.providerSelection;
+        const model = settingsData.settings?.[aiProvider]?.model;
+        return {aiProvider, model};
+    }
+
     async handleSummarizeAllCommentsClick(e) {
         e.preventDefault();
         const itemId = this.getCurrentHNItemId();
@@ -972,14 +997,17 @@ class HNEnhancer {
             }
             const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
-            this.summaryPanel.updateContent({
-                title: 'Post Summary',
-                metadata: 'All comments',
-                text: 'Summarizing all comments in this post...'
-            });
+            const {aiProvider, model} = await this.getAIProviderModel();
+            if (aiProvider && model) {
 
-            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+                this.summaryPanel.updateContent({
+                    title: 'Post Summary',
+                    metadata: 'All comments',
+                    text: `Summarizing all comments in this post using ${aiProvider} ${model} ...`
+                });
 
+                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+            }
         } catch (error) {
             console.error('Error fetching thread:', error);
             this.summaryPanel.updateContent({
@@ -1056,6 +1084,7 @@ class HNEnhancer {
             data: {}
         });
     }
+
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
@@ -1339,7 +1368,7 @@ Add more sections as needed based on the content of the discussion while maintai
   1. [Takeaway 1]
   2. [Takeaway 2]
   
-#Thread analysis
+# Thread analysis
 ## Primary branches
 [Number and brief description of main conversation branches. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
   - [Branch 1 path]: [ Summary]. [Evaluation of branch effectiveness]
@@ -1354,7 +1383,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
     // Show the summary in the summary panel - format the summary for two steps:
     // 1. Replace markdown with HTML
     // 2. Replace path identifiers with comment IDs
-    showSummaryInPanel(summary, commentPathToIdMap) {
+    async showSummaryInPanel(summary, commentPathToIdMap) {
 
         // Format the summary to replace markdown with HTML
         const summaryHtml = this.convertMarkdownToHTML(summary);
@@ -1362,9 +1391,17 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
         const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
 
-        this.summaryPanel.updateContent({
-            text: formattedSummary
-        });
+        const {aiProvider, model} = await this.getAIProviderModel();
+        if (aiProvider && model) {
+            this.summaryPanel.updateContent({
+                metadata: `Summarized using ${aiProvider} ${model}`,
+                text: formattedSummary
+            });
+        } else {
+            this.summaryPanel.updateContent({
+                text: formattedSummary
+            });
+        }
 
         // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
         document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
@@ -1416,13 +1453,51 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         const endpoint = 'http://localhost:11434/api/generate';
 
         // Create the system message for better summarization
-        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
+        const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
+        1. Identify the main topics and key arguments. 
+        2. Use markdown formatting for clarity and readability.
+        3. Include brief, relevant quotes to support main points.
+        4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
+        5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+        `;
 
         // Create the user message with the text to summarize
-        const userMessage = `Please summarize the following text concisely: ${text}`;
+        const title = this.getHNPostTitle();
+        const userMessage = `
+Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+-----
+Post Title: ${title}
+-----
+Comments: 
+${text}
+-----
+
+Use the following structure as an example of the output (do not copy the content, only use the format). The text in square brackets are placeholders for actual content. Do not show that in the final summary. Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. 
+
+# Summary
+## Main discussion points
+[List the main topics discussed across all branches as a list]
+  
+## Key takeaways
+[Summarize the most important insights or conclusions from the entire discussion as a list]
+
+# Thread analysis
+## Primary branches
+[Number and brief description of main conversation branches as a list. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
+  
+## Interaction patterns
+[Notable patterns in how the discussion branched and evolved]
+
+## Notable Quotes
+[Add notable quotes from the discussion with path-based identifiers of the quoted comment. Enclose quotes in italics.]
+
+Please proceed with your analysis and summary of the Hacker News discussion.
+        `;
 
         // console.log('2. System message:', systemMessage);
         // console.log('3. User message:', userMessage);
+
+        // console.log('Ollama input text:', text);
 
         // Prepare the request payload
         const payload = {
