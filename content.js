@@ -237,7 +237,8 @@ class HNEnhancer {
     }
 
     get isHomePage() {
-        return window.location.pathname === '/' || window.location.pathname === '/news';
+        const pathname = window.location.pathname;
+        return pathname === '/' || pathname === '/news' || pathname === '/newest' || pathname === '/ask' || pathname === '/show' || pathname === '/front';
     }
 
     get isCommentsPage() {
