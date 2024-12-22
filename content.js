@@ -754,10 +754,21 @@ class HNEnhancer {
 
                         if(!shouldSummarize) {
                             this.summaryPanel.updateContent({
-                                title: 'Thread Summary',
+                                title: 'Thread Too Brief for Summary',
                                 metadata: `Thread: ${author} and child comments`,
-                                text: 'This thread seems to be too short to be economical for summarizing using remote LLM. <br /> Want to use local AI? Click here.'
+                                text: `This conversation thread is concise enough to read directly. Summarizing short threads with a remote AI service would be inefficient. <br/><br/>
+                                      However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
+                                      like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
+                                      <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
                             });
+
+                            const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                            if (optionsLink) {
+                                optionsLink.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    this.openOptionsPage();
+                                });
+                            }
                             return;
                         }
 
@@ -1031,6 +1042,12 @@ class HNEnhancer {
         };
     }
 
+    openOptionsPage() {
+        chrome.runtime.sendMessage({
+            type: 'HN_SHOW_OPTIONS',
+            data: {}
+        });
+    }
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
@@ -1038,11 +1055,26 @@ class HNEnhancer {
             // const providerSelection = 'none';
             const model = data.settings?.[providerSelection]?.model;
 
-            //TODO: if providerSelection is empty, show the extension settings popup to select the provider
             if (!providerSelection ) {
-                console.error('Missing AI summarization configuration');
-                // use the chrome runtime to open the settings page
-                // chrome.runtime.openOptionsPage();
+                console.log('Missing AI summarization configuration');
+
+                const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
+                    'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
+                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a> or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+
+                this.summaryPanel.updateContent({
+                    title: 'AI Provider Setup Required',
+                    text: message
+                });
+
+                // Add event listener after updating content
+                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                if (optionsLink) {
+                    optionsLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openOptionsPage();
+                    });
+                }
                 return;
             }
 

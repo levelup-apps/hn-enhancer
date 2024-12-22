@@ -56,7 +56,7 @@ async function fetchOllamaModels() {
             selectElement.appendChild(option);
         }
     } catch (error) {
-        console.error('Error fetching Ollama models:', error);
+        console.log('Error fetching Ollama models:', error);
         // Handle error by adding an error option
         const selectElement = document.getElementById('ollama-model');
         selectElement.innerHTML = '';
