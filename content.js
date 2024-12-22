@@ -932,7 +932,7 @@ class HNEnhancer {
 
                     // TODO: Find a better way to set the HNEnhancer instance
                     document.hnEnhancer.isAiAvailable = parseAvailable(available);
-                    console.log('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
+                    // console.log('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
                     break;
                 case 'HN_CHECK_AI_READY':
                     break;
