@@ -798,7 +798,6 @@ class HNEnhancer {
             .filter(sentence => sentence.trim().length > 0);
 
         // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > max_sentences && commentDepth > maxDepth);
-        // console.log(formattedText);
         return sentences.length > max_sentences && commentDepth > maxDepth;
     }
 
@@ -925,7 +924,7 @@ class HNEnhancer {
 
                     // TODO: Find a better way to set the HNEnhancer instance
                     document.hnEnhancer.isAiAvailable = parseAvailable(available);
-                    console.log('HN_CHECK_AI_AVAILABLE_RESPONSE', document.hnEnhancer.isAiAvailable);
+                    console.log('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
                     break;
                 case 'HN_CHECK_AI_READY':
                     break;
@@ -1080,7 +1079,7 @@ class HNEnhancer {
             }
 
             console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
-            console.log('1. Formatted comment:', formattedComment);
+            // console.log('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
                 case 'chrome-ai':
@@ -1129,11 +1128,11 @@ class HNEnhancer {
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        console.log('2. System prompt:', systemPrompt);
+        // console.log('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, text);
-        console.log('3. User prompt:', userPrompt);
+        // console.log('3. User prompt:', userPrompt);
 
         // OpenAI takes system and user messages as an array with role (system / user) and content
         const messages = [{
@@ -1174,7 +1173,8 @@ class HNEnhancer {
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-            console.log('4. Summary:', summary);
+            // console.log('4. Summary:', summary);
+
             // Update the summary panel with the generated summary
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
@@ -1214,11 +1214,11 @@ class HNEnhancer {
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        console.log('2. System prompt:', systemPrompt);
+        // console.log('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, text);
-        console.log('3. User prompt:', userPrompt);
+        // console.log('3. User prompt:', userPrompt);
 
         // Anthropic takes system messages at the top level, whereas user messages as an array with role "user" and content.
         const messages = [{
@@ -1260,7 +1260,8 @@ class HNEnhancer {
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-            console.log('4. Summary:', summary);
+            // console.log('4. Summary:', summary);
+
             // Update the summary panel with the generated summary
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
@@ -1412,8 +1413,8 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         // Create the user message with the text to summarize
         const userMessage = `Please summarize the following text concisely: ${text}`;
 
-        console.log('2. System message:', systemMessage);
-        console.log('3. User message:', userMessage);
+        // console.log('2. System message:', systemMessage);
+        // console.log('3. User message:', userMessage);
 
         // Prepare the request payload
         const payload = {
@@ -1443,7 +1444,8 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-            console.log('4. Summary:', summary);
+            // console.log('4. Summary:', summary);
+
             // Update the summary panel with the generated summary
             // TODO: Get the comment metadata here and pass it to the summary panel
             this.showSummaryInPanel(summary, commentPathToIdMap);
