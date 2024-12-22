@@ -765,7 +765,8 @@ class HNEnhancer {
                 }
 
                 const commentDepth = commentPathToIdMap.size;
-                const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth);
+                const {aiProvider, model} = await this.getAIProviderModel();
+                const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
 
                 if (!shouldSummarize) {
                     this.summaryPanel.updateContent({
@@ -787,15 +788,13 @@ class HNEnhancer {
                     return;
                 }
 
-                this.getAIProviderModel().then(({aiProvider, model}) => {
-                    const modelInfo = aiProvider && model ? `using ${aiProvider} ${model}` : '';
-                    const metadata = `Thread: ${author} and child comments`;
+                const modelInfo = aiProvider ? ` using ${aiProvider} ${model || ''}` : '';
+                const metadata = `Thread: ${author} and child comments`;
 
-                    this.summaryPanel.updateContent({
-                        title: 'Thread Summary',
-                        metadata: metadata,
-                        text: `Summarizing thread and all its children ${modelInfo} ...`
-                    });
+                this.summaryPanel.updateContent({
+                    title: 'Thread Summary',
+                    metadata: metadata,
+                    text: `Summarizing thread and all its children${modelInfo} ...`
                 });
 
                 this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
@@ -805,19 +804,27 @@ class HNEnhancer {
         }
     }
 
-    shouldSummarizeText(formattedText, commentDepth, providerSelection) {
-        if (providerSelection === 'ollama' || providerSelection === 'chrome-ai') {
+    shouldSummarizeText(formattedText, commentDepth, aiProvider) {
+
+        // Ollama can handle larger data, so summarize longer threads and deeper comments
+        if (aiProvider === 'ollama') {
             return true;
         }
 
-        const max_sentences = 8;
-        const maxDepth = 3;
+        // Chrome Built-in AI cannot handle a lot of data, so limit the summarization to a certain depth
+        if (aiProvider === 'chrome-ai') {
+            return commentDepth <= 5;
+        }
+
+        // OpenAI and Claude can handle larger data, but it is expensive, so there should be a minimum length and depth
+        const minSentenceLength = 8;
+        const minCommentDepth = 3;
 
         const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
             .filter(sentence => sentence.trim().length > 0);
 
-        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > max_sentences && commentDepth > maxDepth);
-        return sentences.length > max_sentences && commentDepth > maxDepth;
+        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > minSentenceLength && commentDepth > maxDepth);
+        return sentences.length > minSentenceLength && commentDepth > minCommentDepth;
     }
 
     overrideHNDefaultNavigation(comment) {
@@ -1376,7 +1383,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
     // Show the summary in the summary panel - format the summary for two steps:
     // 1. Replace markdown with HTML
     // 2. Replace path identifiers with comment IDs
-    showSummaryInPanel(summary, commentPathToIdMap) {
+    async showSummaryInPanel(summary, commentPathToIdMap) {
 
         // Format the summary to replace markdown with HTML
         const summaryHtml = this.convertMarkdownToHTML(summary);
@@ -1384,18 +1391,17 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
         const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
 
-        this.getAIProviderModel().then(({aiProvider, model}) => {
-            if (aiProvider && model) {
-                this.summaryPanel.updateContent({
-                    metadata: `Summarized using ${aiProvider} ${model}`,
-                    text: formattedSummary
-                });
-            } else {
-                this.summaryPanel.updateContent({
-                    text: formattedSummary
-                });
-            }
-        });
+        const {aiProvider, model} = await this.getAIProviderModel();
+        if (aiProvider && model) {
+            this.summaryPanel.updateContent({
+                metadata: `Summarized using ${aiProvider} ${model}`,
+                text: formattedSummary
+            });
+        } else {
+            this.summaryPanel.updateContent({
+                text: formattedSummary
+            });
+        }
 
         // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
         document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
