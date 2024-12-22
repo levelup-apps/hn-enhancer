@@ -6,8 +6,8 @@
 		"tailwindcss": "^3.4.16"
 	},
 	"scripts": {
-		"build:tailwind": "npx tailwindcss -i ./input.css -o ./options-styles.css",
-		"build:tailwind:watch": "npx tailwindcss -i ./input.css -o ./options-styles.css --watch",
-		"release:tailwind": "NODE_ENV=production npx tailwindcss -i ./input.css -o ./options-styles.css --minify"
+		"build:tailwind": "pnpm tailwindcss -i ./input.css -o ./options-styles.css",
+		"build:tailwind:watch": "pnpm tailwindcss -i ./input.css -o ./options-styles.css --watch",
+		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./input.css -o ./options-styles.css --minify"
 	}
 }

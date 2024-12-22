@@ -177,7 +177,11 @@ class SummaryPanel {
     }
 
     updateContent({ title, metadata, text }) {
-        if (!this.isVisible || !this.panel) return;
+        if (!this.panel) return;
+
+        if (!this.isVisible) {
+            this.toggle();
+        }
 
         const titleElement = this.panel.querySelector('.summary-panel-title');
         if (title && titleElement) titleElement.textContent = title;
@@ -519,6 +523,8 @@ class HNEnhancer {
         // noinspection RegExpRedundantEscape,HtmlUnknownTarget
         html = html
             // Headers
+            .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+            .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -530,7 +536,7 @@ class HNEnhancer {
             .replace(/```([^`]+)```/g, '<pre><code>$1</code></pre>')
             .replace(/`([^`]+)`/g, '<code>$1</code>')
 
-            // Convert both bullet points and numbered lists to li elements
+            //  both bullet points and numbered lists to li elements
             .replace(/^\s*[\-\*]\s(.+)/gim, '<li>$1</li>')
             .replace(/^\s*(\d+)\.\s(.+)/gim, '<li>$2</li>')
 
@@ -743,10 +749,30 @@ class HNEnhancer {
                         const itemId = itemLinkElement.href.split('=')[1];
                         const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
-                        if (formattedComment) {
-                            if (!this.summaryPanel.isVisible) {
-                                this.summaryPanel.toggle();
+                        const commentDepth = commentPathToIdMap.size;
+                        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth);
+
+                        if(!shouldSummarize) {
+                            this.summaryPanel.updateContent({
+                                title: 'Thread Too Brief for Summary',
+                                metadata: `Thread: ${author} and child comments`,
+                                text: `This conversation thread is concise enough to read directly. Summarizing short threads with a remote AI service would be inefficient. <br/><br/>
+                                      However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
+                                      like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
+                                      <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
+                            });
+
+                            const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                            if (optionsLink) {
+                                optionsLink.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    this.openOptionsPage();
+                                });
                             }
+                            return;
+                        }
+
+                        if (formattedComment) {
                             const metadata = `Thread: ${author} and child comments`
                             this.summaryPanel.updateContent({
                                 title: 'Thread Summary',
@@ -761,6 +787,18 @@ class HNEnhancer {
                 navsElement.appendChild(summarizeChildCommentLink);
             }
         }
+    }
+
+    shouldSummarizeText(formattedText, commentDepth) {
+        const max_sentences = 8;
+        const maxDepth = 3;
+
+        const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
+            .filter(sentence => sentence.trim().length > 0);
+
+        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > max_sentences && commentDepth > maxDepth);
+        // console.log(formattedText);
+        return sentences.length > max_sentences && commentDepth > maxDepth;
     }
 
     overrideHNDefaultNavigation(comment) {
@@ -1004,6 +1042,12 @@ class HNEnhancer {
         };
     }
 
+    openOptionsPage() {
+        chrome.runtime.sendMessage({
+            type: 'HN_SHOW_OPTIONS',
+            data: {}
+        });
+    }
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
@@ -1011,11 +1055,26 @@ class HNEnhancer {
             // const providerSelection = 'none';
             const model = data.settings?.[providerSelection]?.model;
 
-            //TODO: if providerSelection is empty, show the extension settings popup to select the provider
             if (!providerSelection ) {
-                console.error('Missing AI summarization configuration');
-                // use the chrome runtime to open the settings page
-                // chrome.runtime.openOptionsPage();
+                console.log('Missing AI summarization configuration');
+
+                const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
+                    'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
+                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a> or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+
+                this.summaryPanel.updateContent({
+                    title: 'AI Provider Setup Required',
+                    text: message
+                });
+
+                // Add event listener after updating content
+                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                if (optionsLink) {
+                    optionsLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openOptionsPage();
+                    });
+                }
                 return;
             }
 
@@ -1032,6 +1091,11 @@ class HNEnhancer {
                 case 'openai':
                     const apiKey = data.settings?.[providerSelection]?.apiKey;
                     this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
+                    break;
+
+                case 'anthropic':
+                    const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
                     break;
 
                 case 'ollama':
@@ -1165,6 +1229,153 @@ Thread Analysis:
                 text: errorMessage
             });
         });
+    }
+
+    summarizeUsingAnthropic(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for Anthropic summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Set up the API request
+        const endpoint = 'https://api.anthropic.com/v1/messages';
+
+        // Create the user message for better summarization
+
+        // Create the user message with the text to summarize
+        const postTitle = this.getHNPostTitle()
+        const systemMessage = `You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
+            Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
+            Format your response in MARKDOWN format.`;
+
+        const userMessage = {
+            role: "user",
+            content: this.getAnthropicUserMessage(postTitle, text)
+        };
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            max_tokens: 1024,
+            system: systemMessage,
+            messages: [userMessage]
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true' // this is required to resolve CORS issue
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`Anthropic API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            if(!data || !data.content || data.content.length === 0) {
+                throw new Error(`Summary response data is empty. ${data}`);
+            }
+            const summary = data?.content[0]?.text;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap);
+
+        }).catch(error => {
+            console.error('Error in Anthropic summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    getAnthropicUserMessage(title, text) {
+        return `Please summarize the following text:
+Here is the title of the Hacker News post you will be analyzing:
+<post_title>
+${title}
+</post_title>
+
+Below are the formatted comments for this post. Each comment is preceded by a path-based identifier showing its position in the hierarchical structure:
+<comments>
+${text}
+</comments>
+
+Instructions:
+1. Carefully read through the post title and all comments.
+2. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+3. Identify the major discussion points across all branches of the conversation.
+4. Track how topics evolve within each branch and across branch boundaries.
+5. Identify topic relationships between different branches.
+6. Note where significant conversation shifts occur.
+
+Summary:
+- Major Discussion Points: [List the main topics discussed across all branches]
+- Key Takeaways: [Summarize the most important insights or conclusions from the entire discussion]
+
+Thread Analysis:
+- Primary Branches: [Number and brief description of main conversation branches]
+- Interaction Patterns: [Notable patterns in how the discussion branched and evolved]
+- Branch Effectiveness: [For each significant branch, specify the branch path and evaluate its productivity or engagement level]
+
+Example output structure (do not copy the content, only the format):
+
+Summary:
+
+Major Discussion Points:
+  1. [Topic 1]
+  2. [Topic 2]
+  3. [Topic 3]
+
+Key Takeaways:
+  1. [Takeaway 1]
+  2. [Takeaway 2]
+
+Thread Analysis:
+
+Primary Branches: 
+  1. [Branch 1 description]
+  2. [Branch 2 description]
+
+Interaction Patterns: 
+[Description of how the conversation flowed and branched]
+
+Branch Effectiveness:
+  - [Branch 1 path]: [Evaluation]
+  - [Branch 2 path]: [Evaluation]
+
+<discussion_breakdown>
+[Detailed breakdown as per the instructions above]
+</discussion_breakdown>
+
+Please proceed with your analysis and summary of the Hacker News discussion.`;
     }
 
     // Show the summary in the summary panel - format the summary for two steps:
@@ -1358,12 +1569,6 @@ Thread Analysis:
                     break;
             }
         });
-    }
-
-    shouldSummarizeText(text) {
-        const sentences = text.split(/[.!?]+(?:\s+|$)/)
-            .filter(sentence => sentence.trim().length > 0);
-        return sentences.length >= 3;
     }
 
     getHNPostTitle() {
