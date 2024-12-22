@@ -544,6 +544,7 @@ class HNEnhancer {
             // Bold and Italic
             .replace(/\*\*(?=\S)([^\*]+?\S)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(?=\S)([^\*]+?\S)\*/g, '<em>$1</em>')
+            .replace(/_(?=\S)([^\*]+?\S)_/g, '<em>$1</em>')
 
             // Images and links
             .replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
@@ -1331,7 +1332,7 @@ Add more sections as needed based on the content of the discussion while maintai
   1. [Takeaway 1]
   2. [Takeaway 2]
   
-#Thread analysis
+# Thread analysis
 ## Primary branches
 [Number and brief description of main conversation branches. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
   - [Branch 1 path]: [ Summary]. [Evaluation of branch effectiveness]
@@ -1408,13 +1409,51 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         const endpoint = 'http://localhost:11434/api/generate';
 
         // Create the system message for better summarization
-        const systemMessage = "You are a precise summarizer. Create concise, accurate summaries that capture the main points while preserving key details. Focus on clarity and brevity.";
+        const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
+        1. Identify the main topics and key arguments. 
+        2. Use markdown formatting for clarity and readability.
+        3. Include brief, relevant quotes to support main points.
+        4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
+        5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+        `;
 
         // Create the user message with the text to summarize
-        const userMessage = `Please summarize the following text concisely: ${text}`;
+        const title = this.getHNPostTitle();
+        const userMessage = `
+Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+-----
+Post Title: ${title}
+-----
+Comments: 
+${text}
+-----
+
+Use the following structure as an example of the output (do not copy the content, only use the format). The text in square brackets are placeholders for actual content. Do not show that in the final summary. Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. 
+
+# Summary
+## Main discussion points
+[List the main topics discussed across all branches as a list]
+  
+## Key takeaways
+[Summarize the most important insights or conclusions from the entire discussion as a list]
+
+# Thread analysis
+## Primary branches
+[Number and brief description of main conversation branches as a list. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
+  
+## Interaction patterns
+[Notable patterns in how the discussion branched and evolved]
+
+## Notable Quotes
+[Add notable quotes from the discussion with path-based identifiers of the quoted comment. Enclose quotes in italics.]
+
+Please proceed with your analysis and summary of the Hacker News discussion.
+        `;
 
         // console.log('2. System message:', systemMessage);
         // console.log('3. User message:', userMessage);
+
+        console.log('Ollama input text:', text);
 
         // Prepare the request payload
         const payload = {
