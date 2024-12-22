@@ -51,9 +51,10 @@
                                     <li>Enable "Generative text summarization"</li>
                                     <li>Restart Chrome</li>
                                 </ol>
+                                <p class="mt-3 text-xs text-gray-500">💡 Best for shorter content: While free and convenient, Chrome's built-in AI (Gemini Nano) works best with individual comments or brief discussion threads.
+                                    It may struggle and hallucinate with full comment pages due to model size limitations.</p>
                             </div>
                         </details>
-
 
                     </div>
                 </div>
@@ -73,21 +74,34 @@
                                     <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.459.134-1.033.566-1.033 1.29v.25a.75.75 0 1 0 1.5 0v-.115a2.5 2.5 0 1 0-2.518-4.153.75.75 0 1 0 1.061 1.06Z" clip-rule="evenodd" />
                                 </svg>
                             </summary>
-                            <div class="absolute left-0 -translate-x-20 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
-                                <p class="font-medium mb-2">💡 Free local summarization using <a class="underline" href="https://ollama.com/" target="_blank">Ollama</a></p>
-                                <p class="mb-3">Make sure Ollama is running to see your downloaded models in the dropdown<</p>
-                                <p class="font-medium mb-1">Enable CORS for Ollama API:</p>
-                                <ol class="list-decimal ml-4 space-y-1">
-                                    <li>Setup <code class="bg-gray-100 px-1 rounded">OLLAMA_ORIGINS</code> environment variable</li>
-                                    <li>Step 2</li>
-                                    <li>Step 3</li>
-                                    <li>Restart Ollama</li>
+                            <div class="absolute left-0 -translate-x-32  mt-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
+                                <p class="font-medium mb-2">💡 Free local summarization using Ollama</p>
+
+                                <p class="mb-3">For this extension to work with Ollama:</p>
+
+                                <ol class="list-decimal ml-4 space-y-2">
+                                    <li>Make sure Ollama is running to see your downloaded models in the dropdown</li>
+                                    <li>Enable CORS for the extension:
+                                        <div class="mt-2 p-2 bg-gray-50 rounded font-mono text-xs">
+                                            <p class="mb-1">On Mac (run on terminal):</p>
+                                            <code class="bg-gray-100 px-2 py-1 rounded block overflow-x-auto">
+                                                launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
+                                            </code>
+                                        </div>
+                                        <div class="mt-2 p-2 bg-gray-50 rounded font-mono text-xs">
+                                            <p class="mb-1">On Windows:</p>
+                                            <code class="bg-gray-100 px-2 py-1 rounded block overflow-x-auto">
+                                                setx OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
+                                            </code>
+                                        </div>
+                                    </li>
+                                    <li>Restart Ollama for the CORS settings to take effect</li>
                                 </ol>
+
+                                <p class="mt-3 text-xs text-gray-500">Note: The model dropdown will automatically show your locally downloaded models when Ollama is running properly.
+                                    Make sure the settings persist across machine restarts.</p>
                             </div>
                         </details>
-
-
-
 
                     </div>
                     <div class="ml-7 space-y-3">
