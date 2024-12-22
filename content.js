@@ -177,7 +177,11 @@ class SummaryPanel {
     }
 
     updateContent({ title, metadata, text }) {
-        if (!this.isVisible || !this.panel) return;
+        if (!this.panel) return;
+
+        if (!this.isVisible) {
+            this.toggle();
+        }
 
         const titleElement = this.panel.querySelector('.summary-panel-title');
         if (title && titleElement) titleElement.textContent = title;
@@ -519,6 +523,8 @@ class HNEnhancer {
         // noinspection RegExpRedundantEscape,HtmlUnknownTarget
         html = html
             // Headers
+            .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+            .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -530,7 +536,7 @@ class HNEnhancer {
             .replace(/```([^`]+)```/g, '<pre><code>$1</code></pre>')
             .replace(/`([^`]+)`/g, '<code>$1</code>')
 
-            // Convert both bullet points and numbered lists to li elements
+            //  both bullet points and numbered lists to li elements
             .replace(/^\s*[\-\*]\s(.+)/gim, '<li>$1</li>')
             .replace(/^\s*(\d+)\.\s(.+)/gim, '<li>$2</li>')
 
@@ -743,10 +749,19 @@ class HNEnhancer {
                         const itemId = itemLinkElement.href.split('=')[1];
                         const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
+                        const commentDepth = commentPathToIdMap.size;
+                        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth);
+
+                        if(!shouldSummarize) {
+                            this.summaryPanel.updateContent({
+                                title: 'Thread Summary',
+                                metadata: `Thread: ${author} and child comments`,
+                                text: 'This thread seems to be too short to be economical for summarizing using remote LLM. <br /> Want to use local AI? Click here.'
+                            });
+                            return;
+                        }
+
                         if (formattedComment) {
-                            if (!this.summaryPanel.isVisible) {
-                                this.summaryPanel.toggle();
-                            }
                             const metadata = `Thread: ${author} and child comments`
                             this.summaryPanel.updateContent({
                                 title: 'Thread Summary',
@@ -761,6 +776,18 @@ class HNEnhancer {
                 navsElement.appendChild(summarizeChildCommentLink);
             }
         }
+    }
+
+    shouldSummarizeText(formattedText, commentDepth) {
+        const max_sentences = 8;
+        const maxDepth = 3;
+
+        const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
+            .filter(sentence => sentence.trim().length > 0);
+
+        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > max_sentences && commentDepth > maxDepth);
+        // console.log(formattedText);
+        return sentences.length > max_sentences && commentDepth > maxDepth;
     }
 
     overrideHNDefaultNavigation(comment) {
@@ -1035,10 +1062,10 @@ class HNEnhancer {
                     break;
 
                 case 'anthropic':
-                    const endpoint = 'https://api.anthropic.com/v1/complete';
                     const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingOpenAI(formattedComment, model, claudeApiKey, commentPathToIdMap);
+                    this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
                     break;
+
                 case 'ollama':
                     this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
                     break;
@@ -1090,11 +1117,175 @@ Thread Analysis:
 `;
     }
 
-    getAnthropicMessage(title, text) {
-        return `
-You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
-Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
+    summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for OpenAI summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
 
+        // Set up the API request
+        const endpoint = 'https://api.openai.com/v1/chat/completions';
+
+        // Create the system message for better summarization
+        const message = this.getSystemMessage();
+        const systemMessage = {
+            role: "system",
+            content: message
+        };
+
+        // Create the user message with the text to summarize
+        const postTitle = this.getHNPostTitle()
+        const userMessage = {
+            role: "user",
+            content: `Please summarize the comments for a post with the title '${postTitle}'. \n Following are the formatted comments: \n ${text}`
+        };
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: [systemMessage, userMessage],
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap);
+
+        }).catch(error => {
+            console.error('Error in OpenAI summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingAnthropic(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for Anthropic summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Set up the API request
+        const endpoint = 'https://api.anthropic.com/v1/messages';
+
+        // Create the user message for better summarization
+
+        // Create the user message with the text to summarize
+        const postTitle = this.getHNPostTitle()
+        const systemMessage = `You are a skilled discussion analyzer specializing in hierarchical conversations from Hacker News comments. 
+            Your task is to create a comprehensive summary that captures both the content and the structural flow of the discussion.
+            Format your response in MARKDOWN format.`;
+
+        const userMessage = {
+            role: "user",
+            content: this.getAnthropicUserMessage(postTitle, text)
+        };
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            max_tokens: 1024,
+            system: systemMessage,
+            messages: [userMessage]
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true' // this is required to resolve CORS issue
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`Anthropic API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            if(!data || !data.content || data.content.length === 0) {
+                throw new Error(`Summary response data is empty. ${data}`);
+            }
+            const summary = data?.content[0]?.text;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap);
+
+        }).catch(error => {
+            console.error('Error in Anthropic summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    getAnthropicUserMessage(title, text) {
+        return `Please summarize the following text:
 Here is the title of the Hacker News post you will be analyzing:
 <post_title>
 ${title}
@@ -1125,20 +1316,26 @@ Thread Analysis:
 Example output structure (do not copy the content, only the format):
 
 Summary:
-- Major Discussion Points:
+
+Major Discussion Points:
   1. [Topic 1]
   2. [Topic 2]
   3. [Topic 3]
-- Key Takeaways:
+
+Key Takeaways:
   1. [Takeaway 1]
   2. [Takeaway 2]
 
 Thread Analysis:
-- Primary Branches: 
+
+Primary Branches: 
   1. [Branch 1 description]
   2. [Branch 2 description]
-- Interaction Patterns: [Description of how the conversation flowed and branched]
-- Branch Effectiveness:
+
+Interaction Patterns: 
+[Description of how the conversation flowed and branched]
+
+Branch Effectiveness:
   - [Branch 1 path]: [Evaluation]
   - [Branch 2 path]: [Evaluation]
 
@@ -1147,89 +1344,6 @@ Thread Analysis:
 </discussion_breakdown>
 
 Please proceed with your analysis and summary of the Hacker News discussion.`;
-    }
-
-    summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for OpenAI summarization');
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: 'Missing API configuration'
-            });
-            return;
-        }
-
-        // Set up the API request
-        // const endpoint = 'https://api.openai.com/v1/chat/completions';
-        const endpoint = 'https://api.anthropic.com/v1/messages';
-
-        // Create the system message for better summarization
-        const message = this.getSystemMessage();
-        const systemMessage = {
-            role: "system",
-            content: message
-        };
-
-        // Create the user message with the text to summarize
-        const postTitle = this.getHNPostTitle()
-        const userMessage = {
-            role: "user",
-            content: this.getAnthropicMessage(postTitle, text)
-        };
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            "max_tokens": 1024,
-            messages: [userMessage]
-        };
-
-        // Make the API request using Promise chains
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'Authorization': `Bearer ${apiKey}`
-                'x-api-key': apiKey,
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
-        }).then(data => {
-            const summary = data?.content[0]?.text;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
-
-        }).catch(error => {
-            console.error('Error in OpenAI summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = 'Error generating summary. ';
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429')) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else {
-                errorMessage += 'Please try again later.';
-            }
-
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
-        });
     }
 
     // Show the summary in the summary panel - format the summary for two steps:
@@ -1423,12 +1537,6 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
                     break;
             }
         });
-    }
-
-    shouldSummarizeText(text) {
-        const sentences = text.split(/[.!?]+(?:\s+|$)/)
-            .filter(sentence => sentence.trim().length > 0);
-        return sentences.length >= 3;
     }
 
     getHNPostTitle() {
