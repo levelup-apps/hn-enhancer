@@ -751,7 +751,11 @@ class HNEnhancer {
                         const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
                         const commentDepth = commentPathToIdMap.size;
-                        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth);
+
+                        const settings = await chrome.storage.sync.get('settings');
+                        const providerSelection = settings?.settings?.providerSelection;
+
+                        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, providerSelection);
 
                         if(!shouldSummarize) {
                             this.summaryPanel.updateContent({
@@ -790,7 +794,11 @@ class HNEnhancer {
         }
     }
 
-    shouldSummarizeText(formattedText, commentDepth) {
+    shouldSummarizeText(formattedText, commentDepth, providerSelection) {
+        if (providerSelection === 'ollama' || providerSelection === 'chrome-ai') {
+            return true;
+        }
+
         const max_sentences = 8;
         const maxDepth = 3;
 
