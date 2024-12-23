@@ -21,13 +21,15 @@ class HNEnhancer {
 
         // Initialize the page based on type - home page vs. comments page
         if (this.isHomePage) {
-            this.initHomePageNavigation();
+            this.initHomPagePosts();
         } else if (this.isCommentsPage) {
             // Initialize state for comments experience - author comments, comment navigation and summary panel,
             this.updateAuthorComments();
             this.initCommentsNavigation();
             this.summaryPanel = new SummaryPanel();
         }
+
+        this.setupKeyBoardShortcuts();
 
         // TODO: move this to a more discrete place
         // Origin -> news.ycombinator.com; Registration for Summarization API
@@ -49,8 +51,17 @@ class HNEnhancer {
         return window.location.pathname === '/item';
     }
 
+    initHomPagePosts() {
+        this.posts = document.querySelectorAll('.athing');
+        if (this.posts.length > 0) {
+            this.currentPostIndex = 0;
+            const firstPost = this.posts[this.currentPostIndex];
+            this.setCurrentPost(firstPost);
+        }
+    }
+
     initCommentsNavigation() {
-        this.setupKeyboardNavigation();  // Set up keyboard navigation
+
         this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
         this.setupUserHover();           // Set up hover events for author info
 
@@ -106,120 +117,92 @@ class HNEnhancer {
         this.activeHighlight = authorElement;
     }
 
-    setupKeyboardNavigation() {
+    setupKeyBoardShortcuts() {
 
-        // Save the last key press time and last key in order to handle double key press (eg: 'gg')
-        let lastKey = '';
-        let lastKeyPressTime = 0;
-
-        // Add keyboard event listener
-        document.addEventListener('keydown', (e) => {
-            // Handle key press only when it is not in an input field
-            const isInputField = e.target.matches('input, textarea, [contenteditable="true"]');
-            if (isInputField) {
-                return;
-            }
-
-            const result = this.handleKeyboardEvent(e, lastKey, lastKeyPressTime);
-            if(result) {
-                lastKey = result.lastKey;
-                lastKeyPressTime = result.lastKeyPressTime;
-            }
-        });
-
-        this.setupGlobalKeyboardShortcuts();
-    }
-
-    handleKeyboardEvent(e, lastKey, lastKeyPressTime) {
-
-        switch (e.key) {
-
-            case 'j': // Next comment at same depth (same as 'next' hyperlink)
-                e.preventDefault();
-
-                // Find the 'next' hyperlink in the HN nav panel and navigate to it.
+        // Shortcut keys specific to the Comments page
+        const commentsPageKeyboardShortcuts = {
+            'j': () => {
+                // Next comment at same depth
+                // Find the 'next' hyperlink in the HN nav panel and set that as the current comment.
                 const nextComment = this.getNavElementByName(this.currentComment, 'next');
                 if (nextComment) {
                     this.setCurrentComment(nextComment);
                 }
-                break;
-
-            case 'k': // Previous comment at same depth (same as 'prev' hyperlink)
-                e.preventDefault();
-
-                // Find the 'prev' hyperlink in the HN nav panel and navigate to it.
+            },
+            'k': () => {
+                // Previous comment at same depth (same as 'prev' hyperlink)
+                // Find the 'prev' hyperlink in the HN nav panel and set that as the current comment.
                 const prevComment = this.getNavElementByName(this.currentComment, 'prev');
                 if (prevComment) {
                     this.setCurrentComment(prevComment);
                 }
-                break;
-
-            case 'l': // Next child
-                if (e.ctrlKey || e.metaKey) return; // Allow default behavior if Ctrl or Command key is pressed
-                e.preventDefault();
+            },
+            'l': () => {
+                // Next child. If you are at the last child, it will go to the next sibling comment
                 this.navigateToChildComment();
-                break;
-
-            case 'h': // Parent comment (same as 'parent' hyperlink)
-                e.preventDefault();
-
-                // Find the 'parent' hyperlink in the HN nav panel and navigate to it.
+            },
+            'h': () => {
+                // Parent comment (same as 'parent' hyperlink)
+                // Find the 'parent' hyperlink in the HN nav panel and set that as the current comment.
                 const parentComment = this.getNavElementByName(this.currentComment, 'parent');
                 if (parentComment) {
                     this.setCurrentComment(parentComment);
                 }
-                break;
-
-            case 'r': // Root comment (same as 'root' hyperlink)
-                e.preventDefault();
-
-                // Find the 'root' hyperlink in the HN nav panel and navigate to it.
+            },
+            'r': () => {
+                // Find the 'root' hyperlink in the HN nav panel and set that as the current comment.
                 const rootComment = this.getNavElementByName(this.currentComment, 'root');
                 if (rootComment) {
                     this.setCurrentComment(rootComment);
                 }
-                break;
-
-            case '[': {
-                e.preventDefault();
-                const authorElement = this.currentComment.querySelector('.hnuser');
-                if (authorElement) {
-                    const author = authorElement.textContent;
-                    this.navigateAuthorComments(author, this.currentComment, 'prev');
+            },
+            '[': () => {
+                //  Previous comment by the same author
+                // Find the 'root' hyperlink in the HN nav panel and set that as the current comment.
+                const rootComment = this.getNavElementByName(this.currentComment, 'root');
+                if (rootComment) {
+                    this.setCurrentComment(rootComment);
                 }
-                break;
-            }
-
-            case ']': {
-                e.preventDefault();
+            },
+            ']': () => {
+                // Next comment by the same author
                 const authorElement = this.currentComment.querySelector('.hnuser');
                 if (authorElement) {
                     const author = authorElement.textContent;
                     this.navigateAuthorComments(author, this.currentComment, 'next');
                 }
-                break;
-            }
-
-            case 'z': // Scroll to current comment
-                e.preventDefault();
+            },
+            'z': () => {
+                // Scroll to current comment
                 if (this.currentComment) {
                     this.currentComment.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
-                break;
-
-            case 'c': // Collapse current comment
-                e.preventDefault();
+            },
+            'c': () => {
+                // Collapse/expand current comment
                 if (this.currentComment) {
                     const toggleLink = this.currentComment.querySelector('.togg');
                     if (toggleLink) {
                         toggleLink.click();
                     }
                 }
-                break;
+            },
+            'o': () => {
+                // Open the original post in new tab
+                const postLink = document.querySelector('.titleline a');
+                if (postLink) {
+                    window.open(postLink.href, '_blank');
+                }
+            },
+            's': () => {
+                // Open/close the summary panel on the right
+                this.summaryPanel.toggle();
 
-            case 'g': // Go to first comment (when pressed twice)
-                e.preventDefault();
+            },
 
+            // Double key combinations
+            'g+g': () => {
+                // Go to first comment
                 const currentTime = Date.now();
                 if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
                     this.navigateToFirstComment();
@@ -228,24 +211,127 @@ class HNEnhancer {
                 // Update the last key and time so that we can handle the repeated press in the next iteration
                 lastKey = 'g';
                 lastKeyPressTime = currentTime;
-                break;
+            }
+        }
 
-            case 'o': // Open the original post in new window
+        // Shortcut keys specific to Home Page
+        const homePageKeyboardShortcuts = this.getHomePageKeyboardShortcuts();
+
+        // Shortcut keys common to all pages (Comments, Home)
+        const globalKeyboardShortcuts = this.getGlobalKeyboardShortcuts();
+
+        // Track last key press
+        let lastKey = null;
+        let lastKeyPressTime = 0;
+        const KEY_COMBO_TIMEOUT = 1000; // 1 second timeout for combinations
+
+        document.addEventListener('keydown', (e) => {
+            // Handle key press only when it is not in an input field
+            const isInputField = e.target.matches('input, textarea, select, [contenteditable="true"]');
+            if (isInputField) return;
+
+            // Allow default behavior if Ctrl or Command key is pressed
+            if (e.ctrlKey || e.metaKey) return;
+
+            let shortcutKey = e.key;
+            const currentTime = Date.now();
+
+            // Check for key combination
+            if (lastKey && (currentTime - lastKeyPressTime) < KEY_COMBO_TIMEOUT) {
+                shortcutKey = `${lastKey}+${shortcutKey}`;
+            }
+
+            let shortcutHandler = null;
+
+            // Find the shortcut handler in the order of specificity
+            //  1. If in home page, look for home page handler
+            //  2. If in comments page, look for comments page handler
+            //  3. If not found in either, look in the global list
+            if (this.isHomePage && homePageKeyboardShortcuts[shortcutKey]) {
+                shortcutHandler = homePageKeyboardShortcuts[shortcutKey];
+            } else if (this.isCommentsPage && commentsPageKeyboardShortcuts[shortcutKey]) {
+                shortcutHandler = commentsPageKeyboardShortcuts[shortcutKey];
+            } else {
+                shortcutHandler = globalKeyboardShortcuts[shortcutKey];
+            }
+
+            // If we have a handler for this key or combination, invoke it
+            if (shortcutHandler) {
                 e.preventDefault();
-                const postLink = document.querySelector('.titleline a');
+                shortcutHandler();
+
+                console.log('Handled shortcut key:', shortcutKey);
+
+                // Reset after successful combination
+                lastKey = null;
+                lastKeyPressTime = 0;
+            } else {
+                // Update tracking for potential combination
+                lastKey = shortcutKey;
+                lastKeyPressTime = currentTime;
+            }
+        });
+    }
+
+    getHomePageKeyboardShortcuts() {
+        return {
+            'j': () => {
+                // Next post
+                if (this.currentPostIndex < this.posts.length - 1) {
+                    this.currentPostIndex++;
+                    const nextPost = this.posts[this.currentPostIndex];
+                    this.setCurrentPost(nextPost);
+                }
+            },
+            'k': () => {
+                // Previous post
+                if (this.currentPostIndex > 0) {
+                    this.currentPostIndex--;
+                    const prevPost = this.posts[this.currentPostIndex];
+                    this.setCurrentPost(prevPost);
+                }
+            },
+            'o': () => {
+                // Open post in new tab
+                if(!this.posts[this.currentPostIndex]) return;
+
+                const postLink = this.posts[this.currentPostIndex].querySelector('.titleline a');
                 if (postLink) {
                     window.open(postLink.href, '_blank');
                 }
-                break;
+            },
+            'c': () => {
+                // Open comments page
+                if(!this.posts[this.currentPostIndex]) return;
 
-            case 's': // Open the summary panel on the right
-                if (!e.ctrlKey && !e.metaKey) {
-                    e.preventDefault();
-                    this.summaryPanel.toggle();
+                const subtext = this.posts[this.currentPostIndex].nextElementSibling;
+                if (subtext) {
+                    const commentsLink = subtext.querySelector('a[href^="item?id="]');
+                    if (commentsLink) {
+                        window.location.href = commentsLink.href;
+                    }
                 }
-                break;
+            }
         }
-        return {lastKey: lastKey, lastKeyPressTime: lastKeyPressTime};
+    }
+
+    getGlobalKeyboardShortcuts() {
+        return {
+            '?': () => {
+                // Open/close the help modal
+                this.toggleHelpModal(this.helpModal.style.display === 'none');
+            },
+            '/': () => {
+                // Open/close the help modal
+                this.toggleHelpModal(this.helpModal.style.display === 'none');
+            },
+            'Escape': () => {
+                // Close the help modal if it is open
+                if (this.helpModal.style.display !== 'none') {
+                    this.toggleHelpModal(false);
+                }
+            },
+        }
     }
 
     navigateToFirstComment(scrollToComment = true) {
@@ -385,7 +471,7 @@ class HNEnhancer {
         content.className = 'keyboard-help-content';
 
         const title = document.createElement('h2');
-        title.textContent = 'Keyboard Shortcuts';
+        title.textContent = 'HN Companion: Keyboard Shortcuts';
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'help-close-btn';
@@ -1391,82 +1477,13 @@ Please proceed with your analysis and summary of the Hacker News discussion.
         });
     }
 
-    initHomePageNavigation() {
-        const posts = document.querySelectorAll('.athing');
-        if (posts.length === 0) return;
-
-        let currentPostIndex = 0;
-        this.setCurrentPost(posts[currentPostIndex]);
-
-        document.addEventListener('keydown', (e) => {
-            if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
-
-            switch (e.key) {
-                case 'j':
-                    e.preventDefault();
-                    if (currentPostIndex < posts.length - 1) {
-                        currentPostIndex++;
-                        this.setCurrentPost(posts[currentPostIndex]);
-                    }
-                    break;
-                case 'k':
-                    e.preventDefault();
-                    if (currentPostIndex > 0) {
-                        currentPostIndex--;
-                        this.setCurrentPost(posts[currentPostIndex]);
-                    }
-                    break;
-                case 'o':
-                    e.preventDefault();
-                    const postLink = posts[currentPostIndex].querySelector('.titleline a');
-                    if (postLink) {
-                        window.open(postLink.href, '_blank');
-                    }
-                    break;
-                case 'c':
-                    e.preventDefault();
-                    if(!posts[currentPostIndex])
-                        return;
-
-                    const subtext = posts[currentPostIndex].nextElementSibling;
-                    if (subtext) {
-                        const commentsLink = subtext.querySelector('a[href^="item?id="]');
-                        if (commentsLink) {
-                            window.location.href = commentsLink.href;
-                        }
-                    }
-
-                    break;
-            }
-        });
-
-        this.setupGlobalKeyboardShortcuts();
-    }
-
     setCurrentPost(post) {
-        document.querySelectorAll('.athing').forEach(p => p.classList.remove('highlight-post'));
+        if(!this.posts) return;
+
+        // TODO: Remove highlight from previous post only, not all posts
+        this.posts.forEach(p => p.classList.remove('highlight-post'));
         post.classList.add('highlight-post');
         post.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    setupGlobalKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
-
-            switch (e.key) {
-                case '?':
-                case '/':
-                    e.preventDefault();
-                    this.toggleHelpModal(this.helpModal.style.display === 'none');
-                    break;
-                case 'Escape':
-                    if (this.helpModal.style.display === 'flex') {
-                        e.preventDefault();
-                        this.toggleHelpModal(false);
-                    }
-                    break;
-            }
-        });
     }
 
     getHNPostTitle() {
