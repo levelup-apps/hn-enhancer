@@ -961,7 +961,7 @@ class HNEnhancer {
                 return;
             }
 
-            console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
+            // console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
             // console.log('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
@@ -1482,4 +1482,3 @@ Please proceed with your analysis and summary of the Hacker News discussion.
 // So this script is injected only after the DOM is loaded and all other scripts have finished executing.
 // This guarantees that the DOM of the main HN page is loaded by the time this script runs.
 document.hnEnhancer = new HNEnhancer();
-console.log('HN Enhancer initialized and ready');
