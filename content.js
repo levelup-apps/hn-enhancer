@@ -147,44 +147,55 @@ class HNEnhancer {
         // Shortcut keys common to all pages (Comments, Home)
         const globalKeyboardShortcuts = this.getGlobalKeyboardShortcuts();
 
+        console.log('Global shortcuts:', Object.keys(globalKeyboardShortcuts));
+        console.log('Home shortcuts:', Object.keys(homePageKeyboardShortcuts));
+        console.log('Comments shortcuts:', Object.keys(commentsPageKeyboardShortcuts));
+
         // Track last key press
         let lastKey = null;
         let lastKeyPressTime = 0;
         const KEY_COMBO_TIMEOUT = 1000; // 1 second timeout for combinations
 
         document.addEventListener('keydown', (e) => {
-            // Handle key press only when it is not in an input field
+
+            // Handle key press only when it is not in an input field and not Ctrl / Cmd keys.
+            //  This will allow the default behavior when these keys are pressed
             const isInputField = e.target.matches('input, textarea, select, [contenteditable="true"]');
-            if (isInputField) return;
+            if(isInputField || e.ctrlKey || e.metaKey) {
+                return;
+            }
 
-            // Allow default behavior if Ctrl or Command key is pressed
-            if (e.ctrlKey || e.metaKey) return;
+            console.log(`Pressed key: ${e.key}. Shift key: ${e.shiftKey}`);
 
-            let shortcutKey = e.key;
             const currentTime = Date.now();
+            let shortcutKey = e.key;
 
-            // Check for key combination
-            if (lastKey && (currentTime - lastKeyPressTime) < KEY_COMBO_TIMEOUT) {
-                shortcutKey = `${lastKey}+${shortcutKey}`;
-            }
+            // check if this is a shifted key (eg: '?'), if so, treat it as a single key
+            const shiftedKeys = ['?'];
+            const isShiftedKey = e.shiftKey && shiftedKeys.includes(e.key);
 
-            let shortcutHandler;
-
-            // Find the shortcut handler in the order of specificity
-            //  1. If in home page, look for home page handler
-            //  2. If in comments page, look for comments page handler
-            //  3. If not found in either, look in the global list
-            if (this.isHomePage && homePageKeyboardShortcuts[shortcutKey]) {
-                shortcutHandler = homePageKeyboardShortcuts[shortcutKey];
-            } else if (this.isCommentsPage) {
-                if(commentsPageKeyboardShortcuts[shortcutKey]) {
-                    shortcutHandler = commentsPageKeyboardShortcuts[shortcutKey];
-                } else if(doubleKeyShortcuts['comments'] && doubleKeyShortcuts['comments'][shortcutKey]) {
-                    shortcutHandler = doubleKeyShortcuts['comments'][shortcutKey];
+            if (!isShiftedKey) {
+                // Check for key combination for non-shifted keys
+                if (lastKey && (currentTime - lastKeyPressTime) < KEY_COMBO_TIMEOUT) {
+                    shortcutKey = `${lastKey}+${shortcutKey}`;
                 }
-            } else {
-                shortcutHandler = globalKeyboardShortcuts[shortcutKey];
             }
+
+
+            // Look for a handler for the given shortcut key in the key->handler mapping
+            //  - first in the page-specific keys, then in the global shortcuts.
+            const pageShortcuts = this.isHomePage ? homePageKeyboardShortcuts :
+                this.isCommentsPage ? {
+                        ...commentsPageKeyboardShortcuts,
+                        ...(doubleKeyShortcuts['comments'] || {})
+                    } :
+                    {};
+
+            console.log('Selected page shortcuts:', Object.keys(pageShortcuts));
+
+            const shortcutHandler = pageShortcuts[shortcutKey] || globalKeyboardShortcuts[shortcutKey];
+
+            console.log(`Shortcut key: ${shortcutKey}. Handler found? ${!!shortcutHandler}`);
 
             // If we have a handler for this key or combination, invoke it
             if (shortcutHandler) {
