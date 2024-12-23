@@ -1,5 +1,17 @@
 class HNEnhancer {
 
+    static DEBUG = false;  // Set to true when debugging
+
+    logDebug(...args) {
+        if (HNEnhancer.DEBUG) {
+            console.log('[DEBUG] ', ...args);
+        }
+    }
+
+    logInfo(...args) {
+        console.log('[INFO] ', ...args);
+    }
+
     static AI_AVAILABLE = {
         YES: 'readily',
         NO: 'no',
@@ -147,10 +159,6 @@ class HNEnhancer {
         // Shortcut keys common to all pages (Comments, Home)
         const globalKeyboardShortcuts = this.getGlobalKeyboardShortcuts();
 
-        console.log('Global shortcuts:', Object.keys(globalKeyboardShortcuts));
-        console.log('Home shortcuts:', Object.keys(homePageKeyboardShortcuts));
-        console.log('Comments shortcuts:', Object.keys(commentsPageKeyboardShortcuts));
-
         // Track last key press
         let lastKey = null;
         let lastKeyPressTime = 0;
@@ -165,7 +173,7 @@ class HNEnhancer {
                 return;
             }
 
-            console.log(`Pressed key: ${e.key}. Shift key: ${e.shiftKey}`);
+            this.logDebug(`Pressed key: ${e.key}. Shift key: ${e.shiftKey}`);
 
             const currentTime = Date.now();
             let shortcutKey = e.key;
@@ -191,11 +199,11 @@ class HNEnhancer {
                     } :
                     {};
 
-            console.log('Selected page shortcuts:', Object.keys(pageShortcuts));
+            this.logDebug('Selected page shortcuts:', Object.keys(pageShortcuts));
 
             const shortcutHandler = pageShortcuts[shortcutKey] || globalKeyboardShortcuts[shortcutKey];
 
-            console.log(`Shortcut key: ${shortcutKey}. Handler found? ${!!shortcutHandler}`);
+            this.logDebug(`Shortcut key: ${shortcutKey}. Handler found? ${!!shortcutHandler}`);
 
             // If we have a handler for this key or combination, invoke it
             if (shortcutHandler) {
@@ -775,7 +783,7 @@ class HNEnhancer {
         const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
             .filter(sentence => sentence.trim().length > 0);
 
-        // console.log('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > minSentenceLength && commentDepth > maxDepth);
+        // this.logDebug('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > minSentenceLength && commentDepth > maxDepth);
         return sentences.length > minSentenceLength && commentDepth > minCommentDepth;
     }
 
@@ -893,7 +901,7 @@ class HNEnhancer {
                 return;
             }
 
-            // console.log('content.js - Received message:', event.type, JSON.stringify(event.data));
+            // this.logDebug('content.js - Received message:', event.type, JSON.stringify(event.data));
 
             // Handle different message types
             switch (event.data.type) {
@@ -902,7 +910,7 @@ class HNEnhancer {
 
                     // TODO: Find a better way to set the HNEnhancer instance
                     document.hnEnhancer.isAiAvailable = parseAvailable(available);
-                    // console.log('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
+                    document.hnEnhancer.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
                     break;
                 case 'HN_CHECK_AI_READY':
                     break;
@@ -1048,7 +1056,7 @@ class HNEnhancer {
             const model = data.settings?.[providerSelection]?.model;
 
             if (!providerSelection ) {
-                console.log('Missing AI summarization configuration');
+                console.error('Missing AI summarization configuration');
 
                 const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
                     'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
@@ -1070,8 +1078,8 @@ class HNEnhancer {
                 return;
             }
 
-            // console.log(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
-            // console.log('1. Formatted comment:', formattedComment);
+            this.logDebug(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
+            // this.logDebug('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
                 case 'chrome-ai':
