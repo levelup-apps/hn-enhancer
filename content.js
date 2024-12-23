@@ -1,3 +1,10 @@
+const SummarizeCheckStatus = {
+    OK: 'ok',
+    TEXT_TOO_SHORT: 'too_short',
+    THREAD_TOO_SHALLOW: 'too_shallow',
+    THREAD_TOO_DEEP: 'chrome_depth_limit'
+};
+
 class HNEnhancer {
 
     static DEBUG = false;  // Set to true when debugging
@@ -741,17 +748,33 @@ class HNEnhancer {
         const author = authorElement.textContent || '';
         const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
 
-        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
-        if (!shouldSummarize) {
+        const summarizeCheckResult = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
+
+        if (summarizeCheckResult.status !== SummarizeCheckStatus.OK) {
+            const messageTemplates = {
+                title: 'Summarization not recommended',
+                metadata: {
+                    [SummarizeCheckStatus.TEXT_TOO_SHORT]: `Thread too brief to use the selected cloud AI <strong>${aiProvider}</strong>`,
+                    [SummarizeCheckStatus.THREAD_TOO_SHALLOW]: `Thread not deep enough to use the selected cloud AI <strong>${aiProvider}</strong>`,
+                    [SummarizeCheckStatus.THREAD_TOO_DEEP]: `Thread too deep for the selected AI <strong>${aiProvider}</strong>`
+                },
+                text: (status, highlightedAuthor) => {
+                    return status === SummarizeCheckStatus.THREAD_TOO_DEEP
+                        ? `This ${highlightedAuthor} thread is too long or deeply nested to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
+                        <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
+
+                        : `This ${highlightedAuthor} thread is concise enough to read directly. Summarizing short threads with a cloud AI service would be inefficient. 
+                        <br/><br/> However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure a local AI provider</a> like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`;
+                }
+            };
+
             this.summaryPanel.updateContent({
-                title: 'Summarization: Thread too short',
-                metadata: `Local AI recommended for brief conversations`,
-                text: `This ${highlightedAuthor} thread is concise enough to read directly. Summarizing short threads with a cloud AI service would be inefficient. <br/><br/>
-                                      However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
-                                      like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
-                                      <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
+                title: messageTemplates.title,
+                metadata: messageTemplates.metadata[summarizeCheckResult.status],
+                text: messageTemplates.text(summarizeCheckResult.status, highlightedAuthor)
             });
 
+            // Once the error message is rendered in the summary panel, add the click handler for the Options page link
             const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
             if (optionsLink) {
                 optionsLink.addEventListener('click', (e) => {
@@ -776,26 +799,32 @@ class HNEnhancer {
     }
 
     shouldSummarizeText(formattedText, commentDepth, aiProvider) {
-
-        // Ollama can handle larger data, so summarize longer threads and deeper comments
+        // Ollama can handle all kinds of data - large, small, deep threads. So return true
         if (aiProvider === 'ollama') {
-            return true;
+            return { status: SummarizeCheckStatus.OK };
         }
 
-        // Chrome Built-in AI cannot handle a lot of data, so limit the summarization to a certain depth
+        // Chrome Built-in AI cannot handle deep threads, so limit the summarization to a certain depth
         if (aiProvider === 'chrome-ai') {
-            return commentDepth <= 5;
+            return commentDepth <= 5
+                ? { status: SummarizeCheckStatus.OK }
+                : { status: SummarizeCheckStatus.THREAD_TOO_DEEP };
         }
 
-        // OpenAI and Claude can handle larger data, but it is expensive, so there should be a minimum length and depth
+        // OpenAI and Claude can handle larger data, but they are expensive, so there should be a minimum length and depth
         const minSentenceLength = 8;
         const minCommentDepth = 3;
-
         const sentences = formattedText.split(/[.!?]+(?:\s+|$)/)
             .filter(sentence => sentence.trim().length > 0);
 
-        // this.logDebug('sentences:', sentences.length, 'depth:', commentDepth, 'shouldSummarize result: ', sentences.length > minSentenceLength && commentDepth > maxDepth);
-        return sentences.length > minSentenceLength && commentDepth > minCommentDepth;
+        if (sentences.length <= minSentenceLength) {
+            return { status: SummarizeCheckStatus.TEXT_TOO_SHORT };
+        }
+        if (commentDepth <= minCommentDepth) {
+            return { status: SummarizeCheckStatus.THREAD_TOO_SHALLOW };
+        }
+
+        return { status: SummarizeCheckStatus.OK };
     }
 
     overrideHNDefaultNavigation(comment) {
