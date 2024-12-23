@@ -46,6 +46,7 @@
         "styles.css"
       ],
       "js": [
+        "summary-panel.js",
         "content.js"
       ]
     }
