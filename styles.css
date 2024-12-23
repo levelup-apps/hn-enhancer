@@ -176,6 +176,23 @@
     padding-bottom: 4px;
 }
 
+.keyboard-help-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    color: #666;
+    font-size: 13px;
+}
+
+.keyboard-help-footer a {
+    color: #ff6600;  /* HN orange */
+    text-decoration: none;
+}
+
+.keyboard-help-footer a:hover {
+    text-decoration: underline;
+}
+
 .help-close-btn {
     position: absolute;
     top: 10px;

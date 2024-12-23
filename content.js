@@ -397,24 +397,24 @@ class HNEnhancer {
                 title: 'Global',
                 shortcuts: [
                     {key: 'o', description: 'Open post in new window'},
-                    {key: 's', description: 'Toggle summary panel'},
                     {key: '? /', description: 'Toggle this help panel'}
                 ]
             },
             "home": {
-                title: 'Home Page',
+                title: 'Home Pages (Home, New, Past, Ask, Show)',
                 shortcuts: [
                     {key: 'j k', description: 'Next/previous post'},
                     {key: 'c', description: 'Open comments page'}
                 ]
             },
             "comments": {
-                title: 'Comments Page',
+                title: 'Post Details Page',
                 shortcuts: [
                     {key: 'j k', description: 'Next/previous comment'},
                     {key: 'l h', description: 'Next child/parent comment'},
-                    {key: 'r', description: 'Go to root comment'},
                     {key: '[ ]', description: 'Prev/next comment by author'},
+                    {key: 's', description: 'Toggle summary panel'},
+                    {key: 'r', description: 'Go to root comment'},
                     {key: 'gg', description: 'First comment'},
                     {key: 'z', description: 'Scroll to current'},
                     {key: 'c', description: 'Collapse/expand comment'}
@@ -464,6 +464,12 @@ class HNEnhancer {
         content.appendChild(closeBtn);
         content.appendChild(title);
         content.appendChild(table);
+
+        const footer = document.createElement('div');
+        footer.className = 'keyboard-help-footer';
+        footer.innerHTML = 'Learn more about features and updates on our <a href="https://github.com/levelup-apps/hn-enhancer/" target="_blank" rel="noopener">GitHub page</a> ↗️';
+        content.appendChild(footer);
+
         modal.appendChild(content);
         document.body.appendChild(modal);
 
@@ -1262,7 +1268,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
     replacePathsWithCommentLinks(text, commentPathToIdMap) {
         // Regular expression to match bracketed numbers with dots
         // Matches patterns like [1], [1.1], [1.1.2], etc.
-        const pathRegex = /\[(\d+(?:\.\d+)*)\]/g;
+        const pathRegex = /\[(\d+(?:\.\d+)*)]/g;
 
         // Replace each match with an HTML link
         return text.replace(pathRegex, (match, path) => {
