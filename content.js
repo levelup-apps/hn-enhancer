@@ -1124,6 +1124,9 @@ class HNEnhancer {
             this.logDebug(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
             // this.logDebug('1. Formatted comment:', formattedComment);
 
+            // Remove unnecessary anchor tags from the text
+            formattedComment = this.stripAnchors(formattedComment);
+
             switch (providerSelection) {
                 case 'chrome-ai':
                     window.postMessage({
@@ -1155,6 +1158,7 @@ class HNEnhancer {
         });
     }
 
+
     summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model || !apiKey) {
@@ -1166,16 +1170,22 @@ class HNEnhancer {
             return;
         }
 
+        // Rate Limit for OpenAI
+        // gpt-4-turbo      - 30,000 TPM
+        // gpt-3.5-turbo    - 16,000 TPM
+        const tokenLimit = model === 'gpt-4-turbo' ? 25_000 : 15_000;
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+
         // Set up the API request
         const endpoint = 'https://api.openai.com/v1/chat/completions';
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        // console.log('2. System prompt:', systemPrompt);
+        this.logDebug('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, text);
-        // console.log('3. User prompt:', userPrompt);
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
 
         // OpenAI takes system and user messages as an array with role (system / user) and content
         const messages = [{
@@ -1228,10 +1238,13 @@ class HNEnhancer {
             let errorMessage = 'Error generating summary. ';
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429')) {
+            } else if (error.message.includes('429') ) {
                 errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else {
-                errorMessage += 'Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';  // OpenAI has a daily quota
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
             }
 
             this.summaryPanel.updateContent({
@@ -1252,6 +1265,9 @@ class HNEnhancer {
             return;
         }
 
+        // Limit the input text to 40,000 tokens for Anthropic
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
+
         // Set up the API request
         const endpoint = 'https://api.anthropic.com/v1/messages';
 
@@ -1260,7 +1276,7 @@ class HNEnhancer {
         // console.log('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, text);
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
         // console.log('3. User prompt:', userPrompt);
 
         // Anthropic takes system messages at the top level, whereas user messages as an array with role "user" and content.
@@ -1348,6 +1364,41 @@ Example:
 [1.2] author4: Second reply to [1]
 
 Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. Use markdown formatting for clarity and readability.`;
+    }
+
+    stripAnchors(text) {
+        // Use a regular expression to match <a> tags and their contents
+        const anchorRegex = /<a\b[^>]*>.*?<\/a>/g;
+
+        // Replace all matches with an empty string
+        return text.replace(anchorRegex, '');
+    }
+
+    splitInputTextAtTokenLimit(text, tokenLimit) {
+        // Approximate token count per character
+        const TOKENS_PER_CHAR = 0.25;
+
+        // If the text is short enough, return it as is
+        if (text.length * TOKENS_PER_CHAR < tokenLimit) {
+            return text;
+        }
+
+        // Split the text into lines
+        const lines = text.split('\n');
+        let outputText = '';
+        let currentTokenCount = 0;
+
+        // Iterate through each line and accumulate until the token limit is reached
+        for (const line of lines) {
+            const lineTokenCount = line.length * TOKENS_PER_CHAR;
+            if (currentTokenCount + lineTokenCount >= tokenLimit) {
+                break;
+            }
+            outputText += line + '\n';
+            currentTokenCount += lineTokenCount;
+        }
+
+        return outputText;
     }
 
     getUserMessage(title, text) {
