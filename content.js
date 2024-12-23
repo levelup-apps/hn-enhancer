@@ -249,7 +249,7 @@ class HNEnhancer {
         this.setupKeyboardNavigation();  // Set up keyboard navigation
         this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
         this.setupUserHover();           // Set up hover events for author info
-        this.navigateToFirstComment();   // Navigate to the first comment
+        this.navigateToFirstComment();   // Navigate to the post author
     }
 
     toggleHelpModal(show) {
@@ -445,7 +445,7 @@ class HNEnhancer {
     navigateToFirstComment() {
         const firstComment = document.querySelector('.athing.comtr');
         if (firstComment) {
-            this.setCurrentComment(firstComment);
+            this.setCurrentComment(firstComment, false);
         }
     }
 
@@ -482,7 +482,7 @@ class HNEnhancer {
         }
     }
 
-    setCurrentComment(comment) {
+    setCurrentComment(comment, scrollIntoView = true) {
         if (!comment) return;
 
         // Remove highlight from previous comment
@@ -502,8 +502,10 @@ class HNEnhancer {
             this.highlightAuthor(authorElement);
         }
 
-        // Scroll into the comment view if needed
-        comment.scrollIntoView({behavior: 'smooth', block: 'center'});
+        if (scrollIntoView) {
+            // Scroll into the comment view if needed
+            comment.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
     }
 
     convertMarkdownToHTML(markdown) {
