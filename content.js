@@ -74,7 +74,7 @@ class HNEnhancer {
 
     initCommentsNavigation() {
 
-        this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
+        this.addSummarizeAllCommentsLink(); // Add 'Summarize all comments' link to the main post
         this.setupUserHover();           // Set up hover events for author info
 
         // Navigate to first comment, but don't scroll to it (to avoid jarring effect when you first come to the page)
@@ -592,6 +592,7 @@ class HNEnhancer {
 
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
+            e.preventDefault();
             if (e.target === modal) {
                 this.toggleHelpModal(false);
             }
@@ -706,62 +707,72 @@ class HNEnhancer {
             summarizeThreadLink.addEventListener('click', async (e) => {
                 e.preventDefault();
 
-                // Clicking the link should set the current comment state
+                // Set the current comment and summarize the thread starting from this comment
                 this.setCurrentComment(comment);
 
-                // Get the item id from the 'age' link that shows '10 hours ago' or similar
-                const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
-                if (!itemLinkElement) {
-                    console.error('Could not find the item link element to get the item id for summarization');
-                    return;
-                }
-
-                const itemId = itemLinkElement.href.split('=')[1];
-                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
-                if (!formattedComment) {
-                    console.error('Could not get the thread for summarization');
-                    return;
-                }
-
-                const commentDepth = commentPathToIdMap.size;
-                const {aiProvider, model} = await this.getAIProviderModel();
-                const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
-
-                if (!shouldSummarize) {
-                    this.summaryPanel.updateContent({
-                        title: 'Thread Too Brief for Summary',
-                        metadata: `Thread: ${author} and child comments`,
-                        text: `This conversation thread is concise enough to read directly. Summarizing short threads with a remote AI service would be inefficient. <br/><br/>
-                                      However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
-                                      like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
-                                      <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
-                    });
-
-                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                    if (optionsLink) {
-                        optionsLink.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            this.openOptionsPage();
-                        });
-                    }
-                    return;
-                }
-
-                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
-                const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
-                const metadata = `Analyzing discussion by ${highlightedAuthor} and all replies`;
-
-                this.summaryPanel.updateContent({
-                    title: 'Thread Summary',
-                    metadata: metadata,
-                    text: `Generating summary${modelInfo}... This may take a few moments.`
-                });
-
-                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+                await this.summarizeThread(comment);
             });
 
             navsElement.appendChild(summarizeThreadLink);
         }
+    }
+
+    async summarizeThread(comment) {
+
+        // Get the item id from the 'age' link that shows '10 hours ago' or similar
+        const itemLinkElement = comment.querySelector('.age')?.getElementsByTagName('a')[0];
+        if (!itemLinkElement) {
+            console.error('Could not find the item link element to get the item id for summarization');
+            return;
+        }
+
+        // get the content of the thread
+        const itemId = itemLinkElement.href.split('=')[1];
+        const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+        if (!formattedComment) {
+            console.error(`Could not get the thread for summarization. item id: ${itemId}`);
+            return;
+        }
+
+        const commentDepth = commentPathToIdMap.size;
+        const {aiProvider, model} = await this.getAIProviderModel();
+
+        const authorElement = comment.querySelector('.hnuser');
+        const author = authorElement.textContent || '';
+        const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
+
+        const shouldSummarize = this.shouldSummarizeText(formattedComment, commentDepth, aiProvider);
+        if (!shouldSummarize) {
+            this.summaryPanel.updateContent({
+                title: 'Summarization: Thread too short',
+                metadata: `Local AI recommended for brief conversations`,
+                text: `This ${highlightedAuthor} thread is concise enough to read directly. Summarizing short threads with a cloud AI service would be inefficient. <br/><br/>
+                                      However, if you still want to summarize it, you can <a href="#" id="options-page-link">configure a local AI provider</a> 
+                                      like <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a> or 
+                                      <a href="https://ollama.com/" target="_blank">Ollama</a> for more efficient processing of shorter threads.`
+            });
+
+            const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+            if (optionsLink) {
+                optionsLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.openOptionsPage();
+                });
+            }
+            return;
+        }
+
+        // Show an in-progress text in the summary panel
+        const metadata = `Analyzing discussion by ${highlightedAuthor} and all replies`;
+        const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+
+        this.summaryPanel.updateContent({
+            title: 'Thread Summary',
+            metadata: metadata,
+            text: `Generating summary${modelInfo}... This may take a few moments.`
+        });
+
+        this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
     }
 
     shouldSummarizeText(formattedText, commentDepth, aiProvider) {
@@ -924,18 +935,21 @@ class HNEnhancer {
         });
     }
 
-    addSummarizeCommentsLink() {
+    addSummarizeAllCommentsLink() {
         const navLinks = document.querySelector('.subtext .subline');
-        if (navLinks) {
-            const summarizeLink = document.createElement('a');
-            summarizeLink.href = '#';
-            summarizeLink.textContent = 'summarize all comments';
+        if (!navLinks) return;
 
-            summarizeLink.addEventListener('click', (e) => this.handleSummarizeAllCommentsClick(e));
+        const summarizeLink = document.createElement('a');
+        summarizeLink.href = '#';
+        summarizeLink.textContent = 'summarize all comments';
 
-            navLinks.appendChild(document.createTextNode(' | '));
-            navLinks.appendChild(summarizeLink);
-        }
+        summarizeLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await this.summarizeAllComments();
+        });
+
+        navLinks.appendChild(document.createTextNode(' | '));
+        navLinks.appendChild(summarizeLink);
     }
 
     async getAIProviderModel() {
@@ -945,38 +959,38 @@ class HNEnhancer {
         return {aiProvider, model};
     }
 
-    async handleSummarizeAllCommentsClick(e) {
-        e.preventDefault();
+    async summarizeAllComments(e) {
         const itemId = this.getCurrentHNItemId();
         if (!itemId) {
+            console.error(`Could not get item id of the current port to summarize all comments in it.`);
             return;
         }
+
         try {
             if (!this.summaryPanel.isVisible) {
                 this.summaryPanel.toggle();
             }
-            const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
 
             const {aiProvider, model} = await this.getAIProviderModel();
             if (aiProvider && model) {
-
+                // Show a meaningful in-progress message before starting the summarization
                 const postTitle = this.getHNPostTitle();
                 const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
-
                 this.summaryPanel.updateContent({
                     title: 'Post Summary',
                     metadata: `Analyzing all threads in <strong>${postTitle}</strong>`,
                     text: `Generating comprehensive summary${modelInfo}... This may take a few moments.`
                 });
 
+                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
                 this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
             }
         } catch (error) {
-            console.error('Error fetching thread:', error);
+            console.error('Error preparing for summarization:', error);
             this.summaryPanel.updateContent({
-                title: 'Error',
+                title: 'Summarization Error',
                 metadata: '',
-                text: 'Failed to fetch thread content'
+                text: `Error preparing for summarization: ${error.message}`
             });
         }
     }
