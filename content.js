@@ -531,8 +531,8 @@ class HNEnhancer {
             container.appendChild(countSpan);
 
             const navPrev = document.createElement('span');
-            navPrev.className = 'author-nav';
-            navPrev.textContent = '↑';
+            navPrev.className = 'author-nav nav-triangle';
+            navPrev.textContent = '\u23F4';  // Unicode for left arrow '◀'
             navPrev.title = 'Go to previous comment by this author';
             navPrev.onclick = (e) => {
                 e.preventDefault();
@@ -541,8 +541,8 @@ class HNEnhancer {
             container.appendChild(navPrev);
 
             const navNext = document.createElement('span');
-            navNext.className = 'author-nav';
-            navNext.textContent = '↓';
+            navNext.className = 'author-nav nav-triangle';
+            navNext.textContent = '\u23F5';   // Unicode for right arrow '▶'
             navNext.title = 'Go to next comment by this author';
             navNext.onclick = (e) => {
                 e.preventDefault();
