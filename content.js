@@ -1,4 +1,3 @@
-// SummaryPanel - Pure UI Component
 class HNEnhancer {
 
     static AI_AVAILABLE = {
@@ -623,13 +622,14 @@ class HNEnhancer {
                     return;
                 }
 
-                const modelInfo = aiProvider ? ` using ${aiProvider} ${model || ''}` : '';
-                const metadata = `Thread: ${author} and child comments`;
+                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+                const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
+                const metadata = `Analyzing discussion by ${highlightedAuthor} and all replies`;
 
                 this.summaryPanel.updateContent({
                     title: 'Thread Summary',
                     metadata: metadata,
-                    text: `Summarizing thread and all its children${modelInfo} ...`
+                    text: `Generating summary${modelInfo}... This may take a few moments.`
                 });
 
                 this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
@@ -835,10 +835,13 @@ class HNEnhancer {
             const {aiProvider, model} = await this.getAIProviderModel();
             if (aiProvider && model) {
 
+                const postTitle = this.getHNPostTitle();
+                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+
                 this.summaryPanel.updateContent({
                     title: 'Post Summary',
-                    metadata: 'All comments',
-                    text: `Summarizing all comments in this post using ${aiProvider} ${model} ...`
+                    metadata: `Analyzing all threads in <strong>${postTitle}</strong>`,
+                    text: `Generating comprehensive summary${modelInfo}... This may take a few moments.`
                 });
 
                 this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
@@ -1229,7 +1232,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         const {aiProvider, model} = await this.getAIProviderModel();
         if (aiProvider && model) {
             this.summaryPanel.updateContent({
-                metadata: `Summarized using ${aiProvider} ${model}`,
+                metadata: `Summarized using <strong>${aiProvider} ${model}</strong>`,
                 text: formattedSummary
             });
         } else {

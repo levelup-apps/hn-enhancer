@@ -290,21 +290,22 @@
 
 .summary-panel-title {
     color: #ff6600;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
-    margin: 0;
-    padding-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #eee;
 }
 
 .summary-panel-content {
     text-align: left;
     font-family: Verdana, Geneva, sans-serif;
-    font-size: 8pt;
     color: #828282;
+    font-size: 13px;  /* Changed from 8pt */
     overflow-y: auto; /* Enable vertical scrolling within the content */
     max-height: 100%; /* Ensure it takes the full height of the panel */
     padding-bottom: 12px;
+    line-height: 1.5;  /* Add more breathing room */
 }
 
 .summary-author {
@@ -315,19 +316,31 @@
 }
 
 .summary-metadata {
-    color: #828282;
+    color: #666;
     font-size: 12px;
     margin-bottom: 8px;
     text-align: left;
+    line-height: 1.4;
 }
 
 .summary-text {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     color: #000000;
-    font-size: 9pt;
+    font-size: 13px;
     text-align: left;
     line-height: 1.4;
     padding-bottom: 32px;
+}
+
+.summary-metadata strong {
+    font-weight: bold;
+    color: #333; /* Darken the color */
+}
+
+.highlight-author {
+    padding: 2px 4px;
+    background-color: rgba(255, 102, 0, 0.2);
+    border-radius: 2px;
 }
 
 /* Highlight post style */
