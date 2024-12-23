@@ -53,7 +53,9 @@ class HNEnhancer {
         this.setupKeyboardNavigation();  // Set up keyboard navigation
         this.addSummarizeCommentsLink(); // Add 'Summarize all comments' link to the main post
         this.setupUserHover();           // Set up hover events for author info
-        this.navigateToFirstComment();   // Navigate to the post author
+
+        // Navigate to first comment, but don't scroll to it (to avoid jarring effect when you first come to the page)
+        this.navigateToFirstComment(false);
     }
 
     toggleHelpModal(show) {
@@ -246,10 +248,10 @@ class HNEnhancer {
         return {lastKey: lastKey, lastKeyPressTime: lastKeyPressTime};
     }
 
-    navigateToFirstComment() {
+    navigateToFirstComment(scrollToComment = true) {
         const firstComment = document.querySelector('.athing.comtr');
         if (firstComment) {
-            this.setCurrentComment(firstComment, false);
+            this.setCurrentComment(firstComment, scrollToComment);
         }
     }
 
