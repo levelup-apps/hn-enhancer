@@ -120,7 +120,132 @@ class HNEnhancer {
     setupKeyBoardShortcuts() {
 
         // Shortcut keys specific to the Comments page
-        const commentsPageKeyboardShortcuts = {
+        const doubleKeyShortcuts = {
+            'comments': {
+
+                // Double key combinations
+                'g+g': () => {
+                    // Go to first comment
+                    const currentTime = Date.now();
+                    if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
+                        this.navigateToFirstComment();
+                    }
+
+                    // Update the last key and time so that we can handle the repeated press in the next iteration
+                    lastKey = 'g';
+                    lastKeyPressTime = currentTime;
+                }
+            }
+        }
+
+        // Shortcut keys specific to Home Page
+        const homePageKeyboardShortcuts = this.getHomePageKeyboardShortcuts();
+
+        // Shortcut keys specific to Comments page
+        const commentsPageKeyboardShortcuts  = this.getCommentsPageKeyboardShortcuts();
+
+        // Shortcut keys common to all pages (Comments, Home)
+        const globalKeyboardShortcuts = this.getGlobalKeyboardShortcuts();
+
+        // Track last key press
+        let lastKey = null;
+        let lastKeyPressTime = 0;
+        const KEY_COMBO_TIMEOUT = 1000; // 1 second timeout for combinations
+
+        document.addEventListener('keydown', (e) => {
+            // Handle key press only when it is not in an input field
+            const isInputField = e.target.matches('input, textarea, select, [contenteditable="true"]');
+            if (isInputField) return;
+
+            // Allow default behavior if Ctrl or Command key is pressed
+            if (e.ctrlKey || e.metaKey) return;
+
+            let shortcutKey = e.key;
+            const currentTime = Date.now();
+
+            // Check for key combination
+            if (lastKey && (currentTime - lastKeyPressTime) < KEY_COMBO_TIMEOUT) {
+                shortcutKey = `${lastKey}+${shortcutKey}`;
+            }
+
+            let shortcutHandler;
+
+            // Find the shortcut handler in the order of specificity
+            //  1. If in home page, look for home page handler
+            //  2. If in comments page, look for comments page handler
+            //  3. If not found in either, look in the global list
+            if (this.isHomePage && homePageKeyboardShortcuts[shortcutKey]) {
+                shortcutHandler = homePageKeyboardShortcuts[shortcutKey];
+            } else if (this.isCommentsPage) {
+                if(commentsPageKeyboardShortcuts[shortcutKey]) {
+                    shortcutHandler = commentsPageKeyboardShortcuts[shortcutKey];
+                } else if(doubleKeyShortcuts['comments'] && doubleKeyShortcuts['comments'][shortcutKey]) {
+                    shortcutHandler = doubleKeyShortcuts['comments'][shortcutKey];
+                }
+            } else {
+                shortcutHandler = globalKeyboardShortcuts[shortcutKey];
+            }
+
+            // If we have a handler for this key or combination, invoke it
+            if (shortcutHandler) {
+                e.preventDefault();
+                shortcutHandler();
+
+                // Reset after successful combination
+                lastKey = null;
+                lastKeyPressTime = 0;
+            } else {
+                // Update tracking for potential combination
+                lastKey = shortcutKey;
+                lastKeyPressTime = currentTime;
+            }
+        });
+    }
+
+    getHomePageKeyboardShortcuts() {
+        return {
+            'j': () => {
+                // Next post
+                if (this.currentPostIndex < this.posts.length - 1) {
+                    this.currentPostIndex++;
+                    const nextPost = this.posts[this.currentPostIndex];
+                    this.setCurrentPost(nextPost);
+                }
+            },
+            'k': () => {
+                // Previous post
+                if (this.currentPostIndex > 0) {
+                    this.currentPostIndex--;
+                    const prevPost = this.posts[this.currentPostIndex];
+                    this.setCurrentPost(prevPost);
+                }
+            },
+            'o': () => {
+                // Open post in new tab
+                if(!this.posts[this.currentPostIndex]) return;
+
+                const postLink = this.posts[this.currentPostIndex].querySelector('.titleline a');
+                if (postLink) {
+                    window.open(postLink.href, '_blank');
+                }
+            },
+            'c': () => {
+                // Open comments page
+                if(!this.posts[this.currentPostIndex]) return;
+
+                const subtext = this.posts[this.currentPostIndex].nextElementSibling;
+                if (subtext) {
+                    const commentsLink = subtext.querySelector('a[href^="item?id="]');
+                    if (commentsLink) {
+                        window.location.href = commentsLink.href;
+                    }
+                }
+            }
+        }
+    }
+
+    getCommentsPageKeyboardShortcuts() {
+        return {
             'j': () => {
                 // Next comment at same depth
                 // Find the 'next' hyperlink in the HN nav panel and set that as the current comment.
@@ -199,119 +324,6 @@ class HNEnhancer {
                 this.summaryPanel.toggle();
 
             },
-
-            // Double key combinations
-            'g+g': () => {
-                // Go to first comment
-                const currentTime = Date.now();
-                if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
-                    this.navigateToFirstComment();
-                }
-
-                // Update the last key and time so that we can handle the repeated press in the next iteration
-                lastKey = 'g';
-                lastKeyPressTime = currentTime;
-            }
-        }
-
-        // Shortcut keys specific to Home Page
-        const homePageKeyboardShortcuts = this.getHomePageKeyboardShortcuts();
-
-        // Shortcut keys common to all pages (Comments, Home)
-        const globalKeyboardShortcuts = this.getGlobalKeyboardShortcuts();
-
-        // Track last key press
-        let lastKey = null;
-        let lastKeyPressTime = 0;
-        const KEY_COMBO_TIMEOUT = 1000; // 1 second timeout for combinations
-
-        document.addEventListener('keydown', (e) => {
-            // Handle key press only when it is not in an input field
-            const isInputField = e.target.matches('input, textarea, select, [contenteditable="true"]');
-            if (isInputField) return;
-
-            // Allow default behavior if Ctrl or Command key is pressed
-            if (e.ctrlKey || e.metaKey) return;
-
-            let shortcutKey = e.key;
-            const currentTime = Date.now();
-
-            // Check for key combination
-            if (lastKey && (currentTime - lastKeyPressTime) < KEY_COMBO_TIMEOUT) {
-                shortcutKey = `${lastKey}+${shortcutKey}`;
-            }
-
-            let shortcutHandler = null;
-
-            // Find the shortcut handler in the order of specificity
-            //  1. If in home page, look for home page handler
-            //  2. If in comments page, look for comments page handler
-            //  3. If not found in either, look in the global list
-            if (this.isHomePage && homePageKeyboardShortcuts[shortcutKey]) {
-                shortcutHandler = homePageKeyboardShortcuts[shortcutKey];
-            } else if (this.isCommentsPage && commentsPageKeyboardShortcuts[shortcutKey]) {
-                shortcutHandler = commentsPageKeyboardShortcuts[shortcutKey];
-            } else {
-                shortcutHandler = globalKeyboardShortcuts[shortcutKey];
-            }
-
-            // If we have a handler for this key or combination, invoke it
-            if (shortcutHandler) {
-                e.preventDefault();
-                shortcutHandler();
-
-                console.log('Handled shortcut key:', shortcutKey);
-
-                // Reset after successful combination
-                lastKey = null;
-                lastKeyPressTime = 0;
-            } else {
-                // Update tracking for potential combination
-                lastKey = shortcutKey;
-                lastKeyPressTime = currentTime;
-            }
-        });
-    }
-
-    getHomePageKeyboardShortcuts() {
-        return {
-            'j': () => {
-                // Next post
-                if (this.currentPostIndex < this.posts.length - 1) {
-                    this.currentPostIndex++;
-                    const nextPost = this.posts[this.currentPostIndex];
-                    this.setCurrentPost(nextPost);
-                }
-            },
-            'k': () => {
-                // Previous post
-                if (this.currentPostIndex > 0) {
-                    this.currentPostIndex--;
-                    const prevPost = this.posts[this.currentPostIndex];
-                    this.setCurrentPost(prevPost);
-                }
-            },
-            'o': () => {
-                // Open post in new tab
-                if(!this.posts[this.currentPostIndex]) return;
-
-                const postLink = this.posts[this.currentPostIndex].querySelector('.titleline a');
-                if (postLink) {
-                    window.open(postLink.href, '_blank');
-                }
-            },
-            'c': () => {
-                // Open comments page
-                if(!this.posts[this.currentPostIndex]) return;
-
-                const subtext = this.posts[this.currentPostIndex].nextElementSibling;
-                if (subtext) {
-                    const commentsLink = subtext.querySelector('a[href^="item?id="]');
-                    if (commentsLink) {
-                        window.location.href = commentsLink.href;
-                    }
-                }
-            }
         }
     }
 
