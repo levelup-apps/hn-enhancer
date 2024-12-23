@@ -118,12 +118,6 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.keyboard-help-content h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #ff6600;
-}
-
 .keyboard-help-content table {
     width: 100%;
     border-collapse: collapse;
@@ -145,6 +139,18 @@
     width: 100px;
 }
 
+.keyboard-help-content h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #ff6600;
+}
+
+.keyboard-help-content h3 {
+    margin-top: 0;
+    margin-bottom: 0;
+    color: #ff6600;
+}
+
 .keyboard-help-content .key {
     background-color: #f4f4f4;
     border: 1px solid #ddd;
@@ -152,6 +158,15 @@
     padding: 3px 6px;
     font-family: monospace;
     font-size: 14px;
+}
+
+.keyboard-help-content .group-header {
+    border-bottom: none;
+}
+
+.keyboard-help-content .group-header td {
+    padding-top: 24px;
+    padding-bottom: 4px;
 }
 
 .help-close-btn {

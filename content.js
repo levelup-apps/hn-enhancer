@@ -584,46 +584,74 @@ class HNEnhancer {
         closeBtn.textContent = '×';
         closeBtn.onclick = () => this.toggleHelpModal(false);
 
-        const shortcuts = [
-            {key: 'j', description: 'Go to next comment at same level'},
-            {key: 'k', description: 'Go to previous comment at same level'},
-            {key: 'l', description: 'Go to next child comment'},
-            {key: 'h', description: 'Go to parent comment'},
-            {key: 'r', description: 'Go to root comment'},
-            {key: '[', description: 'Go to previous comment by current comment author'},
-            {key: ']', description: 'Go to next comment by current comment author'},
-            {key: 'gg', description: 'Go to first comment'},
-            {key: 'z', description: 'Scroll to current comment'},
-            {key: 'c', description: 'Collapse/expand current comment'},
-            {key: 'o', description: 'Open original post in new window'},
-            {key: 's', description: 'Open summary panel'},
-            {key: '?|/', description: 'Toggle this help panel'}
-        ];
+        const shortcutGroups = {
+            "global": {
+                title: 'Global',
+                shortcuts: [
+                    {key: 'o', description: 'Open post in new window'},
+                    {key: 's', description: 'Toggle summary panel'},
+                    {key: '? /', description: 'Toggle this help panel'}
+                ]
+            },
+            "home": {
+                title: 'Home Page',
+                shortcuts: [
+                    {key: 'j k', description: 'Next/previous post'},
+                    {key: 'c', description: 'Open comments page'}
+                ]
+            },
+            "comments": {
+                title: 'Comments Page',
+                shortcuts: [
+                    {key: 'j k', description: 'Next/previous comment'},
+                    {key: 'l h', description: 'Next child/parent comment'},
+                    {key: 'r', description: 'Go to root comment'},
+                    {key: '[ ]', description: 'Prev/next comment by author'},
+                    {key: 'gg', description: 'First comment'},
+                    {key: 'z', description: 'Scroll to current'},
+                    {key: 'c', description: 'Collapse/expand comment'}
+                ]
+            }
+        };
 
         const table = document.createElement('table');
-        shortcuts.forEach(({key, description}) => {
-            const row = table.insertRow();
 
-            const keyCell = row.insertCell();
+        for (const groupKey in shortcutGroups) {
+            const group = shortcutGroups[groupKey];  // Get the actual group object
 
-            // Keys could be 'l', 'h' for single keys, 'gg' for repeated keys or '?|/' for multiple keys
-            const keys = key.split('|');
-            keys.forEach((k, index) => {
-                const keySpan = document.createElement('span');
-                keySpan.className = 'key';
-                keySpan.textContent = k;
-                keyCell.appendChild(keySpan);
+            const headerRow = table.insertRow();
+            const headerCell = headerRow.insertCell();
+            headerCell.colSpan = 2;  // Span both columns
+            headerRow.className = 'group-header';
 
-                if (index < keys.length - 1) {
-                    const separator = document.createElement('span');
-                    separator.textContent = ' or ';
-                    keyCell.appendChild(separator);
-                }
+            const subHeading = document.createElement('h3');
+            subHeading.textContent = group.title;
+            headerCell.appendChild(subHeading);
+
+            group.shortcuts.forEach(shortcut => {
+                const shortcutRow = table.insertRow();
+
+                const keyCell = shortcutRow.insertCell();
+
+                // Keys could be 'l', 'h' for single keys, 'gg' for repeated keys or '?|/' for multiple keys
+                const keys = shortcut.key.split(' ');
+                keys.forEach((k, index) => {
+                    const keySpan = document.createElement('span');
+                    keySpan.className = 'key';
+                    keySpan.textContent = k;
+                    keyCell.appendChild(keySpan);
+
+                    if (index < keys.length - 1) {
+                        const separator = document.createElement('span');
+                        separator.textContent = ' or ';
+                        keyCell.appendChild(separator);
+                    }
+                });
+
+                const descCell = shortcutRow.insertCell();
+                descCell.textContent = shortcut.description;
             });
-
-            const descCell = row.insertCell();
-            descCell.textContent = description;
-        });
+        }
 
         content.appendChild(closeBtn);
         content.appendChild(title);
