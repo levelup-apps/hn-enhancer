@@ -1034,7 +1034,6 @@ class HNEnhancer {
                     return;
                 }
                 // Show a meaningful in-progress message before starting the summarization
-                const postTitle = this.getHNPostTitle();
                 const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
                 this.summaryPanel.updateContent({
                     title: 'Post Summary',
