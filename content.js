@@ -1038,7 +1038,7 @@ class HNEnhancer {
                 const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
                 this.summaryPanel.updateContent({
                     title: 'Post Summary',
-                    metadata: `Analyzing all threads in <strong>${postTitle}</strong>`,
+                    metadata: `Analyzing all threads in this post...`,
                     text: `Generating comprehensive summary${modelInfo}... This may take a few moments.`
                 });
 

@@ -325,9 +325,9 @@
     text-align: left;
     font-family: Verdana, Geneva, sans-serif;
     color: #828282;
-    font-size: 13px;  /* Changed from 8pt */
+    font-size: 12px;
     overflow-y: auto; /* Enable vertical scrolling within the content */
-    max-height: 100%; /* Ensure it takes the full height of the panel */
+    max-height: 95%; /* Ensure it takes the full height of the panel */
     padding-bottom: 12px;
     line-height: 1.5;  /* Add more breathing room */
 }
@@ -350,7 +350,7 @@
 .summary-text {
     margin-bottom: 20px;
     color: #000000;
-    font-size: 13px;
+    font-size: 12px;
     text-align: left;
     line-height: 1.4;
     padding-bottom: 32px;
