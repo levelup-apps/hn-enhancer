@@ -935,7 +935,8 @@ class HNEnhancer {
         }
 
         // 2. Listen for messages from the webpage
-        window.addEventListener('message', function (event) {
+        window.addEventListener('message', (event) => {
+
             // reject all messages from other domains
             if (event.origin !== window.location.origin) {
                 return;
@@ -949,8 +950,8 @@ class HNEnhancer {
                     const available = event.data.data.available;
 
                     // TODO: Find a better way to set the HNEnhancer instance
-                    document.hnEnhancer.isChomeAiAvailable = parseAvailable(available);
-                    document.hnEnhancer.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isChomeAiAvailable);
+                    this.isChomeAiAvailable = parseAvailable(available);
+                    this.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', this.isChomeAiAvailable);
                     break;
 
                 case 'HN_AI_SUMMARIZE_RESPONSE':
@@ -966,42 +967,10 @@ class HNEnhancer {
                     // Summarization success. Show the summary in the panel
                     const summary = responseData.summary;
                     const commentPathToIdMap = responseData.commentPathToIdMap;
-                    document.hnEnhancer.showSummaryInPanel(summary, commentPathToIdMap);
+                    this.showSummaryInPanel(summary, commentPathToIdMap);
 
                     break;
             }
-        });
-    }
-
-    summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap) {
-        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.NO) {
-            this.summaryPanel.updateContent({
-                title: 'AI Not Available',
-                metadata: 'Chrome Built-in AI is disabled or unavailable',
-                text: `Unable to generate summary: Chrome's AI features are not enabled on your device. 
-                       <br><br>
-                       To enable and test Chrome AI:
-                       <br>
-                       1. Visit the <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Chrome AI Playground</a>
-                       <br>
-                       2. Try running a test summarization
-                       <br>
-                       3. If issues persist, check your Chrome settings and ensure you're using a compatible version`
-            });
-            return;
-        }
-
-        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD) {
-            this.summaryPanel.updateContent({
-                metadata: 'Downloading model for Chrome Built-in AI',
-                text: `Chrome built-in AI model will be available after download. This may take a few moments.`
-            });
-        }
-
-        // Summarize the text by passing in the text to page script which in turn will call the Chrome AI API
-        window.postMessage({
-            type: 'HN_AI_SUMMARIZE',
-            data: {text: formattedComment, commentPathToIdMap: commentPathToIdMap}
         });
     }
 
@@ -1029,7 +998,7 @@ class HNEnhancer {
         return {aiProvider, model};
     }
 
-    async summarizeAllComments(e) {
+    async summarizeAllComments() {
         const itemId = this.getCurrentHNItemId();
         if (!itemId) {
             console.error(`Could not get item id of the current port to summarize all comments in it.`);
@@ -1586,6 +1555,38 @@ Please proceed with your analysis and summary of the Hacker News discussion.
                 title: 'Error',
                 text: errorMessage
             });
+        });
+    }
+
+    summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap) {
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.NO) {
+            this.summaryPanel.updateContent({
+                title: 'AI Not Available',
+                metadata: 'Chrome Built-in AI is disabled or unavailable',
+                text: `Unable to generate summary: Chrome's AI features are not enabled on your device. 
+                       <br><br>
+                       To enable and test Chrome AI:
+                       <br>
+                       1. Visit the <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Chrome AI Playground</a>
+                       <br>
+                       2. Try running a test summarization
+                       <br>
+                       3. If issues persist, check your Chrome settings and ensure you're using a compatible version`
+            });
+            return;
+        }
+
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD) {
+            this.summaryPanel.updateContent({
+                metadata: 'Downloading model for Chrome Built-in AI',
+                text: `Chrome built-in AI model will be available after download. This may take a few moments.`
+            });
+        }
+
+        // Summarize the text by passing in the text to page script which in turn will call the Chrome AI API
+        window.postMessage({
+            type: 'HN_AI_SUMMARIZE',
+            data: {text: formattedComment, commentPathToIdMap: commentPathToIdMap}
         });
     }
 

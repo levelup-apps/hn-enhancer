@@ -1,11 +1,5 @@
 (function () {
 
-    const AI_AVAILABLE = {
-        YES: 'readily',
-        NO: 'no',
-        AFTER_DOWNLOAD: 'after-download'
-    }
-
     // Listen for processed data from content script
     window.addEventListener('message', async function (event) {
         // reject all messages from other domains
