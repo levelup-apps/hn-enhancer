@@ -30,16 +30,11 @@ Perfect for:
 * Anyone seeking a more efficient way to explore Hacker News content
 * Users who value both local and cloud-based AI processing options
 
-Installation & Source Code:
-* Install from Chrome Web Store: https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf
-* MIT Licensed - free to use, modify, and distribute
-* Contributions and feedback welcome!
-
 Active Development:
 * Regular updates and new features
 * Growing support for different AI providers
 * Performance optimizations for large threads
-* Community-driven improvements
+* Community-driven improvements - contributions are welcome
 
 > [!NOTE] 
 > Note: This extension is not endorsed by, affiliated with, or sponsored by Y Combinator or Hacker News.
@@ -67,17 +62,19 @@ Active Development:
 - Navigate to the [HackerNews website](https://news.ycombinator.com/).
 - The extension should automatically enhance the page.
 
-> [!IMPORTANT] Enable CORS for Ollama API
+> [!IMPORTANT]
+> For this extension to work with Ollama, you should enable CORS support
+>
 > Ollama supports CORS through an environment variable `OLLAMA_ORIGINS` that specifies the origins that are allowed to access the API.
 > This should be set at the system level so that the Options page of the extension and HN page can call the Ollama API http://localhost:11434//api/generate.
-> Run the following command after every system restart.
-> To make this setting persist across system restarts, add the command to your shell profile (e.g. ~/.bash_profile, ~/.zshrc, etc).
+> 
+> To make this setting persist across system restarts, add the command to your shell profile (e.g. ~/.bash_profile, ~/.zshrc, etc or equivalent on Windows).
 
+On mac, run the following:
 ``` bash
-# Set the environment variable 
 launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
-
-# Confirm that the environment variable is set:
-launchctl getenv OLLAMA_ORIGINS
-
+```
+On windows machines, run the following:
+```
+setx OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
 ```
