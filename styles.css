@@ -419,6 +419,13 @@
     }
 }
 
+.summary-text a,
+.summary-text a:visited,
+.summary-text a:active {
+    color: #828282;
+    text-decoration: underline !important;
+}
+
 .summary-text #options-page-link {
     color: #ff6600;
     text-decoration: underline;
