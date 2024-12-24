@@ -1,5 +1,11 @@
 (function () {
 
+    const AI_AVAILABLE = {
+        YES: 'readily',
+        NO: 'no',
+        AFTER_DOWNLOAD: 'after-download'
+    }
+
     // Listen for processed data from content script
     window.addEventListener('message', async function (event) {
         // reject all messages from other domains
@@ -24,26 +30,51 @@
                 break;
             case 'HN_AI_SUMMARIZE':
                 const options = {
-                    sharedContext: 'This is a discussion comment from Hacker News.',
+                    sharedContext: 'Summarize this discussion from Hacker News with comments. Show long content in bullet points..',
                     type: 'tl;dr',
                     format: 'plain-text',
                     length: 'medium',
                 };
-                const summarizer = await self.ai.summarizer.create(options);
-                const summary = await summarizer.summarize(event.data.data.text, {
-                    context: 'This text is a comment for a tech-savvy audience.',
-                });
-                // console.log(summary);
+                if ('ai' in self && 'summarizer' in self.ai) {
 
-                window.postMessage({
-                    type: 'HN_AI_SUMMARIZE_RESPONSE',
-                    data: {
-                        summary
+                    const available = (await self.ai.summarizer.capabilities()).available;
+                    if (available === 'no') {
+                        window.postMessage({
+                            type: 'HN_AI_SUMMARIZE_RESPONSE',
+                            data: {
+                                error: `Chrome Built-in AI is not available. AI Summarizer availability status: ${available}`
+                            }
+                        });
+                        return;
                     }
-                })
+                    const text = event.data.data.text;
+                    const commentPathToIdMap = event.data.data.commentPathToIdMap;
+                    const summarizer = await self.ai.summarizer.create(options);
 
+                    try {
+                        const summary = await summarizer.summarize(
+                            text,
+                            {context: 'This is a discussion thread in a tech community.'}
+                        );
+                        // console.log('Chrome Built-in AI summary:\n', summary);
 
-                break;
+                        window.postMessage({
+                            type: 'HN_AI_SUMMARIZE_RESPONSE',
+                            data: {
+                                summary,
+                                commentPathToIdMap
+                            }
+                        });
+                    } catch (error) {
+                        window.postMessage({
+                            type: 'HN_AI_SUMMARIZE_RESPONSE',
+                            data: {
+                                error: `Summarization by Chrome Built-in failed. Error: ${available}`
+                            }
+                        });
+                    }
+                }
+            break;
         }
     });
 })();

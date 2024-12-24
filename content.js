@@ -19,7 +19,7 @@ class HNEnhancer {
         console.log('[INFO] ', ...args);
     }
 
-    static AI_AVAILABLE = {
+    static CHROME_AI_AVAILABLE = {
         YES: 'readily',
         NO: 'no',
         AFTER_DOWNLOAD: 'after-download'
@@ -786,7 +786,7 @@ class HNEnhancer {
         }
 
         // Show an in-progress text in the summary panel
-        const metadata = `Analyzing discussion by ${highlightedAuthor} and all replies`;
+        const metadata = `Analyzing discussion in ${highlightedAuthor} thread`;
         const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
 
         this.summaryPanel.updateContent({
@@ -907,18 +907,18 @@ class HNEnhancer {
 
     initSummarizationAI() {
 
-        this.isAiAvailable = HNEnhancer.AI_AVAILABLE.NO;
+        this.isChomeAiAvailable = HNEnhancer.CHROME_AI_AVAILABLE.NO;
 
         function parseAvailable(available) {
             switch (available) {
                 case 'readily':
-                    return HNEnhancer.AI_AVAILABLE.YES;
+                    return HNEnhancer.CHROME_AI_AVAILABLE.YES;
                 case 'no':
-                    return HNEnhancer.AI_AVAILABLE.NO;
+                    return HNEnhancer.CHROME_AI_AVAILABLE.NO;
                 case 'after-download':
-                    return HNEnhancer.AI_AVAILABLE.AFTER_DOWNLOAD;
+                    return HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD;
             }
-            return HNEnhancer.AI_AVAILABLE.NO;
+            return HNEnhancer.CHROME_AI_AVAILABLE.NO;
         }
 
 
@@ -949,18 +949,59 @@ class HNEnhancer {
                     const available = event.data.data.available;
 
                     // TODO: Find a better way to set the HNEnhancer instance
-                    document.hnEnhancer.isAiAvailable = parseAvailable(available);
-                    document.hnEnhancer.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isAiAvailable);
+                    document.hnEnhancer.isChomeAiAvailable = parseAvailable(available);
+                    document.hnEnhancer.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', document.hnEnhancer.isChomeAiAvailable);
                     break;
-                case 'HN_CHECK_AI_READY':
-                    break;
+
                 case 'HN_AI_SUMMARIZE_RESPONSE':
-                    const summary = event.data.data.summary;
-                    document.hnEnhancer.summaryPanel.updateContent({
-                        text: summary
-                    });
+                    const responseData = event.data.data;
+                    if(responseData.error) {
+                        this.summaryPanel.updateContent({
+                            title: 'Summarization Error',
+                            text: responseData.error
+                        });
+                        return;
+                    }
+
+                    // Summarization success. Show the summary in the panel
+                    const summary = responseData.summary;
+                    const commentPathToIdMap = responseData.commentPathToIdMap;
+                    document.hnEnhancer.showSummaryInPanel(summary, commentPathToIdMap);
+
                     break;
             }
+        });
+    }
+
+    summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap) {
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.NO) {
+            this.summaryPanel.updateContent({
+                title: 'AI Not Available',
+                metadata: 'Chrome Built-in AI is disabled or unavailable',
+                text: `Unable to generate summary: Chrome's AI features are not enabled on your device. 
+                       <br><br>
+                       To enable and test Chrome AI:
+                       <br>
+                       1. Visit the <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Chrome AI Playground</a>
+                       <br>
+                       2. Try running a test summarization
+                       <br>
+                       3. If issues persist, check your Chrome settings and ensure you're using a compatible version`
+            });
+            return;
+        }
+
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD) {
+            this.summaryPanel.updateContent({
+                metadata: 'Downloading model for Chrome Built-in AI',
+                text: `Chrome built-in AI model will be available after download. This may take a few moments.`
+            });
+        }
+
+        // Summarize the text by passing in the text to page script which in turn will call the Chrome AI API
+        window.postMessage({
+            type: 'HN_AI_SUMMARIZE',
+            data: {text: formattedComment, commentPathToIdMap: commentPathToIdMap}
         });
     }
 
@@ -1001,7 +1042,7 @@ class HNEnhancer {
             }
 
             const {aiProvider, model} = await this.getAIProviderModel();
-            if (aiProvider && model) {
+            if (aiProvider) {
                 // Show a meaningful in-progress message before starting the summarization
                 const postTitle = this.getHNPostTitle();
                 const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
@@ -1121,15 +1162,12 @@ class HNEnhancer {
                 return;
             }
 
-            this.logDebug(`Summarizing text with AI: providerSelection: ${providerSelection} model: ${model}`);
+            this.logInfo(`Summarizing text with AI: Provider: ${providerSelection} model: ${model || 'none'}`);
             // this.logDebug('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
                 case 'chrome-ai':
-                    window.postMessage({
-                        type: 'HN_AI_SUMMARIZE',
-                        data: {text: formattedComment}
-                    });
+                    this.summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap);
                     break;
 
                 case 'openai':
@@ -1398,9 +1436,9 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
         const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
 
         const {aiProvider, model} = await this.getAIProviderModel();
-        if (aiProvider && model) {
+        if (aiProvider) {
             this.summaryPanel.updateContent({
-                metadata: `Summarized using <strong>${aiProvider} ${model}</strong>`,
+                metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong>`,
                 text: formattedSummary
             });
         } else {
