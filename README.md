@@ -5,75 +5,186 @@
 > [!TIP]
 > You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf).
 
+## 🚀 Quick Start Guide
+1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf)
+2. Navigate to [Hacker News](https://news.ycombinator.com)
+3. Press '?' to view keyboard shortcuts
+4. Choose your preferred AI provider in extension settings
+
+### Overview
 Transform your Hacker News experience with intelligent navigation, AI-powered summaries, and enhanced user interaction. This extension streamlines how you read and navigate through discussions, making it easier than ever to engage with rich conversations.
 
-### Key Features:
-* Smart keyboard navigation across posts and comments using Vim-inspired shortcuts (h, j, k, l)
-* AI-powered thread summarization with multiple options:
-    * Use Chrome's built-in AI for local processing
-    * Connect to OpenAI, Anthropic, or Ollama for advanced summaries
-    * Summarize entire threads or specific comment branches
-* Enhanced comment navigation:
+### 🌟 Key Features
+* **Smart Keyboard Navigation**
+  * Vim-inspired shortcuts (`h`, `j`, `k`, `l`) for intuitive movement
+  * Quick-jump between comments by the same author
+  * Collapsible comment threads
+  * Press '?' to view all shortcuts
+
+* **AI-Powered Thread Summarization**
+  * Multiple AI provider options
+  * Summarize entire threads or specific comment branches
+  * Use Chrome's built-in AI for local processing
+  * Connect to OpenAI, Anthropic, or Ollama for advanced summaries
+
+* **Enhanced Comment Navigation**
     * Quick-jump between comments by the same author
-    * Collapsible comment threads
     * Visual indicators for post authors and comment counts
-* Rich user interactions:
+    * Comment count display
+
+* **Rich User Interactions**
     * User profile previews on hover
     * Resizable summary panel
     * Comment path tracking and navigation
-* Convenient help panel (press '?' to view all shortcuts)
 
-Perfect for:
-* Power users who prefer keyboard-driven browsing
-* Readers who want quick insights from lengthy discussions
-* Anyone seeking a more efficient way to explore Hacker News content
-* Users who value both local and cloud-based AI processing options
+## 🤖 AI Provider Setup Guide
 
-Active Development:
-* Regular updates and new features
-* Growing support for different AI providers
-* Performance optimizations for large threads
-* Community-driven improvements - contributions are welcome
+### Chrome Built-in AI (Free, Local Processing)
+1. Requirements:
+    * Chrome version 131 or higher
+    * One-time model download
+
+2. Setup Steps:
+   ```
+   1. Open Chrome and navigate to chrome://flags
+   2. Search for "Summarization"
+   3. Enable "Summarization API for Gemini Nano"
+   4. Restart Chrome
+   5. Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/)
+   ```
+
+3. Best Practices:
+    * Ideal for individual comments or brief threads
+    * May have limitations with very long discussions
+    * No API key required
+
+### Ollama (Free, Local Processing)
+1. Requirements:
+    * [Ollama](https://ollama.com/) installed on your system
+    * CORS configuration for the extension
+
+2. Setup Steps:
+   ```bash
+   # Mac OS
+   launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
+   
+   # Windows
+   setx OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
+   ```
+
+3. Model Setup:
+   ```bash
+   # Pull your preferred model
+   ollama run llama3.2
+   # Or other models like mistral, mixtral, etc.
+   ```
+
+4. Best Practices:
+    * Keep Ollama running in the background
+    * Restart Ollama after CORS configuration
+    * Set CORS environment variable to persist across restarts
+
+### OpenAI
+1. Requirements:
+    * OpenAI API key
+    * Active OpenAI account
+
+2. Setup Steps:
+    * Generate API key at [OpenAI Platform](https://platform.openai.com)
+    * Enter API key in extension settings (click on the extension icon)
+    * Choose preferred model:
+        * GPT-4 Turbo (Recommended for best quality)
+        * GPT-3.5 Turbo (Faster, more economical)
+
+3. Best Practices:
+    * Monitor API usage
+    * Consider token limits and costs (bigger discussion threads are truncated to fit into context window)
+    * Set up usage alerts in OpenAI dashboard
+
+### Anthropic (Recommended for Best Performance)
+1. Requirements:
+    * Anthropic API key
+    * Active Anthropic account
+
+2. Setup Steps:
+    * Generate API key at [Anthropic Console](https://console.anthropic.com)
+    * Enter API key in extension settings
+    * Select model:
+        * Claude 3 Opus (Highest capability)
+        * Claude 3.5 Sonnet (Balanced performance)
+        * Claude 3.5 Haiku (Fastest)
+
+3. Best Practices:
+    * Monitor API usage
+    * Set up billing alerts
+
+
+## ⌨️ Keyboard Shortcuts
+
+### Global
+* `?` / `/` - Toggle help panel
+* `o` - Open post in new window
+
+### Home Page
+* `j` / `k` - Next/previous post
+* `c` - Open comments page
+
+### Comments Page
+* `j` / `k` - Next/previous comment
+* `l` / `h` - Next child/parent comment
+* `[` / `]` - Previous/next comment by author
+* `s` - Toggle summary panel
+* `r` - Go to root comment
+* `gg` - First comment
+* `z` - Scroll to current
+* `c` - Collapse/expand comment
+
+
+## 🛠️ Development Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/levelup-apps/hn-enhancer.git
+   cd hn-enhancer
+   ```
+
+2. Load in Chrome:
+    * Open `chrome://extensions/`
+    * Enable Developer mode
+    * Click "Load unpacked"
+    * Select the extension directory
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **AI Summarization Not Working**
+    * Check API key configuration
+    * Verify network connectivity
+    * Ensure selected AI provider is running (for Ollama)
+    * Check Chrome version for Built-in AI
+
+2. **CORS Issues with Ollama**
+    * Verify CORS environment variable
+    * Restart Ollama after configuration
+    * Check Ollama logs for errors
+
+3. **Performance Issues**
+    * Try different AI providers
+    * Collapse long comment threads
+    * Clear browser cache
+
+### Support
+* GitHub Issues: [Report bugs](https://github.com/levelup-apps/hn-enhancer/issues)
+* Email: [support@example.com]
+
+## 📜 License
+MIT Licensed - free to use, modify, and distribute
+
+## 🙏 Acknowledgments
+* Hacker News community
+* AI provider partners
+* Open source contributors
+
 
 > [!NOTE] 
 > Note: This extension is not endorsed by, affiliated with, or sponsored by Y Combinator or Hacker News.
-
-### Local development & Installation
-1. Download the Extension Files:  
-   - Clone or download the repository to your local machine.
-
-2. Open Chrome Extensions Page:  
-   - Open Google Chrome. 
-   - Navigate to chrome://extensions/.
-
-3. Enable Developer Mode:  
-   - In the top right corner, toggle the switch to enable "Developer mode".
-   
-4. Load Unpacked Extension:  
-   - Click on the "Load unpacked" button.
-   - Select the directory where you downloaded the extension files.
-
-5. Verify Installation:  
-   - The extension should now appear in your list of installed extensions.
-   - Ensure it is enabled.
-
-### Usage:
-- Navigate to the [HackerNews website](https://news.ycombinator.com/).
-- The extension should automatically enhance the page.
-
-> [!IMPORTANT]
-> For this extension to work with Ollama, you should enable CORS support
->
-> Ollama supports CORS through an environment variable `OLLAMA_ORIGINS` that specifies the origins that are allowed to access the API.
-> This should be set at the system level so that the Options page of the extension and HN page can call the Ollama API http://localhost:11434//api/generate.
-> 
-> To make this setting persist across system restarts, add the command to your shell profile (e.g. ~/.bash_profile, ~/.zshrc, etc or equivalent on Windows).
-
-On mac, run the following:
-``` bash
-launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
-```
-On windows machines, run the following:
-```
-setx OLLAMA_ORIGINS "chrome-extension://*,https://news.ycombinator.com"
-```
