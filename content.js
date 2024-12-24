@@ -1012,6 +1012,27 @@ class HNEnhancer {
 
             const {aiProvider, model} = await this.getAIProviderModel();
             if (aiProvider) {
+
+                // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
+                if(aiProvider === 'chrome-ai') {
+
+                    this.summaryPanel.updateContent({
+                        title: `Summarization not recommended`,
+                        metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
+                        text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
+                        <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
+                    });
+
+                    // Once the error message is rendered in the summary panel, add the click handler for the Options page link
+                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                    if (optionsLink) {
+                        optionsLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this.openOptionsPage();
+                        });
+                    }
+                    return;
+                }
                 // Show a meaningful in-progress message before starting the summarization
                 const postTitle = this.getHNPostTitle();
                 const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
@@ -1131,7 +1152,7 @@ class HNEnhancer {
                 return;
             }
 
-            this.logInfo(`Summarizing text with AI: Provider: ${providerSelection} model: ${model || 'none'}`);
+            this.logInfo(`Summarization - AI Provider: ${providerSelection}, Model: ${model || 'none'}`);
             // this.logDebug('1. Formatted comment:', formattedComment);
 
             switch (providerSelection) {
