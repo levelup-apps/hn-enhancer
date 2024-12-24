@@ -50,8 +50,9 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
    2. Search for "Summarization"
    3. Enable "Summarization API for Gemini Nano"
    4. Restart Chrome
-   5. Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/)
    ```
+> [!IMPORTANT]
+> Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/)
 
 3. Best Practices:
     * Ideal for individual comments or brief threads
@@ -175,7 +176,6 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
 
 ### Support
 * GitHub Issues: [Report bugs](https://github.com/levelup-apps/hn-enhancer/issues)
-* Email: [support@example.com]
 
 ## 📜 License
 MIT Licensed - free to use, modify, and distribute
