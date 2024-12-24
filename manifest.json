@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hacker News Companion",
-  "description": "Enhance your Hacker News experience with smart navigation and AI-powered summaries using local and cloud-based LLMs. Navigate effortlessly with Vim-inspired keyboard shortcuts.",
+  "description": "Enhance Hacker News with smart navigation and AI summaries using local or cloud LLMs. Navigate easily with Vim-style shortcuts.",
   "homepage_url": "https://github.com/levelup-apps/hn-enhancer",
   "version": "1.0.4",
   "icons": {
