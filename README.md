@@ -1,6 +1,6 @@
 ### Hacker News Companion - Chrome Extension
 
-[![Basic features video](http://img.youtube.com/vi/N8711ldzVkU/maxresdefault.jpg)](https://www.youtube.com/watch?v=N8711ldzVkU)
+[![Basic features video](http://img.youtube.com/vi/Ii9etpO5TSk/maxresdefault.jpg)](https://www.youtube.com/watch?v=Ii9etpO5TSk)
 
 > [!TIP]
 > You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf).
