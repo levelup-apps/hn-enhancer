@@ -35,7 +35,6 @@
 
 .nav-triangle {
     font-size: 16px; /* Change the size of the triangle */
-    line-height: 1;
     display: inline-block;
     vertical-align: middle;
 }
