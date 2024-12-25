@@ -45,9 +45,9 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * One-time model download
 
 2. Setup Steps:
-   * To verify that you have chrome version higher than 131, navigate to '[About Chrome](chrome://settings/help)' and check the version.
+   * To verify that you have chrome version higher than 131, navigate to 'About Chrome' `chrome://settings/help` and check the version.
    * To trigger the model download, go to Chrome Dev [Summarization Api Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/) and try some text.
-   * To verify that the model download is complete, navigate to [Chrome components](chrome://components/) and you should see `Optimization Guide On Device Model`. Make sure the version is `2024.9.25.2033` or higer.
+   * To verify that the model download is complete, navigate to 'Chrome components' -`chrome://components/` and you should see 'Optimization Guide On Device Model'. Make sure the version is `2024.9.25.2033` or higer.
 
 > [!IMPORTANT]
 > Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/).
