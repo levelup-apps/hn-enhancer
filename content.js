@@ -50,15 +50,7 @@ class HNEnhancer {
 
         this.setupKeyBoardShortcuts();
 
-        // TODO: move this to a more discrete place
-        // Origin -> news.ycombinator.com; Registration for Summarization API
-        const otMeta = document.createElement('meta');
-        otMeta.httpEquiv = 'origin-trial';
-        otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
-        document.head.prepend(otMeta);
-
-        this.initSummarizationAI();
-
+        this.initChromeBuiltinAI();
     }
 
     get isHomePage() {
@@ -905,7 +897,13 @@ class HNEnhancer {
         });
     }
 
-    initSummarizationAI() {
+    initChromeBuiltinAI() {
+
+        // Inject the origin trial token to enable Summarization API for origin 'news.ycombinator.com'
+        const otMeta = document.createElement('meta');
+        otMeta.httpEquiv = 'origin-trial';
+        otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
+        document.head.prepend(otMeta);
 
         this.isChomeAiAvailable = HNEnhancer.CHROME_AI_AVAILABLE.NO;
 
@@ -949,7 +947,6 @@ class HNEnhancer {
                 case 'HN_CHECK_AI_AVAILABLE_RESPONSE':
                     const available = event.data.data.available;
 
-                    // TODO: Find a better way to set the HNEnhancer instance
                     this.isChomeAiAvailable = parseAvailable(available);
                     this.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', this.isChomeAiAvailable);
                     break;
@@ -969,6 +966,9 @@ class HNEnhancer {
                     const commentPathToIdMap = responseData.commentPathToIdMap;
                     this.showSummaryInPanel(summary, commentPathToIdMap);
 
+                    break;
+
+                default:
                     break;
             }
         });
@@ -1614,7 +1614,6 @@ Please proceed with your analysis and summary of the Hacker News discussion.
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            // TODO: Get the comment metadata here and pass it to the summary panel
             this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
