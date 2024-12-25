@@ -309,10 +309,10 @@ class HNEnhancer {
             },
             '[': () => {
                 //  Previous comment by the same author
-                // Find the 'root' hyperlink in the HN nav panel and set that as the current comment.
-                const rootComment = this.getNavElementByName(this.currentComment, 'root');
-                if (rootComment) {
-                    this.setCurrentComment(rootComment);
+                const authorElement = this.currentComment.querySelector('.hnuser');
+                if (authorElement) {
+                    const author = authorElement.textContent;
+                    this.navigateAuthorComments(author, this.currentComment, 'prev');
                 }
             },
             ']': () => {
