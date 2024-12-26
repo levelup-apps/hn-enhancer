@@ -39,12 +39,6 @@
     vertical-align: middle;
 }
 
-.current-comment-indicator {
-    display: inline-block;
-    margin-right: 5px;
-    animation: fade-in 0.3s ease-in-out;
-}
-
 @keyframes highlight-pulse {
     0% {
         background-color: transparent;

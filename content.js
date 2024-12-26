@@ -30,8 +30,7 @@ class HNEnhancer {
         this.authorComments = this.createAuthorCommentsMap();    // Create a map of comment elements by author
         this.popup = this.createAuthorPopup();
         this.postAuthor = this.getPostAuthor();
-        this.activeHighlight = null;        // Track currently highlighted element
-        this.highlightTimeout = null;       // Track highlight timeout
+
         this.currentComment = null;         // Track currently focused comment
 
         this.helpModal = this.createHelpModal();
@@ -239,25 +238,6 @@ class HNEnhancer {
             console.error('Error fetching user info:', error);
             return null;
         }
-    }
-
-    clearHighlight() {
-        if (this.activeHighlight) {
-            this.activeHighlight.classList.remove('highlight-author');
-            this.activeHighlight = null;
-        }
-        if (this.highlightTimeout) {
-            clearTimeout(this.highlightTimeout);
-            this.highlightTimeout = null;
-        }
-    }
-
-    highlightAuthor(authorElement) {
-        this.clearHighlight();
-
-        // Add highlight class to trigger animation
-        authorElement.classList.add('highlight-author');
-        this.activeHighlight = authorElement;
     }
 
     setupKeyBoardShortcuts() {
@@ -539,25 +519,27 @@ class HNEnhancer {
     setCurrentComment(comment, scrollIntoView = true) {
         if (!comment) return;
 
-        // Remove highlight from previous comment
-        if (this.currentComment) {
-            const prevIndicator = this.currentComment.querySelector('.current-comment-indicator');
-            if (prevIndicator) {
-                prevIndicator.remove();
+        // Un-highlight the current comment's author before updating the current comment.
+        //  Note: when this method is called the first time, this.currentComment will be null and it is ok.
+        if(this.currentComment) {
+            const prevAuthorElement = this.currentComment.querySelector('.hnuser');
+            if (prevAuthorElement) {
+                prevAuthorElement.classList.remove('highlight-author');
             }
         }
 
-        // Set and highlight new current comment
+        // update the current comment
         this.currentComment = comment;
 
-        // Highlight the author name
-        const authorElement = comment.querySelector('.hnuser');
-        if (authorElement) {
-            this.highlightAuthor(authorElement);
+        // Highlight the new comment's author
+        const newAuthorElement = comment.querySelector('.hnuser');
+        if (newAuthorElement) {
+            newAuthorElement.classList.add('highlight-author');
         }
 
+        // Scroll to the new comment element if asked for. Scroll to the center of the page instead of the top
+        //   so that we can see a little bit of the previous comments.
         if (scrollIntoView) {
-            // Scroll into the comment view if needed
             comment.scrollIntoView({behavior: 'smooth', block: 'center'});
         }
     }
