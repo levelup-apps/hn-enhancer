@@ -883,10 +883,10 @@ class HNEnhancer {
 
                 if (userInfo) {
                     this.popup.innerHTML = `
-            <strong>${username}</strong><br>
-            Karma: ${userInfo.karma}<br>
-            About: ${userInfo.about}
-          `;
+                        <strong>${username}</strong><br>
+                        Karma: ${userInfo.karma}<br>
+                        About: ${userInfo.about}
+                      `;
 
                     const rect = e.target.getBoundingClientRect();
                     this.popup.style.left = `${rect.left}px`;
@@ -898,20 +898,22 @@ class HNEnhancer {
             authorElement.addEventListener('mouseleave', () => {
                 this.popup.style.display = 'none';
             });
+        });
 
-            // Add event listener for Esc key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    this.popup.style.display = 'none';
-                }
-            });
+        // Add global event listeners to close the user popup on Esc key or clock outside the user element
 
-            // Add event listener for clicks outside the popup
-            document.addEventListener('click', (e) => {
-                if (!this.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
-                    this.popup.style.display = 'none';
-                }
-            });
+        // Add event listener for Esc key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.popup.style.display = 'none';
+            }
+        });
+
+        // Add event listener for clicks outside the popup
+        document.addEventListener('click', (e) => {
+            if (!this.popup.contains(e.target) && !e.target.classList.contains('hnuser')) {
+                this.popup.style.display = 'none';
+            }
         });
     }
 
