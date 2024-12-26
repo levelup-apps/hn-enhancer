@@ -39,7 +39,12 @@ class HNEnhancer {
 
         // Initialize the page based on type - home page vs. comments page
         if (this.isHomePage) {
-            this.initHomPagePosts();
+
+            this.currentPostIndex = -1;     // initialize to -1 to indicate that it is not set
+            this.allPosts = null;
+
+            this.initHomePageNavigation();
+
         } else if (this.isCommentsPage) {
             // Initialize custom navigation in Comments page - author comments, comment navigation and summary panel,
             this.initCommentsPageNavigation();
@@ -65,13 +70,85 @@ class HNEnhancer {
         return window.location.pathname === '/item';
     }
 
-    initHomPagePosts() {
-        this.posts = document.querySelectorAll('.athing');
-        if (this.posts.length > 0) {
-            this.currentPostIndex = 0;
-            const firstPost = this.posts[this.currentPostIndex];
-            this.setCurrentPost(firstPost);
+    initHomePageNavigation() {
+        this.allPosts = document.querySelectorAll('.athing');
+        this.navigateToPost('first');
+    }
+
+    navigateToPost(direction) {
+        switch (direction) {
+            case 'first':
+                if(this.allPosts.length > 0) {
+                    this.setCurrentPostIndex(0);
+                }
+                break;
+            case 'next':
+                const nextPostIndex = this.currentPostIndex + 1;
+                if(nextPostIndex < this.allPosts.length) {
+                    this.setCurrentPostIndex(nextPostIndex);
+                } else {
+                    this.logDebug(`Currently at the last post, cannot navigate further to next post.`);
+                }
+                break;
+            case 'prev':
+                const prevPostIndex = this.currentPostIndex - 1;
+                if(prevPostIndex >= 0) {
+                    this.setCurrentPostIndex(prevPostIndex);
+                } else {
+                    this.logDebug(`Currently at the first post, cannot navigate further to previous post.`);
+                }
+                break;
+            default:
+                console.error(`Cannot navigate to post. Unknown direction: ${direction}`);
+                break;
         }
+    }
+
+    getCurrentPost() {
+        if(this.currentPostIndex < 0 || this.currentPostIndex >= this.allPosts.length){
+            this.logInfo(`No current post to return, because current post index is outside the bounds of the posts array. 
+                            currentPostIndex: ${this.currentPostIndex}. allPosts.length: ${this.allPosts.length}`);
+            return null;
+        }
+
+        return this.allPosts[this.currentPostIndex];
+    }
+
+    // sets the current post index and highlights the post at the given post index.
+    //  Valid inputs: any number between 0 and the length of allPosts array
+    setCurrentPostIndex(postIndex) {
+
+        if(!this.allPosts) return;
+
+        if(this.allPosts.length === 0) {
+            this.logDebug(`No posts in this page, hence not setting the current post.`);
+            return;
+        }
+        if(postIndex < 0 || postIndex >= this.allPosts.length) {
+            console.error(`ERROR: cannot set current post because the given index is outside the bounds of the posts array. 
+                            postIndex: ${postIndex}. allPosts.length: ${this.allPosts.length}`);
+            return;
+        }
+
+        // un-highlight the current post before updating the post index.
+        if(this.currentPostIndex >= 0) {
+            const prevPost = this.allPosts[this.currentPostIndex];
+            prevPost.classList.remove('highlight-post')
+        }
+
+        // update the post index if there is a valid post at that index
+        const newPost = this.allPosts[postIndex];
+        if(!newPost) {
+            console.error(`Post at the new index is null. postIndex: ${postIndex}`);
+            return;
+        }
+
+        this.currentPostIndex = postIndex;
+        this.logDebug(`Updated current post index to ${postIndex}`);
+
+        // highlight the new post and scroll to it
+        newPost.classList.add('highlight-post');
+        newPost.scrollIntoView({behavior: 'smooth', block: 'center'});
     }
 
     initCommentsPageNavigation() {
@@ -336,35 +413,29 @@ class HNEnhancer {
         return {
             'j': () => {
                 // Next post
-                if (this.currentPostIndex < this.posts.length - 1) {
-                    this.currentPostIndex++;
-                    const nextPost = this.posts[this.currentPostIndex];
-                    this.setCurrentPost(nextPost);
-                }
+                this.navigateToPost('next');
             },
             'k': () => {
                 // Previous post
-                if (this.currentPostIndex > 0) {
-                    this.currentPostIndex--;
-                    const prevPost = this.posts[this.currentPostIndex];
-                    this.setCurrentPost(prevPost);
-                }
+                this.navigateToPost('prev');
             },
             'o': () => {
                 // Open post in new tab
-                if(!this.posts[this.currentPostIndex]) return;
+                const currentPost = this.getCurrentPost();
+                if(!currentPost) return;
 
-                const postLink = this.posts[this.currentPostIndex].querySelector('.titleline a');
+                const postLink = currentPost.querySelector('.titleline a');
                 if (postLink) {
                     window.open(postLink.href, '_blank');
                 }
             },
             'c': () => {
                 // Open comments page
-                if(!this.posts[this.currentPostIndex]) return;
+                const currentPost = this.getCurrentPost();
+                if(!currentPost) return;
 
-                const subtext = this.posts[this.currentPostIndex].nextElementSibling;
-                if (subtext) {
+                if (currentPost.nextElementSibling) {
+                    const subtext = currentPost.nextElementSibling;
                     const commentsLink = subtext.querySelector('a[href^="item?id="]');
                     if (commentsLink) {
                         window.location.href = commentsLink.href;
@@ -1662,22 +1733,9 @@ Please proceed with your analysis and summary of the Hacker News discussion.
         });
     }
 
-    setCurrentPost(post) {
-        if(!this.posts) return;
-
-        // TODO: Remove highlight from previous post only, not all posts
-        this.posts.forEach(p => p.classList.remove('highlight-post'));
-        post.classList.add('highlight-post');
-        post.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
     getHNPostTitle() {
-        if (!this.isCommentsPage) {
-            return '';
-        }
         return document.title;
     }
-
 }
 
 // Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
