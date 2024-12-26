@@ -27,7 +27,7 @@ class HNEnhancer {
 
     constructor() {
 
-        this.authorComments = new Map();    // Store comment elements by author
+        this.authorComments = this.createAuthorCommentsMap();    // Create a map of comment elements by author
         this.popup = this.createAuthorPopup();
         this.postAuthor = this.getPostAuthor();
         this.activeHighlight = null;        // Track currently highlighted element
@@ -42,15 +42,19 @@ class HNEnhancer {
         if (this.isHomePage) {
             this.initHomPagePosts();
         } else if (this.isCommentsPage) {
-            // Initialize state for comments experience - author comments, comment navigation and summary panel,
-            this.updateAuthorComments();
-            this.initCommentsNavigation();
+            // Initialize custom navigation in Comments page - author comments, comment navigation and summary panel,
+            this.initCommentsPageNavigation();
+
+            // Navigate to first comment, but don't scroll to it (to avoid jarring effect when you first come to the page)
+            this.navigateToFirstComment(false);
+
+            this.initChromeBuiltinAI();
+
             this.summaryPanel = new SummaryPanel();
         }
 
+        // set up all keyboard shortcuts - global and page-specific (Home pages vs. Comments page)
         this.setupKeyBoardShortcuts();
-
-        this.initChromeBuiltinAI();
     }
 
     get isHomePage() {
@@ -71,13 +75,141 @@ class HNEnhancer {
         }
     }
 
-    initCommentsNavigation() {
+    initCommentsPageNavigation() {
 
-        this.addSummarizeAllCommentsLink(); // Add 'Summarize all comments' link to the main post
-        this.setupUserHover();           // Set up hover events for author info
+        // Inject 'Summarize all comments' link at the top of the main post
+        this.injectSummarizePostLink();
 
-        // Navigate to first comment, but don't scroll to it (to avoid jarring effect when you first come to the page)
-        this.navigateToFirstComment(false);
+        // Go through all the comments in this post and inject all our nav elements - author, summarize etc.
+        const allComments = document.querySelectorAll('.athing.comtr');
+
+        allComments.forEach(comment => {
+
+            // inject the author nav links - # of comments, left/right links to see comments by the same author
+            this.injectAuthorCommentsNavLinks(comment);
+
+            // customize the default next/prev/root/parent links to do the Companion behavior
+            this.customizeDefaultNavLinks(comment);
+
+            // Insert summarize thread link at the end
+            this.injectSummarizeThreadLinks(comment);
+        });
+
+        // Set up the hover events on all user elements - in the main post subline and each comment
+        this.setupUserHover();
+    }
+
+    injectAuthorCommentsNavLinks(comment) {
+        const authorElement = comment.querySelector('.hnuser');
+        if (authorElement && !authorElement.querySelector('.comment-count')) {
+            const author = authorElement.textContent;
+            const count = this.authorComments.get(author).length;
+
+            const container = document.createElement('span');
+
+            const countSpan = document.createElement('span');
+            countSpan.className = 'comment-count';
+            countSpan.textContent = `(${count})`;
+            container.appendChild(countSpan);
+
+            const navPrev = document.createElement('span');
+            navPrev.className = 'author-nav nav-triangle';
+            navPrev.textContent = '\u23F4';  // Unicode for left arrow '◀'
+            navPrev.title = 'Go to previous comment by this author';
+            navPrev.onclick = (e) => {
+                e.preventDefault();
+                this.navigateAuthorComments(author, comment, 'prev');
+            };
+            container.appendChild(navPrev);
+
+            const navNext = document.createElement('span');
+            navNext.className = 'author-nav nav-triangle';
+            navNext.textContent = '\u23F5';   // Unicode for right arrow '▶'
+            navNext.title = 'Go to next comment by this author';
+            navNext.onclick = (e) => {
+                e.preventDefault();
+                this.navigateAuthorComments(author, comment, 'next');
+            };
+            container.appendChild(navNext);
+
+            if (author === this.postAuthor) {
+                const authorIndicator = document.createElement('span');
+                authorIndicator.className = 'post-author';
+                authorIndicator.textContent = '👑';
+                authorIndicator.title = 'Post Author';
+                container.appendChild(authorIndicator);
+            }
+
+            const separator = document.createElement("span");
+            separator.className = "author-separator";
+            separator.textContent = "|";
+            container.appendChild(separator);
+
+            // Get the parent element of the author element and append the container as second child
+            authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
+        }
+    }
+
+    injectSummarizeThreadLinks(comment) {
+        const navsElement = comment.querySelector('.navs');
+        if(!navsElement) {
+            console.error('Could not find the navs element to inject the summarize thread link');
+            return;
+        }
+
+        navsElement.appendChild(document.createTextNode(' | '));
+
+        const summarizeThreadLink = document.createElement('a');
+        summarizeThreadLink.href = '#';
+        summarizeThreadLink.textContent = 'summarize thread';
+        summarizeThreadLink.title = 'Summarize all child comments in this thread';
+
+        summarizeThreadLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // Set the current comment and summarize the thread starting from this comment
+            this.setCurrentComment(comment);
+
+            await this.summarizeThread(comment);
+        });
+
+        navsElement.appendChild(summarizeThreadLink);
+    }
+
+    createAuthorCommentsMap() {
+        const authorCommentsMap = new Map();
+
+        // Get all comments in this post
+        const comments = document.querySelectorAll('.athing.comtr');
+
+        // Count comments by author and the author comments elements by author
+        comments.forEach(comment => {
+
+            // save the author comments mapping (comments from each user in this post)
+            const authorElement = comment.querySelector('.hnuser');
+            if (authorElement) {
+                const author = authorElement.textContent;
+
+                if (!authorCommentsMap.has(author)) {
+                    authorCommentsMap.set(author, []);
+                }
+                authorCommentsMap.get(author).push(comment);
+            }
+        });
+
+        return authorCommentsMap;
+    }
+
+    createHelpIcon() {
+        const icon = document.createElement('div');
+        icon.className = 'help-icon';
+        icon.innerHTML = '?';
+        icon.title = 'Keyboard Shortcuts (Press ? or / to toggle)';
+
+        icon.onclick = () => this.toggleHelpModal(true);
+
+        document.body.appendChild(icon);
+        return icon;
     }
 
     toggleHelpModal(show) {
@@ -600,122 +732,6 @@ class HNEnhancer {
         return modal;
     }
 
-    createHelpIcon() {
-        const icon = document.createElement('div');
-        icon.className = 'help-icon';
-        icon.innerHTML = '?';
-        icon.title = 'Keyboard Shortcuts (Press ? or / to toggle)';
-
-        icon.onclick = () => this.toggleHelpModal(true);
-
-        document.body.appendChild(icon);
-        return icon;
-    }
-
-    updateAuthorComments() {
-        this.authorComments.clear();
-
-        // Get all comments
-        const comments = document.querySelectorAll('.athing.comtr');
-
-        // Count comments by author and the author comments elements by author
-        comments.forEach(comment => {
-
-            // save the author comments mapping (comments from each user in this post)
-            const authorElement = comment.querySelector('.hnuser');
-            if (authorElement) {
-                const author = authorElement.textContent;
-
-                if (!this.authorComments.has(author)) {
-                    this.authorComments.set(author, []);
-                }
-                this.authorComments.get(author).push(comment);
-            }
-        });
-
-        comments.forEach(comment => {
-            this.injectAuthorCommentsNavigation(comment);
-
-            this.overrideHNDefaultNavigation(comment);
-        });
-    }
-
-    injectAuthorCommentsNavigation(comment) {
-        const authorElement = comment.querySelector('.hnuser');
-        if (authorElement && !authorElement.querySelector('.comment-count')) {
-            const author = authorElement.textContent;
-            const count = this.authorComments.get(author).length;
-
-            const container = document.createElement('span');
-
-            const countSpan = document.createElement('span');
-            countSpan.className = 'comment-count';
-            countSpan.textContent = `(${count})`;
-            container.appendChild(countSpan);
-
-            const navPrev = document.createElement('span');
-            navPrev.className = 'author-nav nav-triangle';
-            navPrev.textContent = '\u23F4';  // Unicode for left arrow '◀'
-            navPrev.title = 'Go to previous comment by this author';
-            navPrev.onclick = (e) => {
-                e.preventDefault();
-                this.navigateAuthorComments(author, comment, 'prev');
-            };
-            container.appendChild(navPrev);
-
-            const navNext = document.createElement('span');
-            navNext.className = 'author-nav nav-triangle';
-            navNext.textContent = '\u23F5';   // Unicode for right arrow '▶'
-            navNext.title = 'Go to next comment by this author';
-            navNext.onclick = (e) => {
-                e.preventDefault();
-                this.navigateAuthorComments(author, comment, 'next');
-            };
-            container.appendChild(navNext);
-
-            if (author === this.postAuthor) {
-                const authorIndicator = document.createElement('span');
-                authorIndicator.className = 'post-author';
-                authorIndicator.textContent = '👑';
-                authorIndicator.title = 'Post Author';
-                container.appendChild(authorIndicator);
-            }
-
-            const separator = document.createElement("span");
-            separator.className = "author-separator";
-            separator.textContent = "|";
-            container.appendChild(separator);
-
-            // Get the parent element of the author element and append the container as second child
-            authorElement.parentElement.insertBefore(container, authorElement.parentElement.children[1]);
-
-            // Insert summarize comment link
-            const navsElement = comment.querySelector('.navs');
-            if(!navsElement) {
-                console.error('Could not find the navs element to inject the summarize link');
-                return;
-            }
-
-            navsElement.appendChild(document.createTextNode(' | '));
-
-            const summarizeThreadLink = document.createElement('a');
-            summarizeThreadLink.href = '#';
-            summarizeThreadLink.textContent = 'summarize thread';
-            summarizeThreadLink.title = 'Summarize all child comments in this thread';
-
-            summarizeThreadLink.addEventListener('click', async (e) => {
-                e.preventDefault();
-
-                // Set the current comment and summarize the thread starting from this comment
-                this.setCurrentComment(comment);
-
-                await this.summarizeThread(comment);
-            });
-
-            navsElement.appendChild(summarizeThreadLink);
-        }
-    }
-
     async summarizeThread(comment) {
 
         // Get the item id from the 'age' link that shows '10 hours ago' or similar
@@ -819,7 +835,9 @@ class HNEnhancer {
         return { status: SummarizeCheckStatus.OK };
     }
 
-    overrideHNDefaultNavigation(comment) {
+    // Customize the default HN navigation such that it is synchronized with our navigation.
+    //  When the user clicks next / prev / root / parent links, the new comment should be highlighted.
+    customizeDefaultNavLinks(comment) {
         const hyperLinks = comment.querySelectorAll('.comhead .navs a');
         if (!hyperLinks) return;
 
@@ -974,7 +992,7 @@ class HNEnhancer {
         });
     }
 
-    addSummarizeAllCommentsLink() {
+    injectSummarizePostLink() {
         const navLinks = document.querySelector('.subtext .subline');
         if (!navLinks) return;
 
