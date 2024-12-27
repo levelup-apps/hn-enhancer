@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
+const manifest = require('./manifest.json');
 
 const DIST_DIR = 'dist';
-const EXTENSION_DIR = 'Hacker-News-Companion';
-const OUTPUT_FILE = 'Hacker-News-Companion.zip';
+const OUTPUT_DIR = 'hn-companion';
+const VERSION = manifest.version;
+const OUTPUT_FILE = `hn-companion-v${VERSION}.zip`;
 
 // Files to be included in the extension
 const FILES_TO_COPY = [
@@ -29,6 +31,8 @@ const IMAGE_FILES = [
 
 async function build() {
     try {
+        validateFiles();
+
         // Clean previous builds
         console.log('Cleaning previous builds...');
         if (fs.existsSync(DIST_DIR)) {
@@ -39,12 +43,12 @@ async function build() {
         console.log('Creating dist directory...');
         fs.mkdirSync(DIST_DIR);
 
-        // Create extension directory inside dist
-        const extensionPath = path.join(DIST_DIR, EXTENSION_DIR);
-        fs.mkdirSync(extensionPath);
+        // Create output directory inside dist
+        const outputPath = path.join(DIST_DIR, OUTPUT_DIR);
+        fs.mkdirSync(outputPath);
 
         // Create images directory
-        const imagesPath = path.join(extensionPath, 'images');
+        const imagesPath = path.join(outputPath, 'images');
         fs.mkdirSync(imagesPath);
 
         // Copy main files
@@ -52,7 +56,7 @@ async function build() {
         FILES_TO_COPY.forEach(file => {
             fs.copyFileSync(
                 file,
-                path.join(extensionPath, file)
+                path.join(outputPath, file)
             );
         });
 
@@ -63,6 +67,11 @@ async function build() {
                 path.join('images', file),
                 path.join(imagesPath, file)
             );
+        });
+
+        // Check file sizes after copying
+        FILES_TO_COPY.forEach(file => {
+            checkFileSize(path.join(outputPath, file));
         });
 
         // Create zip archive
@@ -85,8 +94,8 @@ async function build() {
         // Pipe archive data to the output file
         archive.pipe(output);
 
-        // Add the extension directory to the archive
-        archive.directory(extensionPath, false);
+        // Add the output directory to the archive
+        archive.directory(outputPath, false);
 
         // Finalize the archive
         await archive.finalize();
@@ -94,6 +103,23 @@ async function build() {
     } catch (error) {
         console.error('Build failed:', error);
         process.exit(1);
+    }
+}
+
+function validateFiles() {
+    const missingFiles = [...FILES_TO_COPY, ...IMAGE_FILES.map(f => `images/${f}`)].filter(
+        file => !fs.existsSync(file)
+    );
+    if (missingFiles.length > 0) {
+        throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+    }
+}
+
+function checkFileSize(filePath) {
+    const stats = fs.statSync(filePath);
+    const sizeMB = stats.size / (1024 * 1024);
+    if (sizeMB > 10) { // Chrome Web Store limit
+        console.warn(`Warning: ${filePath} is ${sizeMB.toFixed(2)}MB`);
     }
 }
 
