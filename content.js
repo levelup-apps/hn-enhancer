@@ -5,6 +5,40 @@ const SummarizeCheckStatus = {
     THREAD_TOO_DEEP: 'chrome_depth_limit'
 };
 
+class HNState {
+    static saveCurrentPost(postId, index) {
+        chrome.storage.local.set({
+            currentPost: {
+                id: postId,
+                index: index,
+                timestamp: Date.now()
+            }
+        }).catch(error => {
+            console.error('Error saving current post state:', error);
+        });
+    }
+
+    static async getCurrentPost() {
+        try {
+            const data = await chrome.storage.local.get('currentPost');
+            // Return null if no state or if state is older than 5 minutes
+            if (!data.currentPost || Date.now() - data.currentPost.timestamp > 300000) {
+                return null;
+            }
+            return data.currentPost;
+        } catch (error) {
+            console.error('Error retrieving current post state:', error);
+            return null;
+        }
+    }
+
+    static async clearCurrentPost() {
+        chrome.storage.local.remove('currentPost').catch(error => {
+            console.error('Error clearing current post state:', error);
+        });
+    }
+}
+
 class HNEnhancer {
 
     static DEBUG = false;  // Set to true when debugging
@@ -40,15 +74,19 @@ class HNEnhancer {
 
         // Initialize the page based on type - home page vs. comments page
         if (this.isHomePage) {
-            this.initHomPagePosts();
+            this.initHomePageWithState().then(() => {
+                    this.setupKeyBoardShortcuts();
+                }
+            )
         } else if (this.isCommentsPage) {
             // Initialize state for comments experience - author comments, comment navigation and summary panel,
             this.updateAuthorComments();
             this.initCommentsNavigation();
             this.summaryPanel = new SummaryPanel();
+
+            this.setupKeyBoardShortcuts();
         }
 
-        this.setupKeyBoardShortcuts();
 
         // TODO: move this to a more discrete place
         // Origin -> news.ycombinator.com; Registration for Summarization API
@@ -58,7 +96,6 @@ class HNEnhancer {
         document.head.prepend(otMeta);
 
         this.initSummarizationAI();
-
     }
 
     get isHomePage() {
@@ -75,7 +112,41 @@ class HNEnhancer {
         if (this.posts.length > 0) {
             this.currentPostIndex = 0;
             const firstPost = this.posts[this.currentPostIndex];
-            this.setCurrentPost(firstPost);
+            this.setCurrentPost(firstPost, false);
+        }
+    }
+
+    getPostId(post) {
+        // Extract post ID from the comments link
+        const subtext = post.nextElementSibling;
+        if (subtext) {
+            const commentsLink = subtext.querySelector('a[href^="item?id="]');
+            if (commentsLink) {
+                const match = commentsLink.href.match(/id=(\d+)/);
+                return match ? match[1] : null;
+            }
+        }
+        return null;
+    }
+
+    async initHomePageWithState() {
+        this.initHomPagePosts();
+
+        // Check if we're returning from a comments page
+        const savedState = await HNState.getCurrentPost();
+        if (savedState) {
+            // Find the post with matching ID
+            const posts = Array.from(this.posts);
+            const savedIndex = posts.findIndex(post => this.getPostId(post) === savedState.id);
+
+            if (savedIndex !== -1) {
+                this.currentPostIndex = savedIndex;
+                const savedPost = this.posts[this.currentPostIndex];
+                this.setCurrentPost(savedPost);
+            }
+
+            // Clear the saved state
+            await HNState.clearCurrentPost();
         }
     }
 
@@ -935,7 +1006,7 @@ class HNEnhancer {
         }
 
         // 2. Listen for messages from the webpage
-        window.addEventListener('message', (event) => {
+        window.addEventListener('message', async (event) => {
 
             // reject all messages from other domains
             if (event.origin !== window.location.origin) {
@@ -956,7 +1027,7 @@ class HNEnhancer {
 
                 case 'HN_AI_SUMMARIZE_RESPONSE':
                     const responseData = event.data.data;
-                    if(responseData.error) {
+                    if (responseData.error) {
                         this.summaryPanel.updateContent({
                             title: 'Summarization Error',
                             text: responseData.error
@@ -967,7 +1038,7 @@ class HNEnhancer {
                     // Summarization success. Show the summary in the panel
                     const summary = responseData.summary;
                     const commentPathToIdMap = responseData.commentPathToIdMap;
-                    this.showSummaryInPanel(summary, commentPathToIdMap);
+                    await this.showSummaryInPanel(summary, commentPathToIdMap);
 
                     break;
             }
@@ -1122,13 +1193,13 @@ class HNEnhancer {
     }
 
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
-        chrome.storage.sync.get('settings').then(data => {
+        chrome.storage.sync.get('settings').then(async data => {
 
             const providerSelection = data.settings?.providerSelection;
             // const providerSelection = 'none';
             const model = data.settings?.[providerSelection]?.model;
 
-            if (!providerSelection ) {
+            if (!providerSelection) {
                 console.error('Missing AI summarization configuration');
 
                 const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
@@ -1164,7 +1235,7 @@ class HNEnhancer {
 
                 case 'openai':
                     const apiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
+                    this.summarizeUsingOpenAI(formattedComment, model, apiKey, commentPathToIdMap);
                     break;
 
                 case 'anthropic':
@@ -1177,7 +1248,7 @@ class HNEnhancer {
                     break;
 
                 case 'none':
-                    this.showSummaryInPanel(formattedComment, commentPathToIdMap);
+                    await this.showSummaryInPanel(formattedComment, commentPathToIdMap);
                     break;
             }
         }).catch(error => {
@@ -1247,7 +1318,7 @@ class HNEnhancer {
                 });
             }
             return response.json();
-        }).then(data => {
+        }).then(async data => {
             const summary = data?.choices[0]?.message?.content;
 
             if (!summary) {
@@ -1256,7 +1327,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            await this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
             console.error('Error in OpenAI summarization:', error);
@@ -1337,8 +1408,8 @@ class HNEnhancer {
                 });
             }
             return response.json();
-        }).then(data => {
-            if(!data || !data.content || data.content.length === 0) {
+        }).then(async data => {
+            if (!data || !data.content || data.content.length === 0) {
                 throw new Error(`Summary response data is empty. ${data}`);
             }
             const summary = data?.content[0]?.text;
@@ -1349,7 +1420,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            await this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
             console.error('Error in Anthropic summarization:', error);
@@ -1605,7 +1676,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.
                 });
             }
             return response.json();
-        }).then(data => {
+        }).then(async data => {
             const summary = data.response;
 
             if (!summary) {
@@ -1615,7 +1686,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.
 
             // Update the summary panel with the generated summary
             // TODO: Get the comment metadata here and pass it to the summary panel
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            await this.showSummaryInPanel(summary, commentPathToIdMap);
 
         }).catch(error => {
             console.error('Error in Ollama summarization:', error);
@@ -1661,13 +1732,19 @@ Please proceed with your analysis and summary of the Hacker News discussion.
         });
     }
 
-    setCurrentPost(post) {
+    setCurrentPost(post, saveState = true) {
         if(!this.posts) return;
 
         // TODO: Remove highlight from previous post only, not all posts
         this.posts.forEach(p => p.classList.remove('highlight-post'));
         post.classList.add('highlight-post');
         post.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Save the current post state
+        const postId = this.getPostId(post);
+        if (postId && saveState) {
+            HNState.saveCurrentPost(postId, this.currentPostIndex);
+        }
     }
 
     getHNPostTitle() {
