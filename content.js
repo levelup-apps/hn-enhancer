@@ -1037,7 +1037,9 @@ class HNEnhancer {
                     // Summarization success. Show the summary in the panel
                     const summary = responseData.summary;
                     const commentPathToIdMap = responseData.commentPathToIdMap;
-                    this.showSummaryInPanel(summary, commentPathToIdMap);
+                    this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                        console.error('Error showing summary:', error);
+                    });
 
                     break;
 
@@ -1191,6 +1193,8 @@ class HNEnhancer {
         chrome.runtime.sendMessage({
             type: 'HN_SHOW_OPTIONS',
             data: {}
+        }).catch(error => {
+            console.error('Error sending message to show options:', error);
         });
     }
 
@@ -1250,7 +1254,9 @@ class HNEnhancer {
                     break;
 
                 case 'none':
-                    this.showSummaryInPanel(formattedComment, commentPathToIdMap);
+                    this.showSummaryInPanel(formattedComment, commentPathToIdMap).catch(error => {
+                        console.error('Error showing summary:', error);
+                    });
                     break;
             }
         }).catch(error => {
@@ -1321,6 +1327,8 @@ class HNEnhancer {
             }
             return response.json();
         }).then(data => {
+            // disable thw warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
             const summary = data?.choices[0]?.message?.content;
 
             if (!summary) {
@@ -1329,7 +1337,9 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
 
         }).catch(error => {
             console.error('Error in OpenAI summarization:', error);
@@ -1422,7 +1432,9 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
 
         }).catch(error => {
             console.error('Error in Anthropic summarization:', error);
@@ -1687,7 +1699,9 @@ Please proceed with your analysis and summary of the Hacker News discussion.
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap);
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
 
         }).catch(error => {
             console.error('Error in Ollama summarization:', error);
