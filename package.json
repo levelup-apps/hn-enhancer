@@ -3,11 +3,13 @@
 		"@tailwindcss/aspect-ratio": "^0.4.2",
 		"@tailwindcss/forms": "^0.5.9",
 		"@tailwindcss/typography": "^0.5.15",
+		"archiver": "^7.0.1",
 		"tailwindcss": "^3.4.16"
 	},
 	"scripts": {
 		"build:tailwind": "pnpm tailwindcss -i ./input.css -o ./options-styles.css",
 		"build:tailwind:watch": "pnpm tailwindcss -i ./input.css -o ./options-styles.css --watch",
-		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./input.css -o ./options-styles.css --minify"
+		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./input.css -o ./options-styles.css --minify",
+		"build": "pnpm run release:tailwind && node build.js"
 	}
 }
