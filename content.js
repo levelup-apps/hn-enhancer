@@ -5,6 +5,40 @@ const SummarizeCheckStatus = {
     THREAD_TOO_DEEP: 'chrome_depth_limit'
 };
 
+class HNState {
+    static saveLastSeenPostId(postId) {
+        chrome.storage.local.set({
+            lastSeenPost: {
+                id: postId,
+                timestamp: Date.now()
+            }
+        }).catch(_ => {
+            // console.error('Error saving current post state:', _);
+        });
+    }
+
+    static async getLastSeenPostId() {
+        try {
+            const data = await chrome.storage.local.get('lastSeenPost');
+            // Return null if no state or if state is older than 15 minutes
+            if (!data.lastSeenPost || Date.now() - data.lastSeenPost.timestamp > (15 * 60 * 1000)) {
+                await this.clearLastSeenPost();
+                return null;
+            }
+            return data.lastSeenPost.id;
+        } catch (error) {
+            // console.error('Error retrieving saved post state:', error);
+            return null;
+        }
+    }
+
+    static async clearLastSeenPost() {
+        chrome.storage.local.remove('lastSeenPost').catch(_ => {
+            // console.error('Error clearing lastSeenPost post state:', _);
+        });
+    }
+}
+
 class HNEnhancer {
 
     static DEBUG = false;  // Set to true when debugging
@@ -72,7 +106,39 @@ class HNEnhancer {
 
     initHomePageNavigation() {
         this.allPosts = document.querySelectorAll('.athing');
-        this.navigateToPost('first');
+
+        // check if there is a post id saved in the storage - if yes, restore it; else navigate to the first post
+        HNState.getLastSeenPostId().then(lastSeenPostId => {
+
+            let lastSeenPostIndex = -1;
+            if (lastSeenPostId) {
+                this.logDebug(`Got last seen post id from storage: ${lastSeenPostId}`);
+
+                // Find the post with matching ID
+                const posts = Array.from(this.allPosts);
+                lastSeenPostIndex = posts.findIndex(post => this.getPostId(post) === lastSeenPostId);
+            }
+
+            // if we got a valid last seen post, set it as the current index, else go to the first post
+            if (lastSeenPostIndex !== -1) {
+                this.setCurrentPostIndex(lastSeenPostIndex);
+            } else {
+                this.navigateToPost('first');
+            }
+        });
+    }
+
+    getPostId(post) {
+        // Extract post ID from the comments link
+        const subtext = post.nextElementSibling;
+        if (subtext) {
+            const commentsLink = subtext.querySelector('a[href^="item?id="]');
+            if (commentsLink) {
+                const match = commentsLink.href.match(/id=(\d+)/);
+                return match ? match[1] : null;
+            }
+        }
+        return null;
     }
 
     navigateToPost(direction) {
@@ -145,6 +211,13 @@ class HNEnhancer {
 
         this.currentPostIndex = postIndex;
         this.logDebug(`Updated current post index to ${postIndex}`);
+
+        // save the id of the new post as the last seen post id in the storage
+        const newPostId = this.getPostId(newPost);
+        if(newPostId) {
+            HNState.saveLastSeenPostId(newPostId);
+            this.logDebug(`Saved current post id as last seen post id: ${newPostId}`);
+        }
 
         // highlight the new post and scroll to it
         newPost.classList.add('highlight-post');
