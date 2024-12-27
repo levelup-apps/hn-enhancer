@@ -926,7 +926,7 @@ class HNEnhancer {
         this.summaryPanel.updateContent({
             title: 'Thread Summary',
             metadata: metadata,
-            text: `Generating summary${modelInfo}... This may take a few moments.`
+            text: `<div>Generating summary${modelInfo}... This may take a few moments.<span class="loading-spinner"></span></div>`
         });
 
         this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
@@ -1186,7 +1186,7 @@ class HNEnhancer {
                 this.summaryPanel.updateContent({
                     title: 'Post Summary',
                     metadata: `Analyzing all threads in this post...`,
-                    text: `Generating comprehensive summary${modelInfo}... This may take a few moments.`
+                    text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
                 });
 
                 const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
@@ -1541,6 +1541,7 @@ class HNEnhancer {
 
 Input Format:
 The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
+This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
 
 Example:
 [1] author1: First reply to the post
@@ -1696,11 +1697,21 @@ Please proceed with your analysis and summary of the Hacker News discussion.`;
 
         // Create the system message for better summarization
         const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
-        1. Identify the main topics and key arguments. 
-        2. Use markdown formatting for clarity and readability.
-        3. Include brief, relevant quotes to support main points.
-        4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
-        5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+1. Identify the main topics and key arguments. 
+2. Use markdown formatting for clarity and readability.
+3. Include brief, relevant quotes to support main points.
+4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
+5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+
+Input Format:
+The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
+This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
+
+Example:
+[1] author1: First reply to the post
+[1.1] author2: First reply to [1]
+[1.1.1] author3: Second-level reply to [1.1]
+[1.2] author4: Second reply to [1]
         `;
 
         // Create the user message with the text to summarize
