@@ -103,15 +103,13 @@
                                 </svg>
                             </summary>
                             <div class="absolute right-0 -translate-x-1 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
-                                <p class="font-medium mb-2">💡 Free local summarization using Chrome's built-in AI</p>
-                                <p class="mb-3">Requires a one-time model download and Chrome 131+</p>
+                                <p class="mb-3">Requires Chrome <span class="text-pink-700">131+</span> and a one-time model download.</p>
                                 <p class="font-medium mb-1">Setup instructions:</p>
                                 <ol class="list-decimal ml-4 space-y-1">
-                                    <li>Type <code class="bg-gray-100 px-1 rounded">chrome://flags</code> in address bar</li>
-                                    <li>Search for "Summarization"</li>
-                                    <li>Enable "Summarization API for Gemini Nano"</li>
-                                    <li>Restart Chrome</li>
-                                    <li>Ensure summarization works in <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Playground</a>.</li>
+                                    <li>To start downloading the model, go to Chrome Dev <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Summarization API Playground</a>.</li>
+                                    <li>To verify that the model download is complete, navigate to 'Chrome components' <code class="bg-gray-100 px-1 rounded">chrome://components</code>.</li>
+                                    <li>Once the model is downloaded, you should see 'Optimization Guide On Device Model' with version <code class="bg-gray-100 px-1 rounded">2024.9.25.2033</code> or higher.</li>
+                                    <li>For more troubleshooting instructions, visit project <a class="underline" href="https://github.com/levelup-apps/hn-enhancer?tab=readme-ov-file#chrome-built-in-ai-free-local-processing" title="" target="_blank">README</a>.</li>
                                 </ol>
                                 <p class="mt-3 text-xs text-gray-500">💡 Best for shorter content: While free and convenient, Chrome's built-in AI (Gemini Nano) works best with individual comments or brief discussion threads.
                                     It may struggle and hallucinate with full comment pages due to model size limitations.</p>
