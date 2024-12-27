@@ -1,6 +1,6 @@
 ### Hacker News Companion - Chrome Extension
 
-[![Basic features video](http://img.youtube.com/vi/N8711ldzVkU/maxresdefault.jpg)](https://www.youtube.com/watch?v=N8711ldzVkU)
+[![Basic features video](http://img.youtube.com/vi/Ii9etpO5TSk/maxresdefault.jpg)](https://www.youtube.com/watch?v=Ii9etpO5TSk)
 
 > [!TIP]
 > You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf).
@@ -45,14 +45,12 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * One-time model download
 
 2. Setup Steps:
-   ```
-   1. Open Chrome and navigate to chrome://flags
-   2. Search for "Summarization"
-   3. Enable "Summarization API for Gemini Nano"
-   4. Restart Chrome
-   ```
+   * To verify that you have chrome version higher than 131, navigate to 'About Chrome' `chrome://settings/help` and check the version.
+   * To trigger the model download, go to Chrome Dev [Summarization Api Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/) and try some text.
+   * To verify that the model download is complete, navigate to 'Chrome components' -`chrome://components/` and you should see 'Optimization Guide On Device Model'. Make sure the version is `2024.9.25.2033` or higer.
+
 > [!IMPORTANT]
-> Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/)
+> Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/).
 
 3. Best Practices:
     * Ideal for individual comments or brief threads
