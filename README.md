@@ -182,6 +182,7 @@ MIT Licensed - free to use, modify, and distribute
 * Hacker News community
 * AI provider partners
 * Open source contributors
+* Valuable feedback from [Liza George](https://www.linkedin.com/in/george-liza/)
 
 
 > [!NOTE] 
