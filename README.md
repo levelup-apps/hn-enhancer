@@ -118,6 +118,8 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * Set up billing alerts
 
 ### OpenRouter
+[OpenRouter](https://openrouter.ai/) is a service that provides unified access to multiple large language models (LLMs) through a single API. This platform simplifies the integration and management of different AI models, such as GPT, Claude, and Grok, allowing developers to switch between them without dealing with separate APIs.
+
 1. Requirements:
     * OpenRouter API key
     * Active OpenRouter account with credits
