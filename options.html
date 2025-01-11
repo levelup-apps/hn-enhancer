@@ -199,12 +199,13 @@
                                 </div>
                             </details>
                         </div>
-
                         <div>
                             <label for="openai-model" class="block text-sm font-medium text-gray-900">Select OpenAI Model</label>
                             <div class="mt-2 grid grid-cols-1">
-                                <select id="openai-model" name="openai-model" class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8  text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
-                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                <select id="openai-model"
+                                        name="openai-model"
+                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                                    <option value="gpt-4">GPT-4</option>
                                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                                 </select>
                                 <svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
@@ -212,21 +213,59 @@
                                 </svg>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
-            </div>
-        </fieldset>
+                <!-- OpenRouter -->
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="openrouter" name="provider-selection" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="openrouter" class="ml-3 block text-sm font-medium text-gray-900">OpenRouter</label>
+                    </div>
+                    <div class="ml-7 space-y-3">
+                        <div class="mt-2 grid grid-cols-1">
+                            <label for="openrouter-key" class="sr-only">Enter OpenRouter API Key</label>
+                            <input type="password"
+                                   id="openrouter-key"
+                                   name="openrouter-key"
+                                   placeholder="Enter OpenRouter API Key"
+                                   class="col-start-1 row-start-1 block w-full rounded-md bg-white px-3 py-1.5 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                            <details class="col-start-1 row-start-1 justify-self-end self-center mr-3 inline-block relative">
+                                <summary class="list-none text-gray-400 hover:text-gray-500 cursor-pointer">
+                                    <svg class="size-5 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.459.134-1.033.566-1.033 1.29v.25a.75.75 0 1 0 1.5 0v-.115a2.5 2.5 0 1 0-2.518-4.153.75.75 0 1 0 1.061 1.06Z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 p-4 text-sm text-gray-600">
+                                    🔑 API key is securely stored in your browser's local storage and can sync across your devices with browser sync. The key is transmitted only to the selected LLM provider when making requests.
+                                </div>
+                            </details>
+                        </div>
+                        <div>
+                            <label for="openrouter-model" class="block text-sm font-medium text-gray-900">Enter OpenRouter Model</label>
+                            <div class="mt-2 grid grid-cols-1">
+                                <input type="text"
+                                       id="openrouter-model"
+                                       name="openrouter-model"
+                                       value="claude-3-opus-CHANGEME"
+                                       placeholder="Enter model identifier"
+                                       class="col-start-1 row-start-1 block w-full rounded-md bg-white px-3 py-1.5 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="mt-6 flex items-center justify-end gap-x-6">
-            <button type="button" class="text-sm font-semibold text-gray-900">Cancel</button>
-            <button type="submit"
-                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                Save
-            </button>
-        </div>
-    </form>
-</div>
+                <div class="mt-6 flex items-center justify-end gap-x-6">
+                    <button type="button" class="text-sm font-semibold text-gray-900">Cancel</button>
+                    <button type="submit"
+                            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                        Save
+                    </button>
+                </div>
+            </fieldset>
+
+        </form>
+    </div>
 </body>
 </html>
