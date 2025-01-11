@@ -1278,13 +1278,14 @@ class HNEnhancer {
             // const providerSelection = 'none';
             const model = data.settings?.[providerSelection]?.model;
 
-            if (!providerSelection ) {
+            if (!providerSelection) {
                 console.error('Missing AI summarization configuration');
 
                 const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
                     'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
-                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a> or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
-
+                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
+                    'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+                    
                 this.summaryPanel.updateContent({
                     title: 'AI Provider Setup Required',
                     text: message
@@ -1317,6 +1318,11 @@ class HNEnhancer {
                     this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
                     break;
 
+                case 'openrouter':
+                    const openrouterKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingOpenRouter(formattedComment, model, openrouterKey, commentPathToIdMap);
+                    break;    
+
                 case 'anthropic':
                     const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
                     this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
@@ -1337,6 +1343,103 @@ class HNEnhancer {
         });
     }
 
+    summarizeUsingOpenRouter(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for OpenAI summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Rate Limit for OpenRouter
+        const tokenLimit = 60000;
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+
+        // Set up the API request
+        const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
+
+        // OpenRouter, just like OpenAI, takes system and user messages as an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: messages
+        };
+
+        // Make the API request using Promise chains
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': 'https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf', // Optional. Site URL for rankings on openrouter.ai.
+                'X-Title': 'Hacker News Companion', // Optional. Site title for rankings on openrouter.ai.
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        }).then(data => {
+            // disable the warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in OpenRouter summarization:', error);
+
+            // Update the summary panel with an error message
+            // OpenRouter follows the same error message structure as OpenAI
+            // https://openrouter.ai/docs/errors
+            let errorMessage = 'Error generating summary. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
 
     summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
