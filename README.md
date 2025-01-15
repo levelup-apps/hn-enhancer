@@ -3,10 +3,10 @@
 [![Basic features video](http://img.youtube.com/vi/uPRh7UKYd8E/maxresdefault.jpg)](https://www.youtube.com/watch?v=uPRh7UKYd8E)
 
 > [!TIP]
-> You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf).
+> You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf).
 
 ## 🚀 Quick Start Guide
-1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hackernews-comment-enhanc/khfcainelcaedmmhjicphbkpigklejgf)
+1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf)
 2. Navigate to [Hacker News](https://news.ycombinator.com)
 3. Press '?' to view keyboard shortcuts
 4. Choose your preferred AI provider in extension settings
@@ -25,7 +25,7 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
   * Multiple AI provider options
   * Summarize entire threads or specific comment branches
   * Use Chrome's built-in AI for local processing
-  * Connect to OpenAI, Anthropic, or Ollama for advanced summaries
+  * Connect to OpenAI, Anthropic, Ollama or OpenRouterfor advanced summaries
 
 * **Enhanced Comment Navigation**
     * Quick-jump between comments by the same author
@@ -117,6 +117,19 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * Monitor API usage
     * Set up billing alerts
 
+### OpenRouter
+[OpenRouter](https://openrouter.ai/) is a service that provides unified access to multiple large language models (LLMs) through a single API. This platform simplifies the integration and management of different AI models, such as GPT, Claude, and Grok, allowing developers to switch between them without dealing with separate APIs.
+
+1. Requirements:
+    * OpenRouter API key
+    * Active OpenRouter account with credits
+
+2. Setup Steps:
+    * Generate an API key at [OpenRouter](https://openrouter.ai/settings/keys)
+    * Enter API key in extension settings (click on the extension icon)
+    * Enter your preferred model
+        * A list of available models can be found at [OpenRouter models](https://openrouter.ai/models)
+        * `anthropic/claude-3.5-sonnet` is our default and a great model to start with
 
 ## ⌨️ Keyboard Shortcuts
 

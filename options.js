@@ -13,6 +13,10 @@ async function saveSettings() {
         },
         ollama: {
             model: document.getElementById('ollama-model').value
+        },
+        openrouter: {
+            apiKey: document.getElementById('openrouter-key').value,
+            model: document.getElementById('openrouter-model').value
         }
     };
 
@@ -94,6 +98,12 @@ async function loadSettings() {
             if (settings.ollama) {
                 document.getElementById('ollama-model').value = settings.ollama.model || 'llama2';
             }
+
+            // Set OpenRouter settings
+            if (settings.openrouter) {
+                document.getElementById('openrouter-key').value = settings.openrouter.apiKey || '';
+                document.getElementById('openrouter-model').value = settings.openrouter.model || 'anthropic/claude-3.5-sonnet';
+            }
         }
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -102,7 +112,6 @@ async function loadSettings() {
 
 // Initialize event listeners and load settings
 document.addEventListener('DOMContentLoaded', async () => {
-
     // Fetch Ollama models before loading other settings
     await fetchOllamaModels();
 
@@ -130,10 +139,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const openaiInputs = document.querySelectorAll('#openai-key, #openai-model');
             const anthropicInputs = document.querySelectorAll('#anthropic-key, #anthropic-model');
             const ollamaInputs = document.querySelectorAll('#ollama-model');
+            const openrouterInputs = document.querySelectorAll('#openrouter-key, #openrouter-model');
 
             openaiInputs.forEach(input => input.disabled = radio.id !== 'openai');
             anthropicInputs.forEach(input => input.disabled = radio.id !== 'anthropic');
             ollamaInputs.forEach(input => input.disabled = radio.id !== 'ollama');
+            openrouterInputs.forEach(input => input.disabled = radio.id !== 'openrouter');
         });
     });
 
