@@ -377,25 +377,44 @@ class HNEnhancer {
         return postAuthorElement ? postAuthorElement.textContent : null;
     }
 
-    async fetchUserInfo(username) {
-        this.logDebug('Sending runtime message to background script. message type: HN_FETCH_USER_INFO. username: ', username);
-        try {
-            const userInfoResponse = await chrome.runtime.sendMessage({type: 'HN_FETCH_USER_INFO', data: {username: username}});
+    async sendBackgroundMessage(type, data) {
 
-            // shape of the response:
-            //  {success: true,  result: {karma: 123, about: 'some text'}} or
-            //  {success: false, error: 'error message'}
-            if(userInfoResponse.success) {
-                return { karma: userInfoResponse.result.karma || 'Not found',
-                         about: userInfoResponse.result.about || 'No about information'};
-            } else {
-                console.error('Error response from runtime message HN_FETCH_USER_INFO: ', userInfoResponse.error);
-                return { karma: 'User info error', about: 'No about information' };
+        this.logDebug(`Sending runtime message ${type}:`, data);
+
+        try {
+            const response = await chrome.runtime.sendMessage({type, data});
+
+            if (!response.success) {
+                console.error(`Error from runtime message ${type}:`, response.error);
+                return {data: null, error: response.error};
             }
+
+            this.logDebug(`Response from runtime message ${type}:`, response.data);
+
+            return {data: response.data, error: null};
         } catch (error) {
-            console.error('Error sending runtime message: ', error);
-            return { karma: 'User info error', about: 'No about information' };
+            console.error(`Error sending runtime message ${type}:`, error);
+            return {data: null, error: error.message};
         }
+    }
+
+    async fetchUserInfo(username) {
+        const { data, error } = await this.sendBackgroundMessage(
+            'HN_FETCH_USER_INFO',
+            { username }
+        );
+
+        if (error) {
+            return {
+                karma: 'User info error',
+                about: 'No about information'
+            };
+        }
+
+        return {
+            karma: data.karma || 'Not found',
+            about: data.about || 'No about information'
+        };
     }
 
     setupKeyBoardShortcuts() {
@@ -1216,22 +1235,11 @@ class HNEnhancer {
     }
 
     async getHNThread(itemId) {
-
-        try {
-            const response = await chrome.runtime.sendMessage(
-                {type: 'HN_FETCH_THREAD', data: {itemId}}
-            );
-
-            if (!response.success) {
-                console.error(`Error fetching HN thread: ${response.error}`);
-                return null;
-            }
-
-            return this.convertToPathFormat(response.result);
-        } catch (error) {
-            console.error(`Error sending runtime message to background script: ${error.message}`);
-            return null;
-        }
+        const { data, error } = await this.sendBackgroundMessage(
+            'HN_FETCH_THREAD',
+            { itemId }
+        );
+        return error ? null : this.convertToPathFormat(data);
     }
 
     convertToPathFormat(thread) {

@@ -13,53 +13,31 @@ async function onInstalled() {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-    console.log('Background script received message type:', message.type);
+    console.log('Background script received message of type:', message.type);
 
     // Handle the message
     switch (message.type) {
         case 'HN_SHOW_OPTIONS':
             chrome.runtime.openOptionsPage();
             break;
+
         case 'HN_FETCH_USER_INFO':
-            // fetch user info from HN API
-            (async () => {
-                try {
-                    const result = await fetchUserInfo(message.data.username);
-                    sendResponse({success: true, result: result});
-                } catch (error) {
-                    console.error(`Message listener HN_FETCH_USER_INFO: Error thrown by fetchUserInfo(): ${error}`);
-                    sendResponse({success: false, error: error.message});
-                }
-            })();
-
-            // indicate that sendResponse will be called later and hence keep the message channel open
-            return true;
-
-        // case 'HN_FETCH_THREAD':
-        //     // fetch user info from HN API
-        //     (async () => {
-        //         try {
-        //             const result = await fetchHNThread(message.data.itemId);
-        //             sendResponse({success: true, result: result});
-        //         } catch (error) {
-        //             console.error(`Message listener HN_FETCH_THREAD: Error thrown by fetchHNThread(): ${error}`);
-        //             sendResponse({success: false, error: error.message});
-        //         }
-        //     })();
-        //
-        //     // indicate that sendResponse will be called later and hence keep the message channel open
-        //     return true;
+            return handleAsyncMessage(
+                message,
+                () => fetchUserInfo(message.data.username),
+                sendResponse
+            );
 
         case 'HN_FETCH_THREAD':
             return handleAsyncMessage(
-                message.type,
+                message,
                 () => fetchHNThread(message.data.itemId),
                 sendResponse
             );
 
         case 'FETCH_OLLAMA_MODELS':
             return handleAsyncMessage(
-                message.type,
+                message,
                 () => fetchOllamaModels(),
                 sendResponse
             );
@@ -68,47 +46,83 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-function handleAsyncMessage(messageType, fetchApi, sendResponse) {
+// Handle async message and send response
+function handleAsyncMessage(message, asyncOperation, sendResponse) {
     (async () => {
         try {
-            const result = await fetchApi();
-            sendResponse({ success: true, result });
+            const response = await asyncOperation();
+            sendResponse({ success: true, data: response});
         } catch (error) {
-            console.error(`Message listener ${messageType}: Error thrown by ${fetchApi.name}: ${error}`);
-            sendResponse({ success: false, error: error.message });
+            console.error(`Message: ${message.type}. Error: ${error}`);
+            sendResponse({ success: false, error: error.toString() });
         }
     })();
+
+    // indicate that sendResponse will be called later and hence keep the message channel open
     return true;
 }
 
 async function fetchUserInfo(username) {
-    const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`);
-    if (!response.ok) {
-        throw new Error(`fetchUserInfo(): HTTP error from HN API /v1/users: Error code: ${response.status}. Text: '${response.statusText}'`);
+    try {
+        return await fetchWithTimeout(
+            `https://hn.algolia.com/api/v1/users/${username}`
+        );
+    } catch (error) {
+        console.error(`fetchUserInfo(): Error fetching user info for ${username}: ${error}`);
+        throw error;
     }
-
-    const userApiResponse = await response.json();
-    return {
-        karma: userApiResponse.karma, about: userApiResponse.about
-    };
 }
 
 async function fetchHNThread(itemId) {
-    const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
-    if (!response.ok) {
-        throw new Error(`fetchHNThread(): HTTP error from HN API /v1/items Error code: ${response.status}. Text: '${response.statusText}'`);
+    try {
+        return await fetchWithTimeout(
+            `https://hn.algolia.com/api/v1/items/${itemId}`
+        );
+    } catch (error) {
+        console.error(`fetchHNThread(): Error fetching HN thread ${itemId}: ${error}`);
+        throw error;
     }
-    const jsonResponse = await response.json();
-    return jsonResponse;
 }
 
 async function fetchOllamaModels() {
-    const response = await fetch('http://localhost:11434/api/tags');
-    if (!response.ok) {
-        throw new Error(`fetchOllamaModels(): HTTP error from Ollama API /api/tags Error code: ${response.status}. Text: '${response.statusText}'`);
+    try {
+        return await fetchWithTimeout(
+            'http://localhost:11434/api/tags',
+            {},
+            10000  // Longer timeout for local API
+        );
+    } catch (error) {
+        console.error(`fetchOllamaModels(): Error fetching Ollama models: ${error}`);
+        throw error;
     }
-    const jsonResponse = await response.json();
-    return jsonResponse;
 }
 
 // chrome.runtime.onInstalled.addListener(onInstalled);
+
+// Utility function for API calls with timeout
+async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+
+        if (!response.ok) {
+            throw new Error(
+                `HTTP Error ${response.status}: ${response.statusText || 'No error details available'}. API url: ${url}`
+            )
+        }
+
+        return await response.json();
+    } catch (error) {
+        clearTimeout(id);
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeout} ms: ${url}`);
+        }
+        throw error;
+    }
+}

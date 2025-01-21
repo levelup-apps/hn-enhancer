@@ -45,7 +45,7 @@ async function fetchOllamaModels() {
             throw new Error(response.error);
         }
 
-        const data = response.result;
+        const data = response.data;
 
         const selectElement = document.getElementById('ollama-model');
         // Clear existing options
