@@ -378,15 +378,23 @@ class HNEnhancer {
     }
 
     async fetchUserInfo(username) {
+        this.logDebug('Sending runtime message to background script. message type: HN_FETCH_USER_INFO. username: ', username);
         try {
-            const response = await fetch(`https://hn.algolia.com/api/v1/users/${username}`, {cache: 'force-cache'});
-            const userInfoResponse = await response.json();
-            return {
-                karma: userInfoResponse.karma || 'Not found', about: userInfoResponse.about || 'No about information'
-            };
+            const userInfoResponse = await chrome.runtime.sendMessage({type: 'HN_FETCH_USER_INFO', data: {username: username}});
+
+            // shape of the response:
+            //  {success: true,  result: {karma: 123, about: 'some text'}} or
+            //  {success: false, error: 'error message'}
+            if(userInfoResponse.success) {
+                return { karma: userInfoResponse.result.karma || 'Not found',
+                         about: userInfoResponse.result.about || 'No about information'};
+            } else {
+                console.error('Error response from runtime message HN_FETCH_USER_INFO: ', userInfoResponse.error);
+                return { karma: 'User info error', about: 'No about information' };
+            }
         } catch (error) {
-            console.error('Error fetching user info:', error);
-            return null;
+            console.error('Error sending runtime message: ', error);
+            return { karma: 'User info error', about: 'No about information' };
         }
     }
 
