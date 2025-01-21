@@ -37,8 +37,15 @@ async function saveSettings() {
 // Fetch Ollama models from API
 async function fetchOllamaModels() {
     try {
-        const response = await fetch('http://localhost:11434/api/tags');
-        const data = await response.json();
+        const response = await chrome.runtime.sendMessage(
+            {type: 'FETCH_OLLAMA_MODELS', data: {}}
+        );
+        if (!response.success) {
+            // noinspection ExceptionCaughtLocallyJS
+            throw new Error(response.error);
+        }
+
+        const data = response.result;
 
         const selectElement = document.getElementById('ollama-model');
         // Clear existing options

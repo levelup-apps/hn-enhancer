@@ -1216,16 +1216,21 @@ class HNEnhancer {
     }
 
     async getHNThread(itemId) {
+
         try {
-            const response = await fetch(`https://hn.algolia.com/api/v1/items/${itemId}`);
-            if (!response.ok) {
-                // noinspection ExceptionCaughtLocallyJS
-                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+            const response = await chrome.runtime.sendMessage(
+                {type: 'HN_FETCH_THREAD', data: {itemId}}
+            );
+
+            if (!response.success) {
+                console.error(`Error fetching HN thread: ${response.error}`);
+                return null;
             }
-            const jsonData = await response.json();
-            return this.convertToPathFormat(jsonData);
+
+            return this.convertToPathFormat(response.result);
         } catch (error) {
-            throw new Error(`Error fetching HN thread: ${error.message}`);
+            console.error(`Error sending runtime message to background script: ${error.message}`);
+            return null;
         }
     }
 
