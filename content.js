@@ -381,9 +381,18 @@ class HNEnhancer {
         this.logDebug(`Sending browser runtime message ${type}:`, data);
 
         let response;
+        const startTime = performance.now();
+
         try {
             response = await chrome.runtime.sendMessage({type, data});
+
+            const endTime = performance.now();
+            console.log(`Background message ${type} returned success in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+
         } catch (error) {
+            const endTime = performance.now();
+            console.log(`Background message ${type} returned error in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+
             console.error(`Error sending browser runtime message ${type}:`, error);
             throw error;
         }
@@ -1615,8 +1624,9 @@ class HNEnhancer {
             messages: messages
         };
 
-        // Make the API request using Promise chains
-        fetch(endpoint, {
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1625,18 +1635,12 @@ class HNEnhancer {
                 'anthropic-dangerous-direct-browser-access': 'true' // this is required to resolve CORS issue
             },
             body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`Anthropic API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
         }).then(data => {
+
             if(!data || !data.content || data.content.length === 0) {
                 throw new Error(`Summary response data is empty. ${data}`);
             }
-            const summary = data?.content[0]?.text;
+            const summary = data.content[0].text;
 
             if (!summary) {
                 throw new Error('No summary generated from API response');
