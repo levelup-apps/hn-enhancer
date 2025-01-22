@@ -50,7 +50,7 @@ function handleAsyncMessage(message, asyncOperation, sendResponse) {
 }
 
 // Utility function for API calls with timeout
-async function fetchWithTimeout(url, {method = 'GET', headers = {}, body = null, timeout = 5000} = {}) {
+async function fetchWithTimeout(url, {method = 'GET', headers = {}, body = null, timeout = 60000} = {}) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
 
@@ -64,7 +64,8 @@ async function fetchWithTimeout(url, {method = 'GET', headers = {}, body = null,
         clearTimeout(id);
 
         if (!response.ok) {
-            const errorText = `HTTP Error ${response.status}: ${response.statusText || 'No error details available'}. API Url: ${url}`;
+            const responseText = await response.text();
+            const errorText = `API Error: HTTP error code: ${response.status}, URL: ${url} \nBody: ${responseText}`;
             console.error(errorText);
             throw new Error(errorText);
         }
