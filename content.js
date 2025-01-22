@@ -387,11 +387,11 @@ class HNEnhancer {
             response = await chrome.runtime.sendMessage({type, data});
 
             const endTime = performance.now();
-            console.log(`Background message ${type} returned success in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+            this.logDebug(`Background message ${type} returned success in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
 
         } catch (error) {
             const endTime = performance.now();
-            console.log(`Background message ${type} returned error in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+            this.logDebug(`Background message ${type} returned error in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
 
             console.error(`Error sending browser runtime message ${type}:`, error);
             throw error;
@@ -1429,8 +1429,9 @@ class HNEnhancer {
             messages: messages
         };
 
-        // Make the API request using Promise chains
-        fetch(endpoint, {
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1439,13 +1440,6 @@ class HNEnhancer {
                 'X-Title': 'Hacker News Companion', // Optional. Site title for rankings on openrouter.ai.
             },
             body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
         }).then(data => {
             // disable the warning unresolved variable in this specific instance
             // noinspection JSUnresolvedVariable
@@ -1467,7 +1461,7 @@ class HNEnhancer {
             // Update the summary panel with an error message
             // OpenRouter follows the same error message structure as OpenAI
             // https://openrouter.ai/docs/errors
-            let errorMessage = 'Error generating summary. ';
+            let errorMessage = `Error generating summary using OpenRouter model ${model}. `;
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
             } else if (error.message.includes('429')) {
@@ -1532,21 +1526,15 @@ class HNEnhancer {
             presence_penalty: 0
         };
 
-        // Make the API request using Promise chains
-        fetch(endpoint, {
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
-            }
-            return response.json();
         }).then(data => {
             // disable thw warning unresolved variable in this specific instance
             // noinspection JSUnresolvedVariable
@@ -1566,7 +1554,7 @@ class HNEnhancer {
             console.error('Error in OpenAI summarization:', error);
 
             // Update the summary panel with an error message
-            let errorMessage = 'Error generating summary. ';
+            let errorMessage = `Error generating summary using OpenAI model ${model}. `;
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
             } else if (error.message.includes('429') ) {
@@ -1656,7 +1644,7 @@ class HNEnhancer {
             console.error('Error in Anthropic summarization:', error);
 
             // Update the summary panel with an error message
-            let errorMessage = 'Error generating summary. ';
+            let errorMessage = `Error generating summary using Anthropic model ${model}. `;
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
             } else if (error.message.includes('429')) {
