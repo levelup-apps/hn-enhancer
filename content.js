@@ -1884,21 +1884,21 @@ Please proceed with your analysis and summary of the Hacker News discussion.
             stream: false
         };
 
-        // Make the API request using Promise chains
-        fetch(endpoint, {
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(payload)
-        }).then(response => {
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(`Ollama API error: ${errorData.error?.message || 'Unknown error'}`);
-                });
+            body: JSON.stringify(payload),
+            timeout: 30000 // Longer timeout for summarization
+        })
+        .then(response => {
+            if (!response.data) {
+                throw new Error(`Ollama API error: ${response.error || 'Unknown error'}`);
             }
-            return response.json();
-        }).then(data => {
+            const data = response.data;
             const summary = data.response;
 
             if (!summary) {
