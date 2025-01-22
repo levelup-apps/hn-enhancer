@@ -378,43 +378,47 @@ class HNEnhancer {
     }
 
     async sendBackgroundMessage(type, data) {
+        this.logDebug(`Sending browser runtime message ${type}:`, data);
 
-        this.logDebug(`Sending runtime message ${type}:`, data);
-
+        let response;
         try {
-            const response = await chrome.runtime.sendMessage({type, data});
-
-            if (!response.success) {
-                console.error(`Error from runtime message ${type}:`, response.error);
-                return {data: null, error: response.error};
-            }
-
-            this.logDebug(`Response from runtime message ${type}:`, response.data);
-
-            return {data: response.data, error: null};
+            response = await chrome.runtime.sendMessage({type, data});
         } catch (error) {
-            console.error(`Error sending runtime message ${type}:`, error);
-            return {data: null, error: error.message};
+            console.error(`Error sending browser runtime message ${type}:`, error);
+            throw error;
         }
+
+        this.logDebug(`Response from background message ${type}:`, JSON.stringify(response));
+
+        if (!response) {
+            console.error(`No response from background message ${type}`);
+            throw new Error(`No response from background message ${type}`);
+        }
+        if (!response.success) {
+            console.error(`Error response from background message ${type}:`, response.error);
+            throw new Error(response.error);
+        }
+
+        return response.data;
     }
 
     async fetchUserInfo(username) {
-        const { data, error } = await this.sendBackgroundMessage(
-            'HN_FETCH_USER_INFO',
-            { username }
-        );
+        try {
+            const data = await this.sendBackgroundMessage(
+                'HN_FETCH_USER_INFO',
+                { username }
+            );
 
-        if (error) {
+            return {
+                karma: data.karma || 'Not found',
+                about: data.about || 'No about information'
+            };
+        } catch (error) {
             return {
                 karma: 'User info error',
                 about: 'No about information'
             };
         }
-
-        return {
-            karma: data.karma || 'Not found',
-            about: data.about || 'No about information'
-        };
     }
 
     setupKeyBoardShortcuts() {
@@ -1235,11 +1239,15 @@ class HNEnhancer {
     }
 
     async getHNThread(itemId) {
-        const { data, error } = await this.sendBackgroundMessage(
-            'HN_FETCH_THREAD',
-            { itemId }
-        );
-        return error ? null : this.convertToPathFormat(data);
+        try {
+            const data = await this.sendBackgroundMessage(
+                'HN_FETCH_THREAD',
+                { itemId }
+            );
+            return this.convertToPathFormat(data);
+        } catch (error) {
+            return null;
+        }
     }
 
     convertToPathFormat(thread) {
@@ -1894,13 +1902,8 @@ Please proceed with your analysis and summary of the Hacker News discussion.
             body: JSON.stringify(payload),
             timeout: 30000 // Longer timeout for summarization
         })
-        .then(response => {
-            if (!response.data) {
-                throw new Error(`Ollama API error: ${response.error || 'Unknown error'}`);
-            }
-            const data = response.data;
+        .then(data => {
             const summary = data.response;
-
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
