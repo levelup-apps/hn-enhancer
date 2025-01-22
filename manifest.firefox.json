@@ -13,12 +13,12 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "addon@example.com"
-    }
+    },
+    "trial_tokens": [
+      "ArROXQIdYHn8CEwJCT02qMPHvAmS6ih8t1ZHiT5FpVVX3ayKlN47tmWAhqX/XnBiUQsuTd2hvPZUX4SevnGDPg8AAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vbWJnZGJnZmRoZGhjbGJrYWNraGtsY2JlY2NtZWFrYmUiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ==",
+      "AmvawA4HIg2FLhHRUdEaYpysamI5CI2wqhOkrSBLAe6gEwwNomjZYSeI/0Ni3gFZFQ6ED9BkQRwp31jRxRQbbwAAAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8va2hmY2FpbmVsY2FlZG1taGppY3BoYmtwaWdrbGVqZ2YiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ=="
+    ]
   },
-  "trial_tokens": [
-    "ArROXQIdYHn8CEwJCT02qMPHvAmS6ih8t1ZHiT5FpVVX3ayKlN47tmWAhqX/XnBiUQsuTd2hvPZUX4SevnGDPg8AAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vbWJnZGJnZmRoZGhjbGJrYWNraGtsY2JlY2NtZWFrYmUiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ==",
-    "AmvawA4HIg2FLhHRUdEaYpysamI5CI2wqhOkrSBLAe6gEwwNomjZYSeI/0Ni3gFZFQ6ED9BkQRwp31jRxRQbbwAAAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8va2hmY2FpbmVsY2FlZG1taGppY3BoYmtwaWdrbGVqZ2YiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ=="
-  ],
   "permissions": [
     "storage"
   ],
@@ -40,7 +40,7 @@
     "default_popup": "options.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "scripts": ["background.js"]
   },
   "content_scripts": [
     {
