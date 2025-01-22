@@ -34,18 +34,35 @@ async function saveSettings() {
     }
 }
 
+async function sendBackgroundMessage(type, data) {
+
+    let response;
+    try {
+        response = await chrome.runtime.sendMessage({type, data});
+    } catch (error) {
+        console.error(`Error sending browser runtime message ${type}:`, error);
+        throw error;
+    }
+
+    if (!response) {
+        console.error(`No response from background message ${type}`);
+        throw new Error(`No response from background message ${type}`);
+    }
+    if (!response.success) {
+        console.error(`Error response from background message ${type}:`, response.error);
+        throw new Error(response.error);
+    }
+
+    return response.data;
+}
+
 // Fetch Ollama models from API
 async function fetchOllamaModels() {
     try {
-        const response = await chrome.runtime.sendMessage(
-            {type: 'FETCH_OLLAMA_MODELS', data: {}}
-        );
-        if (!response.success) {
-            // noinspection ExceptionCaughtLocallyJS
-            throw new Error(response.error);
-        }
-
-        const data = response.data;
+        const data = await sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: 'http://localhost:11434/api/tags',
+            method: 'GET'
+        });
 
         const selectElement = document.getElementById('ollama-model');
         // Clear existing options

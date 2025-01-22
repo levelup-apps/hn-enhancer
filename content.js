@@ -405,8 +405,11 @@ class HNEnhancer {
     async fetchUserInfo(username) {
         try {
             const data = await this.sendBackgroundMessage(
-                'HN_FETCH_USER_INFO',
-                { username }
+                'FETCH_API_REQUEST',
+                {
+                    url: `https://hn.algolia.com/api/v1/users/${username}`,
+                    method: 'GET'
+                }
             );
 
             return {
@@ -1241,9 +1244,13 @@ class HNEnhancer {
     async getHNThread(itemId) {
         try {
             const data = await this.sendBackgroundMessage(
-                'HN_FETCH_THREAD',
-                { itemId }
+                'FETCH_API_REQUEST',
+                {
+                    url: `https://hn.algolia.com/api/v1/items/${itemId}`,
+                    method: 'GET'
+                }
             );
+
             return this.convertToPathFormat(data);
         } catch (error) {
             return null;
