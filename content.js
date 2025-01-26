@@ -1373,6 +1373,11 @@ class HNEnhancer {
                     this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
                     break;
 
+                case 'deepseek':
+                    const deepSeekApiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingDeepSeek(formattedComment, model, deepSeekApiKey, commentPathToIdMap);
+                    break;
+
                 case 'ollama':
                     this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
                     break;
@@ -1651,6 +1656,96 @@ class HNEnhancer {
                 errorMessage += 'Rate limit exceeded. Please try again later.';
             } else {
                 errorMessage += 'Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingDeepSeek(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for DeepSeek summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Limit the input text to 40,000 tokens for DeepSeek
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
+
+        // Set up the API request
+        const endpoint = 'https://api.deepseek.com/v1/chat/completions';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
+
+        // DeepSeek takes system and user messages in the same format as OpenAI - an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: messages,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+        }).then(data => {
+            // disable thw warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in DeepSeek summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = `Error generating summary using DeepSeek model ${model}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429') ) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';  // DeepSeek has a daily quota
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
             }
 
             this.summaryPanel.updateContent({

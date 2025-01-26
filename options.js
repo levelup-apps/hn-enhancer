@@ -11,6 +11,10 @@ async function saveSettings() {
             apiKey: document.getElementById('anthropic-key').value,
             model: document.getElementById('anthropic-model').value
         },
+        deepseek: {
+            apiKey: document.getElementById('deepseek-key').value,
+            model: document.getElementById('deepseek-model').value
+        },
         ollama: {
             model: document.getElementById('ollama-model').value
         },
@@ -118,6 +122,12 @@ async function loadSettings() {
                 document.getElementById('anthropic-model').value = settings.anthropic.model || 'claude-3-opus';
             }
 
+            // Set DeepSeek settings
+            if (settings.deepseek) {
+                document.getElementById('deepseek-key').value = settings.deepseek.apiKey || '';
+                document.getElementById('deepseek-model').value = settings.deepseek.model || 'deepseek-chat';
+            }
+
             // Set Ollama settings
             if (settings.ollama) {
                 document.getElementById('ollama-model').value = settings.ollama.model || 'llama2';
@@ -162,11 +172,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Enable/disable input fields based on selection
             const openaiInputs = document.querySelectorAll('#openai-key, #openai-model');
             const anthropicInputs = document.querySelectorAll('#anthropic-key, #anthropic-model');
+            const deepseekInputs = document.querySelectorAll('#deepseek-key, #deepseek-model');
             const ollamaInputs = document.querySelectorAll('#ollama-model');
             const openrouterInputs = document.querySelectorAll('#openrouter-key, #openrouter-model');
 
             openaiInputs.forEach(input => input.disabled = radio.id !== 'openai');
             anthropicInputs.forEach(input => input.disabled = radio.id !== 'anthropic');
+            deepseekInputs.forEach(input => input.disabled = radio.id !== 'deepseek');
             ollamaInputs.forEach(input => input.disabled = radio.id !== 'ollama');
             openrouterInputs.forEach(input => input.disabled = radio.id !== 'openrouter');
         });
