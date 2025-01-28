@@ -438,7 +438,6 @@ class HNEnhancer {
         // Shortcut keys specific to the Comments page
         const doubleKeyShortcuts = {
             'comments': {
-
                 // Double key combinations
                 'g+g': () => {
                     // Go to first comment
@@ -448,6 +447,19 @@ class HNEnhancer {
                     }
 
                     // Update the last key and time so that we can handle the repeated press in the next iteration
+                    lastKey = 'g';
+                    lastKeyPressTime = currentTime;
+                }
+            },
+            'home': {
+                'g+g': () => {
+                    // Go to first post
+                    const currentTime = Date.now();
+                    if (lastKey === 'g' && currentTime - lastKeyPressTime < 500) {
+                        this.navigateToPost('first');
+                    }
+
+                    // Update tracking for next potential combination
                     lastKey = 'g';
                     lastKeyPressTime = currentTime;
                 }
@@ -496,12 +508,13 @@ class HNEnhancer {
 
             // Look for a handler for the given shortcut key in the key->handler mapping
             //  - first in the page-specific keys, then in the global shortcuts.
-            const pageShortcuts = this.isHomePage ? homePageKeyboardShortcuts :
-                this.isCommentsPage ? {
-                        ...commentsPageKeyboardShortcuts,
-                        ...(doubleKeyShortcuts['comments'] || {})
-                    } :
-                    {};
+            const pageShortcuts = this.isHomePage ? {
+                ...homePageKeyboardShortcuts,
+                ...(doubleKeyShortcuts['home'] || {})
+            } : this.isCommentsPage ? {
+                ...commentsPageKeyboardShortcuts,
+                ...(doubleKeyShortcuts['comments'] || {})
+            } : {};
 
             this.logDebug('Selected page shortcuts:', Object.keys(pageShortcuts));
 
