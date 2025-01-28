@@ -4,12 +4,14 @@
 		"@tailwindcss/forms": "^0.5.9",
 		"@tailwindcss/typography": "^0.5.15",
 		"archiver": "^7.0.1",
-		"tailwindcss": "^3.4.16"
+		"tailwindcss": "^3.4.16",
+		"vite": "^4.0.0"
 	},
 	"scripts": {
-		"build:tailwind": "pnpm tailwindcss -i ./input.css -o ./options-styles.css",
-		"build:tailwind:watch": "pnpm tailwindcss -i ./input.css -o ./options-styles.css --watch",
-		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./input.css -o ./options-styles.css --minify",
-		"build": "pnpm run release:tailwind && node build.js"
+		"build:tailwind": "pnpm tailwindcss -i ./src/input.css -o ./src/options-styles.css",
+		"build:tailwind:watch": "pnpm tailwindcss -i ./src/input.css -o ./src/options-styles.css --watch",
+		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./src/input.css -o ./src/options-styles.css --minify",
+		"build": "pnpm run release:tailwind && vite build && node src/build.js",
+		"dev": "vite build --watch"
 	}
 }

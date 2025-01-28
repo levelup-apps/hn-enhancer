@@ -1,5 +1,7 @@
 /node_modules
 /dist
+/dist/chrome
+/dist/firefox
 
 # Mac system files
 .DS_Store

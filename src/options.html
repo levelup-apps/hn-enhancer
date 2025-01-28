@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hacker News Companion Options</title>
+    <link rel="stylesheet" href="options-styles.css">
+</head>
+<body>
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-semibold mb-4">Hacker News Companion Options</h1>
+        <form id="options-form" class="space-y-4">
+            <div>
+                <h2 class="text-xl font-semibold mb-2">AI Provider Selection</h2>
+                <div class="space-y-2">
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="chrome-ai" class="mr-2">
+                        Chrome Built-in AI
+                    </label>
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="openai" class="mr-2">
+                        OpenAI
+                    </label>
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="anthropic" class="mr-2">
+                        Anthropic
+                    </label>
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="deepseek" class="mr-2">
+                        DeepSeek
+                    </label>
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="ollama" class="mr-2">
+                        Ollama
+                    </label>
+                    <label class="block">
+                        <input type="radio" name="provider-selection" id="openrouter" class="mr-2">
+                        OpenRouter
+                    </label>
+                </div>
+            </div>
+            <div id="openai-settings" class="space-y-2">
+                <h2 class="text-xl font-semibold mb-2">OpenAI Settings</h2>
+                <label class="block">
+                    <span class="text-gray-700">API Key</span>
+                    <input type="text" id="openai-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </label>
+                <label class="block">
+                    <span class="text-gray-700">Model</span>
+                    <select id="openai-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    </select>
+                </label>
+            </div>
+            <div id="anthropic-settings" class="space-y-2">
+                <h2 class="text-xl font-semibold mb-2">Anthropic Settings</h2>
+                <label class="block">
+                    <span class="text-gray-700">API Key</span>
+                    <input type="text" id="anthropic-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </label>
+                <label class="block">
+                    <span class="text-gray-700">Model</span>
+                    <select id="anthropic-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="claude-3-opus">Claude 3 Opus</option>
+                        <option value="claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="claude-3.5-haiku">Claude 3.5 Haiku</option>
+                    </select>
+                </label>
+            </div>
+            <div id="deepseek-settings" class="space-y-2">
+                <h2 class="text-xl font-semibold mb-2">DeepSeek Settings</h2>
+                <label class="block">
+                    <span class="text-gray-700">API Key</span>
+                    <input type="text" id="deepseek-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </label>
+                <label class="block">
+                    <span class="text-gray-700">Model</span>
+                    <select id="deepseek-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="deepseek-chat">DeepSeek Chat</option>
+                    </select>
+                </label>
+            </div>
+            <div id="ollama-settings" class="space-y-2">
+                <h2 class="text-xl font-semibold mb-2">Ollama Settings</h2>
+                <label class="block">
+                    <span class="text-gray-700">Model</span>
+                    <select id="ollama-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="llama2">Llama 2</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="mixtral">Mixtral</option>
+                    </select>
+                </label>
+            </div>
+            <div id="openrouter-settings" class="space-y-2">
+                <h2 class="text-xl font-semibold mb-2">OpenRouter Settings</h2>
+                <label class="block">
+                    <span class="text-gray-700">API Key</span>
+                    <input type="text" id="openrouter-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </label>
+                <label class="block">
+                    <span class="text-gray-700">Model</span>
+                    <select id="openrouter-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
+                    </select>
+                </label>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-400">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-500">Save</button>
+            </div>
+        </form>
+    </div>
+    <script src="options.js"></script>
+</body>
+</html>

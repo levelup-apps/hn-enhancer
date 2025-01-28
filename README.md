@@ -165,6 +165,28 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * Click "Load unpacked"
     * Select the extension directory
 
+3. Build the project:
+    * Install dependencies:
+      ```bash
+      pnpm install
+      ```
+    * Build the project using Vite:
+      ```bash
+      pnpm run build
+      ```
+
+4. Development build:
+    * To start a development build with watch mode:
+      ```bash
+      pnpm run dev
+      ```
+
+5. Release build:
+    * To create a release build for both Chrome and Firefox:
+      ```bash
+      pnpm run release
+      ```
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
