@@ -780,7 +780,7 @@ class HNEnhancer {
 
             // Paragraphs and line breaks
             .replace(/\n\s*\n/g, '</p><p>')
-            // .replace(/\n/g, '<br />');
+        // .replace(/\n/g, '<br />');
 
         // Wrap all lists as unordered lists
         html = wrapLists(html);
@@ -1092,4 +1092,972 @@ class HNEnhancer {
         const otMeta = document.createElement('meta');
         otMeta.httpEquiv = 'origin-trial';
         otMeta.content = 'Ah+d1HFcvvHgG3aB5OfzNzifUv02EpQfyQBlED1zXGCt8oA+XStg86q5zAwr7Y/UFDCmJEnPi019IoJIoeTPugsAAABgeyJvcmlnaW4iOiJodHRwczovL25ld3MueWNvbWJpbmF0b3IuY29tOjQ0MyIsImZlYXR1cmUiOiJBSVN1bW1hcml6YXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9';
-        document.head
+        document.head.prepend(otMeta);
+
+        this.isChomeAiAvailable = HNEnhancer.CHROME_AI_AVAILABLE.NO;
+
+        function parseAvailable(available) {
+            switch (available) {
+                case 'readily':
+                    return HNEnhancer.CHROME_AI_AVAILABLE.YES;
+                case 'no':
+                    return HNEnhancer.CHROME_AI_AVAILABLE.NO;
+                case 'after-download':
+                    return HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD;
+            }
+            return HNEnhancer.CHROME_AI_AVAILABLE.NO;
+        }
+
+
+        // 1. Inject the script into the webpage's context
+        const pageScript = document.createElement('script');
+        pageScript.src = chrome.runtime.getURL('page-script.js');
+        (document.head || document.documentElement).appendChild(pageScript);
+
+        pageScript.onload = () => {
+            window.postMessage({
+                type: 'HN_CHECK_AI_AVAILABLE',
+                data: {}
+            });
+        }
+
+        // 2. Listen for messages from the webpage
+        window.addEventListener('message', (event) => {
+
+            // reject all messages from other domains
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            // this.logDebug('content.js - Received message:', event.type, JSON.stringify(event.data));
+
+            // Handle different message types
+            switch (event.data.type) {
+                case 'HN_CHECK_AI_AVAILABLE_RESPONSE':
+                    const available = event.data.data.available;
+
+                    this.isChomeAiAvailable = parseAvailable(available);
+                    this.logDebug('Message from page script Chrome Built-in AI. HN_CHECK_AI_AVAILABLE_RESPONSE: ', this.isChomeAiAvailable);
+                    break;
+
+                case 'HN_AI_SUMMARIZE_RESPONSE':
+                    const responseData = event.data.data;
+                    if(responseData.error) {
+                        this.summaryPanel.updateContent({
+                            title: 'Summarization Error',
+                            text: responseData.error
+                        });
+                        return;
+                    }
+
+                    // Summarization success. Show the summary in the panel
+                    const summary = responseData.summary;
+                    const commentPathToIdMap = responseData.commentPathToIdMap;
+                    this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                        console.error('Error showing summary:', error);
+                    });
+
+                    break;
+
+                default:
+                    break;
+            }
+        });
+    }
+
+    injectSummarizePostLink() {
+        const navLinks = document.querySelector('.subtext .subline');
+        if (!navLinks) return;
+
+        const summarizeLink = document.createElement('a');
+        summarizeLink.href = '#';
+        summarizeLink.textContent = 'summarize all comments';
+
+        summarizeLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await this.summarizeAllComments();
+        });
+
+        navLinks.appendChild(document.createTextNode(' | '));
+        navLinks.appendChild(summarizeLink);
+    }
+
+    async getAIProviderModel() {
+        const settingsData = await chrome.storage.sync.get('settings');
+        const aiProvider = settingsData.settings?.providerSelection;
+        const model = settingsData.settings?.[aiProvider]?.model;
+        return {aiProvider, model};
+    }
+
+    async summarizeAllComments() {
+        const itemId = this.getCurrentHNItemId();
+        if (!itemId) {
+            console.error(`Could not get item id of the current port to summarize all comments in it.`);
+            return;
+        }
+
+        try {
+            if (!this.summaryPanel.isVisible) {
+                this.summaryPanel.toggle();
+            }
+
+            const {aiProvider, model} = await this.getAIProviderModel();
+            if (aiProvider) {
+
+                // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
+                if(aiProvider === 'chrome-ai') {
+
+                    this.summaryPanel.updateContent({
+                        title: `Summarization not recommended`,
+                        metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
+                        text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
+                        <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
+                    });
+
+                    // Once the error message is rendered in the summary panel, add the click handler for the Options page link
+                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                    if (optionsLink) {
+                        optionsLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this.openOptionsPage();
+                        });
+                    }
+                    return;
+                }
+                // Show a meaningful in-progress message before starting the summarization
+                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+                this.summaryPanel.updateContent({
+                    title: 'Post Summary',
+                    metadata: `Analyzing all threads in this post...`,
+                    text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
+                });
+
+                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+            }
+        } catch (error) {
+            console.error('Error preparing for summarization:', error);
+            this.summaryPanel.updateContent({
+                title: 'Summarization Error',
+                metadata: '',
+                text: `Error preparing for summarization: ${error.message}`
+            });
+        }
+    }
+
+    getCurrentHNItemId() {
+        const itemIdMatch = window.location.search.match(/id=(\d+)/);
+        return itemIdMatch ? itemIdMatch[1] : null;
+    }
+
+    async getHNThread(itemId) {
+        try {
+            const data = await this.sendBackgroundMessage(
+                'FETCH_API_REQUEST',
+                {
+                    url: `https://hn.algolia.com/api/v1/items/${itemId}`,
+                    method: 'GET'
+                }
+            );
+
+            return this.convertToPathFormat(data);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    convertToPathFormat(thread) {
+        const result = [];
+        const commentPathToIdMap = new Map();
+
+        function decodeHTMLEntities(text) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+
+        function processNode(node, parentPath = "") {
+            const currentPath = parentPath ? parentPath : "1";
+
+            let content = "";
+
+            if (node) {
+                content = node.title || node.text || "";
+                if (content === null || content === undefined) {
+                    content = "";
+                } else {
+                    content = decodeHTMLEntities(content);
+                }
+                commentPathToIdMap.set(currentPath, node.id);
+                result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
+
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach((child, index) => {
+                        const childPath = `${currentPath}.${index + 1}`;
+                        processNode(child, childPath);
+                    });
+                }
+            }
+        }
+
+        processNode(thread);
+        return {
+            formattedComment: result.join('\n'),
+            commentPathToIdMap: commentPathToIdMap
+        };
+    }
+
+    openOptionsPage() {
+        chrome.runtime.sendMessage({
+            type: 'HN_SHOW_OPTIONS',
+            data: {}
+        }).catch(error => {
+            console.error('Error sending message to show options:', error);
+        });
+    }
+
+    summarizeTextWithAI(formattedComment, commentPathToIdMap) {
+        chrome.storage.sync.get('settings').then(data => {
+
+            const providerSelection = data.settings?.providerSelection;
+            // const providerSelection = 'none';
+            const model = data.settings?.[providerSelection]?.model;
+
+            if (!providerSelection) {
+                console.error('Missing AI summarization configuration');
+
+                const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
+                    'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
+                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
+                    'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+
+                this.summaryPanel.updateContent({
+                    title: 'AI Provider Setup Required',
+                    text: message
+                });
+
+                // Add event listener after updating content
+                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                if (optionsLink) {
+                    optionsLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openOptionsPage();
+                    });
+                }
+                return;
+            }
+
+            this.logInfo(`Summarization - AI Provider: ${providerSelection}, Model: ${model || 'none'}`);
+            // this.logDebug('1. Formatted comment:', formattedComment);
+
+            // Remove unnecessary anchor tags from the text
+            formattedComment = this.stripAnchors(formattedComment);
+
+            switch (providerSelection) {
+                case 'chrome-ai':
+                    this.summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap);
+                    break;
+
+                case 'openai':
+                    const apiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
+                    break;
+
+                case 'openrouter':
+                    const openrouterKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingOpenRouter(formattedComment, model, openrouterKey, commentPathToIdMap);
+                    break;
+
+                case 'anthropic':
+                    const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
+                    break;
+
+                case 'deepseek':
+                    const deepSeekApiKey = data.settings?.[providerSelection]?.apiKey;
+                    this.summarizeUsingDeepSeek(formattedComment, model, deepSeekApiKey, commentPathToIdMap);
+                    break;
+
+                case 'ollama':
+                    this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
+                    break;
+
+                case 'none':
+                    this.showSummaryInPanel(formattedComment, commentPathToIdMap).catch(error => {
+                        console.error('Error showing summary:', error);
+                    });
+                    break;
+            }
+        }).catch(error => {
+            console.error('Error fetching settings:', error);
+        });
+    }
+
+    summarizeUsingOpenRouter(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for OpenAI summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Rate Limit for OpenRouter
+        const tokenLimit = 60000;
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+
+        // Set up the API request
+        const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
+
+        // OpenRouter, just like OpenAI, takes system and user messages as an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: messages
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': 'https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf', // Optional. Site URL for rankings on openrouter.ai.
+                'X-Title': 'Hacker News Companion', // Optional. Site title for rankings on openrouter.ai.
+            },
+            body: JSON.stringify(payload)
+        }).then(data => {
+            // disable the warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in OpenRouter summarization:', error);
+
+            // Update the summary panel with an error message
+            // OpenRouter follows the same error message structure as OpenAI
+            // https://openrouter.ai/docs/errors
+            let errorMessage = `Error generating summary using OpenRouter model ${model}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for OpenAI summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Rate Limit for OpenAI
+        // gpt-4-turbo      - 30,000 TPM
+        // gpt-3.5-turbo    - 16,000 TPM
+        const tokenLimit = model === 'gpt-4-turbo' ? 25_000 : 15_000;
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+
+        // Set up the API request
+        const endpoint = 'https://api.openai.com/v1/chat/completions';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
+
+        // OpenAI takes system and user messages as an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: messages,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+        }).then(data => {
+            // disable thw warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in OpenAI summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = `Error generating summary using OpenAI model ${model}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429') ) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';  // OpenAI has a daily quota
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingAnthropic(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for Anthropic summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Limit the input text to 40,000 tokens for Anthropic
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
+
+        // Set up the API request
+        const endpoint = 'https://api.anthropic.com/v1/messages';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        // console.log('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        // console.log('3. User prompt:', userPrompt);
+
+        // Anthropic takes system messages at the top level, whereas user messages as an array with role "user" and content.
+        const messages = [{
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: messages
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true' // this is required to resolve CORS issue
+            },
+            body: JSON.stringify(payload)
+        }).then(data => {
+
+            if(!data || !data.content || data.content.length === 0) {
+                throw new Error(`Summary response data is empty. ${data}`);
+            }
+            const summary = data.content[0].text;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in Anthropic summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = `Error generating summary using Anthropic model ${model}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingDeepSeek(text, model, apiKey, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model || !apiKey) {
+            console.error('Missing required parameters for DeepSeek summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Limit the input text to 40,000 tokens for DeepSeek
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
+
+        // Set up the API request
+        const endpoint = 'https://api.deepseek.com/v1/chat/completions';
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        this.logDebug('3. User prompt:', userPrompt);
+
+        // DeepSeek takes system and user messages in the same format as OpenAI - an array with role (system / user) and content
+        const messages = [{
+            role: "system",
+            content: systemPrompt
+        }, {
+            role: "user",
+            content: userPrompt
+        }];
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            messages: messages,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+        }).then(data => {
+            // disable thw warning unresolved variable in this specific instance
+            // noinspection JSUnresolvedVariable
+            const summary = data?.choices[0]?.message?.content;
+
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+
+        }).catch(error => {
+            console.error('Error in DeepSeek summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = `Error generating summary using DeepSeek model ${model}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429') ) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';  // DeepSeek has a daily quota
+            }
+            else {
+                errorMessage += error.message + ' Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    getSystemMessage() {
+        return `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
+1. Identify and highlight the main topics and key arguments.
+2. Capture diverse viewpoints and notable opinions.
+3. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+4. Note where significant conversation shifts occur.
+5. Include brief, relevant quotes to support main points.
+6. Maintain a neutral, objective tone.
+7. Aim for a summary length of 150-300 words, adjusting based on thread complexity.
+
+Input Format:
+The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
+This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
+
+Example:
+[1] author1: First reply to the post
+[1.1] author2: First reply to [1]
+[1.1.1] author3: Second-level reply to [1.1]
+[1.2] author4: Second reply to [1]
+
+Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. Use markdown formatting for clarity and readability.`;
+    }
+
+    stripAnchors(text) {
+        // Use a regular expression to match <a> tags and their contents
+        const anchorRegex = /<a\b[^>]*>.*?<\/a>/g;
+
+        // Replace all matches with an empty string
+        return text.replace(anchorRegex, '');
+    }
+
+    splitInputTextAtTokenLimit(text, tokenLimit) {
+        // Approximate token count per character
+        const TOKENS_PER_CHAR = 0.25;
+
+        // If the text is short enough, return it as is
+        if (text.length * TOKENS_PER_CHAR < tokenLimit) {
+            return text;
+        }
+
+        // Split the text into lines
+        const lines = text.split('\n');
+        let outputText = '';
+        let currentTokenCount = 0;
+
+        // Iterate through each line and accumulate until the token limit is reached
+        for (const line of lines) {
+            const lineTokenCount = line.length * TOKENS_PER_CHAR;
+            if (currentTokenCount + lineTokenCount >= tokenLimit) {
+                break;
+            }
+            outputText += line + '\n';
+            currentTokenCount += lineTokenCount;
+        }
+
+        return outputText;
+    }
+
+    getUserMessage(title, text) {
+        return `Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+-----
+Post Title: ${title}
+-----
+Comments: 
+${text}
+-----
+
+Use the following structure as an example of the output (do not copy the content, only use the format). 
+Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. If you add new sections, format them as markdown headers (e.g., ## New Section). If you add 'Notable Quotes' sections, the quotes should be enclosed in italics and should have path-based identifiers of the quoted comment.
+
+# Summary
+## Main discussion points
+[List the main topics discussed across all branches as a list]
+  1. [Topic 1]
+  2. [Topic 2]
+  3. [Topic 3]
+  
+## Key takeaways
+[Summarize the most important insights or conclusions from the entire discussion]
+  1. [Takeaway 1]
+  2. [Takeaway 2]
+  
+# Thread analysis
+## Primary branches
+[Number and brief description of main conversation branches. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
+  - [Branch 1 path]: [ Summary]. [Evaluation of branch effectiveness]
+  - [Branch 2 path]: [Evaluation]
+  
+## Interaction patterns
+[Notable patterns in how the discussion branched and evolved]
+
+Please proceed with your analysis and summary of the Hacker News discussion.`;
+    }
+
+    // Show the summary in the summary panel - format the summary for two steps:
+    // 1. Replace markdown with HTML
+    // 2. Replace path identifiers with comment IDs
+    async showSummaryInPanel(summary, commentPathToIdMap) {
+
+        // Format the summary to replace markdown with HTML
+        const summaryHtml = this.convertMarkdownToHTML(summary);
+
+        // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
+        const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
+
+        const {aiProvider, model} = await this.getAIProviderModel();
+        if (aiProvider) {
+            this.summaryPanel.updateContent({
+                metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong>`,
+                text: formattedSummary
+            });
+        } else {
+            this.summaryPanel.updateContent({
+                text: formattedSummary
+            });
+        }
+
+        // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
+        document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
+
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = link.dataset.commentId;
+                const comment = document.getElementById(id);
+                if(comment) {
+                    this.setCurrentComment(comment);
+                } else {
+                    console.error('Failed to find DOM element for comment id:', id);
+                }
+            });
+        });
+    }
+
+    replacePathsWithCommentLinks(text, commentPathToIdMap) {
+        // Regular expression to match bracketed numbers with dots
+        // Matches patterns like [1], [1.1], [1.1.2], etc.
+        const pathRegex = /\[(\d+(?:\.\d+)*)]/g;
+
+        // Replace each match with an HTML link
+        return text.replace(pathRegex, (match, path) => {
+            const id = commentPathToIdMap.get(path);
+            if (!id) {
+                return match; // If no ID found, return original text
+            }
+            return ` <a href="#" 
+                       title="Go to comment #${id}"
+                       data-comment-link="true" data-comment-id="${id}" 
+                       style="color: rgb(130, 130, 130); text-decoration: underline;"
+                    >comment #${id}</a>`;
+        });
+    }
+
+    summarizeUsingOllama(text, model, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !model) {
+            console.error('Missing required parameters for Ollama summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Set up the API request
+        const endpoint = 'http://localhost:11434/api/generate';
+
+        // Create the system message for better summarization
+        const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
+1. Identify the main topics and key arguments. 
+2. Use markdown formatting for clarity and readability.
+3. Include brief, relevant quotes to support main points.
+4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
+5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
+
+Input Format:
+The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
+This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
+
+Example:
+[1] author1: First reply to the post
+[1.1] author2: First reply to [1]
+[1.1.1] author3: Second-level reply to [1.1]
+[1.2] author4: Second reply to [1]
+        `;
+
+        // Create the user message with the text to summarize
+        const title = this.getHNPostTitle();
+        const userMessage = `
+Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+-----
+Post Title: ${title}
+-----
+Comments: 
+${text}
+-----
+
+Use the following structure as an example of the output (do not copy the content, only use the format). The text in square brackets are placeholders for actual content. Do not show that in the final summary. Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. 
+
+# Summary
+## Main discussion points
+[List the main topics discussed across all branches as a list]
+  
+## Key takeaways
+[Summarize the most important insights or conclusions from the entire discussion as a list]
+
+# Thread analysis
+## Primary branches
+[Number and brief description of main conversation branches as a list. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
+  
+## Interaction patterns
+[Notable patterns in how the discussion branched and evolved]
+
+## Notable Quotes
+[Add notable quotes from the discussion with path-based identifiers of the quoted comment. Enclose quotes in italics.]
+
+Please proceed with your analysis and summary of the Hacker News discussion.
+        `;
+
+        // console.log('2. System message:', systemMessage);
+        // console.log('3. User message:', userMessage);
+
+        // console.log('Ollama input text:', text);
+
+        // Prepare the request payload
+        const payload = {
+            model: model,
+            system: systemMessage,
+            prompt: userMessage,
+            stream: false
+        };
+
+        // Make the API request using background message
+        this.sendBackgroundMessage('FETCH_API_REQUEST', {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            timeout: 30000 // Longer timeout for summarization
+        })
+            .then(data => {
+                const summary = data.response;
+                if (!summary) {
+                    throw new Error('No summary generated from API response');
+                }
+                // console.log('4. Summary:', summary);
+
+                // Update the summary panel with the generated summary
+                this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                    console.error('Error showing summary:', error);
+                });
+
+            }).catch(error => {
+            console.error('Error in Ollama summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = 'Error generating summary. ' + error.message;
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap) {
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.NO) {
+            this.summaryPanel.updateContent({
+                title: 'AI Not Available',
+                metadata: 'Chrome Built-in AI is disabled or unavailable',
+                text: `Unable to generate summary: Chrome's AI features are not enabled on your device. 
+                       <br><br>
+                       To enable and test Chrome AI:
+                       <br>
+                       1. Visit the <a class="underline" href="https://chrome.dev/web-ai-demos/summarization-api-playground/" target="_blank">Chrome AI Playground</a>
+                       <br>
+                       2. Try running a test summarization
+                       <br>
+                       3. If issues persist, check your Chrome settings and ensure you're using a compatible version`
+            });
+            return;
+        }
+
+        if(this.isChomeAiAvailable === HNEnhancer.CHROME_AI_AVAILABLE.AFTER_DOWNLOAD) {
+            this.summaryPanel.updateContent({
+                metadata: 'Downloading model for Chrome Built-in AI',
+                text: `Chrome built-in AI model will be available after download. This may take a few moments.`
+            });
+        }
+
+        // Summarize the text by passing in the text to page script which in turn will call the Chrome AI API
+        window.postMessage({
+            type: 'HN_AI_SUMMARIZE',
+            data: {text: formattedComment, commentPathToIdMap: commentPathToIdMap}
+        });
+    }
+
+    getHNPostTitle() {
+        return document.title;
+    }
+}
+
+// Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
+// So this script is injected only after the DOM is loaded and all other scripts have finished executing.
+// This guarantees that the DOM of the main HN page is loaded by the time this script runs.
+document.hnEnhancer = new HNEnhancer();
