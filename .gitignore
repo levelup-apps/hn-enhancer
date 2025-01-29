@@ -3,5 +3,8 @@
 /dist/chrome
 /dist/firefox
 
+# Compiled files
+src/options-styles.css
+
 # Mac system files
 .DS_Store
