@@ -12,7 +12,8 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "addon@hncompanion.com"
+      "id": "addon@hncompanion.com",
+      "strict_min_version": "109.0"
     }
   },
   "permissions": [
