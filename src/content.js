@@ -97,7 +97,7 @@ class HNEnhancer {
 
     get isHomePage() {
         const pathname = window.location.pathname;
-        return pathname === '/' || pathname === '/news' || pathname === '/newest' || pathname === '/ask' || pathname === '/show' || pathname === '/front';
+        return pathname === '/' || pathname === '/news' || pathname === '/newest' || pathname === '/ask' || pathname === '/show' || pathname === '/front' || pathname === '/shownew';
     }
 
     get isCommentsPage() {
@@ -780,7 +780,7 @@ class HNEnhancer {
 
             // Paragraphs and line breaks
             .replace(/\n\s*\n/g, '</p><p>')
-            // .replace(/\n/g, '<br />');
+        // .replace(/\n/g, '<br />');
 
         // Wrap all lists as unordered lists
         html = wrapLists(html);
@@ -1330,7 +1330,7 @@ class HNEnhancer {
                     'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
                     '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
                     'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
-                    
+
                 this.summaryPanel.updateContent({
                     title: 'AI Provider Setup Required',
                     text: message
@@ -1366,7 +1366,7 @@ class HNEnhancer {
                 case 'openrouter':
                     const openrouterKey = data.settings?.[providerSelection]?.apiKey;
                     this.summarizeUsingOpenRouter(formattedComment, model, openrouterKey, commentPathToIdMap);
-                    break;    
+                    break;
 
                 case 'anthropic':
                     const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
@@ -1996,19 +1996,19 @@ Please proceed with your analysis and summary of the Hacker News discussion.
             body: JSON.stringify(payload),
             timeout: 30000 // Longer timeout for summarization
         })
-        .then(data => {
-            const summary = data.response;
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-            // console.log('4. Summary:', summary);
+            .then(data => {
+                const summary = data.response;
+                if (!summary) {
+                    throw new Error('No summary generated from API response');
+                }
+                // console.log('4. Summary:', summary);
 
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
-                console.error('Error showing summary:', error);
-            });
+                // Update the summary panel with the generated summary
+                this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                    console.error('Error showing summary:', error);
+                });
 
-        }).catch(error => {
+            }).catch(error => {
             console.error('Error in Ollama summarization:', error);
 
             // Update the summary panel with an error message

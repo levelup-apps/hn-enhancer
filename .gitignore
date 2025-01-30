@@ -1,5 +1,10 @@
 /node_modules
 /dist
+/dist/chrome
+/dist/firefox
+
+# Compiled files
+src/options/options-styles.css
 
 # Mac system files
 .DS_Store

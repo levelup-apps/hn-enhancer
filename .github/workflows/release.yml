@@ -13,9 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Create Extension Package
+      - name: Create Chrome Extension Package
         run: |
-          zip -r extension.zip . \
+          zip -r hn-companion-chrome-v${{ github.event.release.tag_name }}.zip dist/chrome \
           -x "*.git*" \
           -x "*.github*" \
           -x "README.md" \
@@ -23,12 +23,32 @@ jobs:
           -x "LICENSE" \
           -x "*.DS_Store"
 
-      - name: Upload Release Asset
+      - name: Create Firefox Extension Package
+        run: |
+          zip -r hn-companion-firefox-v${{ github.event.release.tag_name }}.zip dist/firefox \
+          -x "*.git*" \
+          -x "*.github*" \
+          -x "README.md" \
+          -x "PRIVACY.md" \
+          -x "LICENSE" \
+          -x "*.DS_Store"
+
+      - name: Upload Chrome Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./extension.zip
-          asset_name: extension.zip
+          asset_path: ./hn-companion-chrome-v${{ github.event.release.tag_name }}.zip
+          asset_name: hn-companion-chrome-v${{ github.event.release.tag_name }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Firefox Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./hn-companion-firefox-v${{ github.event.release.tag_name }}.zip
+          asset_name: hn-companion-firefox-v${{ github.event.release.tag_name }}.zip
           asset_content_type: application/zip

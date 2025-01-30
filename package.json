@@ -1,15 +1,17 @@
 {
-	"devDependencies": {
-		"@tailwindcss/aspect-ratio": "^0.4.2",
-		"@tailwindcss/forms": "^0.5.9",
-		"@tailwindcss/typography": "^0.5.15",
-		"archiver": "^7.0.1",
-		"tailwindcss": "^3.4.16"
-	},
-	"scripts": {
-		"build:tailwind": "pnpm tailwindcss -i ./input.css -o ./options-styles.css",
-		"build:tailwind:watch": "pnpm tailwindcss -i ./input.css -o ./options-styles.css --watch",
-		"release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./input.css -o ./options-styles.css --minify",
-		"build": "pnpm run release:tailwind && node build.js"
-	}
+  "devDependencies": {
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/forms": "^0.5.9",
+    "@tailwindcss/typography": "^0.5.15",
+    "archiver": "^7.0.1",
+    "tailwindcss": "^3.4.16"
+  },
+  "scripts": {
+    "build:tailwind": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css",
+    "build:tailwind:watch": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --watch",
+    "release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --minify",
+    "release-build": "NODE_ENV=production pnpm run release:tailwind && node src/build.js",
+    "dev-build": "NODE_ENV=development pnpm run build:tailwind && node src/build.js",
+    "dev": "NODE_ENV=development --mode development"
+  }
 }

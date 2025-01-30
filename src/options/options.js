@@ -39,7 +39,6 @@ async function saveSettings() {
 }
 
 async function sendBackgroundMessage(type, data) {
-
     let response;
     try {
         response = await chrome.runtime.sendMessage({type, data});
