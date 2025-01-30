@@ -97,7 +97,7 @@ class HNEnhancer {
 
     get isHomePage() {
         const pathname = window.location.pathname;
-        return pathname === '/' || pathname === '/news' || pathname === '/newest' || pathname === '/ask' || pathname === '/show' || pathname === '/front';
+        return pathname === '/' || pathname === '/news' || pathname === '/newest' || pathname === '/ask' || pathname === '/show' || pathname === '/front' || pathname === '/shownew';
     }
 
     get isCommentsPage() {
