@@ -1,7 +1,8 @@
-# Privacy Policy for HackerNews Comment Enhancement
+# Privacy Policy for HackerNews Companion
 
 ## Data Collection
-This extension does not collect, store, or transmit any user data. All functionality operates locally in your browser.
+This extension does not collect, store, or transmit any user data. All functionality operates locally in your browser. 
+However, options settings (such as API keys) are synced using the browser's sync API.
 
 ## Third-Party Services
 The extension makes API calls to:
