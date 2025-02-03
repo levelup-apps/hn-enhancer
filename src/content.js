@@ -1276,6 +1276,25 @@ class HNEnhancer {
             return textarea.value;
         }
 
+        function computeCommentScore(comment) {
+            let score = 1;
+            const depthLevel = comment.path.split('.').length;
+            const positionMultiplier = 1.0 / depthLevel;
+            score *= positionMultiplier;
+
+            const childCount = comment.children?.length || 0;
+            const childMultiplier = 1 + (Math.log(childCount + 1) / Math.log(10));
+            score *= childMultiplier;
+
+            const isCollapsed = comment.text?.includes('[flagged]') || 
+                                comment.text?.includes('[dead]');
+            if (isCollapsed) {
+                score *= 0.1;
+            }
+
+            return Math.round(score * 100) / 100;
+        }
+
         function processNode(node, parentPath = "") {
             const currentPath = parentPath ? parentPath : "1";
 
@@ -1289,7 +1308,10 @@ class HNEnhancer {
                     content = decodeHTMLEntities(content);
                 }
                 commentPathToIdMap.set(currentPath, node.id);
-                result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
+
+                const score = computeCommentScore(node);
+                const replies = node.children?.length || 0;
+                result.push(`[${currentPath}] (Score: ${score}) <replies: ${replies}> ${node ? node.author : "unknown"}: ${content}`);
 
                 if (node.children && node.children.length > 0) {
                     node.children.forEach((child, index) => {
