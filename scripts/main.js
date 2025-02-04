@@ -79,7 +79,7 @@ async function parseHNPageAndUpdateScores(postId, comments) {
     const commentPositions = new Map();
     
     // First pass: collect all comments and their metadata
-    const commentElements = root.querySelectorAll('.comhead');
+    const commentElements = root.querySelectorAll('.comtr');
     console.log(`Found ${commentElements.length} comments in HN page`);
     
     commentElements.forEach((el, index) => {
@@ -88,7 +88,7 @@ async function parseHNPageAndUpdateScores(postId, comments) {
         if (!authorElement) return;
         
         const author = authorElement.text;
-        const commentDiv = el.parentNode.querySelector('.comment');
+        const commentDiv = el.parentNode.querySelector('.commtext');
         
         if (commentDiv) {
             let downvoteClass = null;
