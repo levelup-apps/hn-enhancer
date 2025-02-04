@@ -71,22 +71,37 @@ function calculateCommentScore(comment, level, downvotes) {
 }
 
 async function parseHNPageAndUpdateScores(postId, comments) {
+    console.log(`Parsing HN page for post ${postId}...`);
     const html = await fetchHNPage(postId);
     const root = parse(html);
     
-    // Create a map of comment IDs to their DOM positions
-    const commentElements = root.querySelectorAll('.comtr');
+    // Create a map to store comment positions and scores
     const commentPositions = new Map();
     
+    // First pass: collect all comments and their metadata
+    const commentElements = root.querySelectorAll('.comhead');
+    console.log(`Found ${commentElements.length} comments in HN page`);
+    
     commentElements.forEach((el, index) => {
-        const commentId = el.getAttribute('id');
-        if (commentId) {
-            const downvoteClass = Array.from(el.querySelectorAll('.comment')).find(c => 
-                Array.from(c.classList).some(cls => cls.match(/^c[0-9a-f]{2}$/)))?.classList[1];
+        // Get the comment's author
+        const authorElement = el.querySelector('.hnuser');
+        if (!authorElement) return;
+        
+        const author = authorElement.text;
+        const commentDiv = el.parentNode.querySelector('.comment');
+        
+        if (commentDiv) {
+            let downvoteClass = null;
+            const classes = commentDiv.classList.toString();
+            const match = classes.match(/c[0-9a-f]{2}/);
+            if (match) {
+                downvoteClass = match[0];
+            }
             
-            commentPositions.set(commentId, {
+            const downvotes = downvoteClass ? getDownvoteLevel(downvoteClass) : 0;
+            commentPositions.set(author, {
                 position: index,
-                downvotes: downvoteClass ? getDownvoteLevel(downvoteClass) : 0
+                downvotes: downvotes
             });
         }
     });
@@ -95,10 +110,13 @@ async function parseHNPageAndUpdateScores(postId, comments) {
     function updateCommentScores(comment, level = 0) {
         if (!comment) return;
         
-        const commentInfo = commentPositions.get(comment.id);
+        const commentInfo = commentPositions.get(comment.author);
         if (commentInfo) {
             comment.position = commentInfo.position;
-            comment.score = calculateCommentScore(comment, level, commentInfo.downvotes);
+            const score = calculateCommentScore(comment, level, commentInfo.downvotes);
+            comment.score = score;
+        } else {
+            comment.score = calculateCommentScore(comment, level, 0);
         }
         
         if (comment.children) {
@@ -139,11 +157,6 @@ function convertToPathFormat(thread) {
             p.replaceWith(text);
         });
 
-        // // remove all HTML tags
-        // root.querySelectorAll('*').forEach(node => {
-        //     node.remove();
-        // });
-
         const cleanedHtml = root.toString();
         return cleanedHtml;
     }
@@ -163,7 +176,11 @@ function convertToPathFormat(thread) {
                     content = sanitizeText(content);
                 }
                 commentPathToIdMap.set(currentPath, node.id);
-                result.push(`[${currentPath}] ${node.author}: ${content}`);
+                
+                // Format score and reply count
+                const score = node.score || 0;
+                const replyCount = node.children ? node.children.length : 0;
+                result.push(`[${currentPath}] (Score: ${score.toFixed(1)}) <replies: ${replyCount}> ${node.author}: ${content}`);
             }
             if (node.children && node.children.length > 0) {
                 node.children.forEach((child, index) => {
@@ -188,7 +205,9 @@ function convertToPathFormat(thread) {
 
 async function saveFormattedComments(postId) {
     try {
-        const thread = await fetchHNComments(postId);
+        let thread = await fetchHNComments(postId);
+        // Update thread with scores from HN page
+        thread = await parseHNPageAndUpdateScores(postId, thread);
         const { formattedComment } = convertToPathFormat(thread);
         const filePath = path.join(__dirname, 'data', `${postId}.txt`);
         fs.writeFileSync(filePath, formattedComment, 'utf8');
