@@ -31,6 +31,88 @@ async function fetchHNComments(postId) {
     return response.json();
 }
 
+async function fetchHNPage(postId) {
+    const url = `https://news.ycombinator.com/item?id=${postId}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch HN page for post ID ${postId}: ${response.statusText}`);
+    }
+    return response.text();
+}
+
+function getDownvoteLevel(className) {
+    const downvoteMap = {
+        'c00': 0,
+        'c5a': 1,
+        'c73': 2,
+        'c82': 3,
+        'c88': 4,
+        'c9c': 5,
+        'cae': 6,
+        'cbe': 7,
+        'cce': 8,
+        'cdd': 8
+    };
+    return downvoteMap[className] || 0;
+}
+
+function calculateCommentScore(comment, level, downvotes) {
+    // Base score starts at 100 and decreases by 10 for each level deep
+    let score = 100 - (level * 10);
+    
+    // Add points for child comments (engagement)
+    const childCount = comment.children ? comment.children.length : 0;
+    score += childCount * 5;
+    
+    // Subtract points for downvotes (20 points per downvote)
+    score -= downvotes * 20;
+    
+    return Math.max(score, 0); // Ensure score doesn't go below 0
+}
+
+async function parseHNPageAndUpdateScores(postId, comments) {
+    const html = await fetchHNPage(postId);
+    const root = parse(html);
+    
+    // Create a map of comment IDs to their DOM positions
+    const commentElements = root.querySelectorAll('.comtr');
+    const commentPositions = new Map();
+    
+    commentElements.forEach((el, index) => {
+        const commentId = el.getAttribute('id');
+        if (commentId) {
+            const downvoteClass = Array.from(el.querySelectorAll('.comment')).find(c => 
+                Array.from(c.classList).some(cls => cls.match(/^c[0-9a-f]{2}$/)))?.classList[1];
+            
+            commentPositions.set(commentId, {
+                position: index,
+                downvotes: downvoteClass ? getDownvoteLevel(downvoteClass) : 0
+            });
+        }
+    });
+    
+    // Function to recursively update comment scores
+    function updateCommentScores(comment, level = 0) {
+        if (!comment) return;
+        
+        const commentInfo = commentPositions.get(comment.id);
+        if (commentInfo) {
+            comment.position = commentInfo.position;
+            comment.score = calculateCommentScore(comment, level, commentInfo.downvotes);
+        }
+        
+        if (comment.children) {
+            comment.children.forEach(child => updateCommentScores(child, level + 1));
+            // Sort children by their position in the DOM
+            comment.children.sort((a, b) => (a.position || 0) - (b.position || 0));
+        }
+    }
+    
+    // Update scores for all comments
+    updateCommentScores(comments);
+    return comments;
+}
+
 function convertToPathFormat(thread) {
     const result = [];
     const commentPathToIdMap = new Map();
