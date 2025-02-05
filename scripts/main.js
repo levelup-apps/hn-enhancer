@@ -184,7 +184,7 @@ export function structurePostComments(post, commentsInDOM) {
     // Add paths after sorting
     let topLevelCounter = 1;
 
-    structuredComments.forEach((comment, id) => {
+    structuredComments.forEach((comment) => {
         if (comment.parentId === post.id) {
             // Top level comment
             comment.path = String(topLevelCounter++);
