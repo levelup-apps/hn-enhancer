@@ -22,7 +22,7 @@ import {decode} from "html-entities";
 import { parse }  from "node-html-parser";
 
 
-async function fetchHNComments(postId) {
+async function fetchHNPost(postId) {
     const url = `https://hn.algolia.com/api/v1/items/${postId}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -111,9 +111,11 @@ async function getCommentsFromDOM(postId) {
 }
 
 export function structurePostComments(post, commentsInDOM) {
-    let commentsMap = new Map();  // Use map for faster lookups
 
-    // Step 1: Flatten to map and add position and parent relationship
+    // Create a map to store comments with their metadata
+    let commentsMap = new Map();
+
+    // Step 1: Flatten the comment tree to map and add position and parent relationship
     function flattenCommentTree(comment, parentId) {
         // Skip the story, only process comments
         if (comment.type !== 'comment') {
@@ -229,21 +231,17 @@ function savePostCommentsToDisk(postId, commentsMap) {
     return filePath;
 }
 
-async function saveFormattedComments(postId) {
+async function parseHNComments(postId) {
     try {
 
         console.log(`Parsing HN page for post ${postId} ...`);
 
-        let post = await fetchHNComments(postId);
-
+        // Get the comments from the HN API as well as the DOM
+        //  API comments are structured as a tree, while DOM comments are in the correct order of votes
+        let post = await fetchHNPost(postId);
         const commentsInDOM = await getCommentsFromDOM(postId);
-        const structuredComments = structurePostComments(post, commentsInDOM);
 
-        console.log('\nStructured Comments:');
-        structuredComments.forEach((comment, id) => {
-            const content = `[${comment.path}] (Score: ${comment.score}) <replies: ${comment.replies}> ${comment.author}: ${comment.text}`;
-            // console.log(`${id}: ${content}`);
-        });
+        const structuredComments = structurePostComments(post, commentsInDOM);
 
         const filePath = savePostCommentsToDisk(postId, structuredComments);
         console.log(`\nStructured comments saved to ${filePath}`);
@@ -258,7 +256,7 @@ async function saveFormattedComments(postId) {
 async function main() {
     const postIds = JSON.parse(fs.readFileSync(path.join(__dirname, 'post-Ids.json'), 'utf8'));
     for (const postId of postIds) {
-        await saveFormattedComments(postId);
+        await parseHNComments(postId);
     }
 }
 
