@@ -6,6 +6,7 @@ import { parse } from 'node-html-parser';
 import {fileURLToPath} from "url";
 import path, {dirname} from "path";
 import Database from 'better-sqlite3';
+import fs from 'fs';  // Add this import at the top
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,7 +43,14 @@ async function getPostIdsForDate(date) {
 }
 
 async function main(numDays) {
-    const dbPath = path.join(__dirname, 'data', 'hn_posts.db');
+    const dataDir = path.join(__dirname, 'data');
+    const dbPath = path.join(dataDir, 'hn_posts.db');
+
+    // Create the data directory if it doesn't exist
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
+
     const db = new Database(dbPath);
 
     // Create tables if they don't exist
