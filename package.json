@@ -6,6 +6,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "archiver": "^7.0.1",
     "html-entities": "^2.5.2",
+    "jest": "^29.7.0",
     "node-fetch": "^3.3.2",
     "node-html-parser": "^7.0.1",
     "tailwindcss": "^3.4.16"
@@ -17,6 +18,7 @@
     "release-build": "NODE_ENV=production pnpm run release:tailwind && node src/build.js",
     "dev-build": "NODE_ENV=development pnpm run build:tailwind && node src/build.js",
     "dev": "NODE_ENV=development --mode development",
-    "generate-data": "node scripts/main.js"
+    "generate-data": "node scripts/main.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   }
 }

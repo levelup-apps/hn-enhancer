@@ -56,6 +56,10 @@ function getDownvoteLevel(className) {
     return downvoteMap[className] || 0;
 }
 
+export function hello() {
+    return "hello";
+}
+
 function calculateCommentScore(comment, level, downvotes) {
     // Base score starts at 100 and decreases by 10 for each level deep
     let score = 100 - (level * 10);
@@ -226,4 +230,10 @@ async function main() {
     }
 }
 
-main();
+// Only run the main function if this file is being run directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main().catch(error => {
+        console.error('Error in main:', error);
+        process.exit(1);  // Exit with error code
+    });
+}
