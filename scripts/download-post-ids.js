@@ -1,11 +1,11 @@
 // The script will collect the post IDs for each story on the home page for the past N days
-// and saves them to post-ids.json.
+// and saves them to a SQLite database.
 
 import fetch from 'node-fetch';
 import { parse } from 'node-html-parser';
-import fs from 'fs/promises';
 import {fileURLToPath} from "url";
 import path, {dirname} from "path";
+import Database from 'better-sqlite3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,28 +42,53 @@ async function getPostIdsForDate(date) {
 }
 
 async function main(numDays) {
-    const allPostIds = new Set();
+    const dbPath = path.join(__dirname, 'data', 'hn_posts.db');
+    const db = new Database(dbPath);
+
+    // Create tables if they don't exist
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS daily_posts (
+            date TEXT,
+            post_id TEXT,
+            PRIMARY KEY (date, post_id)
+        )
+    `);
+
+    const insertPost = db.prepare('INSERT OR IGNORE INTO daily_posts (date, post_id) VALUES (?, ?)');
     const today = new Date();
+    let totalPosts = 0;
     
-    // Collect posts for the past 90 days
+    // Collect posts for the specified number of days
     for (let i = 0; i < numDays; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
+        const formattedDate = date.toISOString().split('T')[0];
         
-        console.log(`Fetching posts for ${date.toISOString().split('T')[0]}...`);
+        console.log(`Fetching posts for ${formattedDate}...`);
         const postIds = await getPostIdsForDate(date);
-        postIds.forEach(id => allPostIds.add(id));
+        
+        // Insert posts into database
+        const transaction = db.transaction(() => {
+            for (const postId of postIds) {
+                insertPost.run(formattedDate, postId);
+            }
+        });
+        transaction();
+        
+        totalPosts += postIds.length;
+        console.log(`Added ${postIds.length} posts for ${formattedDate}`);
         
         // Add a small delay to avoid overwhelming the server
         await new Promise(resolve => setTimeout(resolve, 10_000));
     }
     
-    // Save the results to a file
-    const outputPath = path.join(__dirname, 'data', 'post-ids.json');
-    await fs.writeFile(outputPath, JSON.stringify(Array.from(allPostIds), null, 2));
+    // Get total unique posts in database
+    const totalUniquePosts = db.prepare('SELECT COUNT(DISTINCT post_id) as count FROM daily_posts').get().count;
     
-    console.log(`\nCollection complete! Found ${allPostIds.size} unique post IDs.`);
-    console.log(`Results saved to ${outputPath}`);
+    console.log(`\nCollection complete! Added ${totalPosts} posts (${totalUniquePosts} unique) to the database.`);
+    console.log(`Database saved at ${dbPath}`);
+    
+    db.close();
 }
 
 // Get number of days to collect from command line arguments
