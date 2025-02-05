@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals';
 
-import { hello, structurePostComments } from './main.js';
+import { hello, structurePostComments } from './download.js';
 
 describe('hello function', () => {
     it('should return "hello"', () => {

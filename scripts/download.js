@@ -22,7 +22,7 @@ import {decode} from "html-entities";
 import { parse }  from "node-html-parser";
 
 
-async function fetchHNPost(postId) {
+async function fetchHNCommentsFromAPI(postId) {
     const url = `https://hn.algolia.com/api/v1/items/${postId}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -60,10 +60,9 @@ export function hello() {
     return "hello";
 }
 
-async function getCommentsFromDOM(postId) {
+async function getCommentsFromDOM(postHtml) {
 
-    const html = await fetchHNPage(postId);
-    const root = parse(html);
+    const root = parse(postHtml);
 
     // Create a map to store comment positions and scores
     // const commentPositions = new Map();
@@ -71,7 +70,7 @@ async function getCommentsFromDOM(postId) {
 
     // First pass: collect all comments and their metadata
     const commentElements = root.querySelectorAll('.comtr');
-    console.log(`Found ${commentElements.length} comments in HN page`);
+    console.log(`Found ${commentElements.length} DOM comments in post`);
 
     // Comments in the DOM are ordered according to the upvotes they received.
     // We get the down votes of the comment also from these DOM elements only.
@@ -110,7 +109,7 @@ async function getCommentsFromDOM(postId) {
     return commentsInDOM;
 }
 
-export function structurePostComments(post, commentsInDOM) {
+export function structurePostComments(commentsTree, commentsInDOM) {
 
     // Create a map to store comments with their metadata
     let commentsMap = new Map();
@@ -175,7 +174,7 @@ export function structurePostComments(post, commentsInDOM) {
     }
 
     // Flatten and collect comments
-    flattenCommentTree(post, null);
+    flattenCommentTree(commentsTree, null);
 
     // Sort comments by position and convert to new map
     const structuredComments = new Map([...commentsMap.entries()]
@@ -185,7 +184,7 @@ export function structurePostComments(post, commentsInDOM) {
     let topLevelCounter = 1;
 
     structuredComments.forEach((comment) => {
-        if (comment.parentId === post.id) {
+        if (comment.parentId === commentsTree.id) {
             // Top level comment
             comment.path = String(topLevelCounter++);
         } else {
@@ -209,7 +208,7 @@ export function structurePostComments(post, commentsInDOM) {
     return structuredComments;
 }
 
-function savePostCommentsToDisk(postId, commentsMap) {
+function savePostCommentsToDisk(postId, comments) {
 
     const filePath = path.join(__dirname, 'output', `${postId}.txt`);
 
@@ -222,7 +221,18 @@ function savePostCommentsToDisk(postId, commentsMap) {
     }
 
     let content = '';
-    commentsMap.forEach(comment => {
+    comments.forEach(comment => {
+        const line = [
+            `[${comment.path}]`,
+            `(score: ${comment.score})`,
+            `<replies: ${comment.replies}>`,
+            `${comment.author}:`,
+            comment.text
+        ].join(' ') + '\n';
+
+        content += line;
+    });
+    comments.forEach(comment => {
         content += `[${comment.path}] (Score: ${comment.score}) <replies: ${comment.replies}> ${comment.author}: ${comment.text}\n`;
     });
 
@@ -231,20 +241,25 @@ function savePostCommentsToDisk(postId, commentsMap) {
     return filePath;
 }
 
-async function parseHNComments(postId) {
+async function downloadPostComments(postId) {
     try {
 
-        console.log(`Parsing HN page for post ${postId} ...`);
+        console.log(`Downloading comments for post id: ${postId} ...`);
 
         // Get the comments from the HN API as well as the DOM
-        //  API comments are structured as a tree, while DOM comments are in the correct order of votes
-        let post = await fetchHNPost(postId);
-        const commentsInDOM = await getCommentsFromDOM(postId);
+        //  API comments are in JSON format structured as a tree and represents the hierarchy of comments
+        const commentsJson = await fetchHNCommentsFromAPI(postId);
 
-        const structuredComments = structurePostComments(post, commentsInDOM);
+        // DOM comments are in HTML with the correct order of votes. Fetch them and parse to a map
+        const postHtml = await fetchHNPage(postId);
+        const commentsInDOM = await getCommentsFromDOM(postHtml);
+
+        // Merge the two data sets to structure the comments based on hierarchy, votes and position
+        console.log(`Structuring comments for post id: ${postId} ...`);
+        const structuredComments = structurePostComments(commentsJson, commentsInDOM);
 
         const filePath = savePostCommentsToDisk(postId, structuredComments);
-        console.log(`\nStructured comments saved to ${filePath}`);
+        console.log(`Structured comments saved to ${filePath}\n`);
 
     } catch (error) {
         console.error(`Error: ${error.message}`);
@@ -254,9 +269,13 @@ async function parseHNComments(postId) {
 
 // main function that calls the saveFormattedComments function
 async function main() {
-    const postIds = JSON.parse(fs.readFileSync(path.join(__dirname, 'post-Ids.json'), 'utf8'));
+
+    const inputFilePath = path.join(__dirname, 'input.json');
+    const inputJson = JSON.parse(fs.readFileSync(inputFilePath, 'utf8'));
+    const postIds = inputJson.postIds;
+
     for (const postId of postIds) {
-        await parseHNComments(postId);
+        await downloadPostComments(postId);
     }
 }
 

@@ -10,5 +10,4 @@ src/options/options-styles.css
 .DS_Store
 
 # Script generated files and input data
-/scripts/data
-/scripts/post-Ids.json
+/scripts/output
