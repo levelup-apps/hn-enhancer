@@ -51,7 +51,7 @@ function getDownvoteLevel(className) {
         'cae': 6,
         'cbe': 7,
         'cce': 8,
-        'cdd': 8
+        'cdd': 9
     };
     return downvoteMap[className] || 0;
 }
@@ -60,162 +60,194 @@ export function hello() {
     return "hello";
 }
 
-function calculateCommentScore(comment, level, downvotes) {
-    // Base score starts at 100 and decreases by 10 for each level deep
-    let score = 100 - (level * 10);
-    
-    // Add points for child comments (engagement)
-    const childCount = comment.children ? comment.children.length : 0;
-    score += childCount * 5;
-    
-    // Subtract points for downvotes (20 points per downvote)
-    score -= downvotes * 20;
-    
-    return Math.max(score, 0); // Ensure score doesn't go below 0
-}
+async function getCommentsFromDOM(postId) {
 
-async function parseHNPageAndUpdateScores(postId, comments) {
-    console.log(`Parsing HN page for post ${postId}...`);
     const html = await fetchHNPage(postId);
     const root = parse(html);
-    
+
     // Create a map to store comment positions and scores
-    const commentPositions = new Map();
-    
+    // const commentPositions = new Map();
+    const commentsInDOM = new Map();
+
     // First pass: collect all comments and their metadata
     const commentElements = root.querySelectorAll('.comtr');
     console.log(`Found ${commentElements.length} comments in HN page`);
-    
+
+    // Comments in the DOM are ordered according to the upvotes they received.
+    // We get the down votes of the comment also from these DOM elements only.
     commentElements.forEach((el, index) => {
-        // Get the comment's author
-        const authorElement = el.querySelector('.hnuser');
-        if (!authorElement) return;
-        
-        const author = authorElement.text;
-        const commentDiv = el.parentNode.querySelector('.commtext');
-        
+        const commentId = el.getAttribute('id');
+
+        const commentDiv = el.querySelector('.commtext');
+
         if (commentDiv) {
+
+            // Get the comment text from the div - this will be the best formatted text for LLM.
+            //  - Remove any HTML tags (eg: <code>) from the text
+            const commentText = decode(commentDiv.innerText)
+                .replace(/<[^>]*>/g, '')
+                .replace(/\n+/g, ' ');
+
+            // Get the down votes of the comment in order to calculate the score later
             let downvoteClass = null;
             const classes = commentDiv.classList.toString();
             const match = classes.match(/c[0-9a-f]{2}/);
             if (match) {
                 downvoteClass = match[0];
             }
-            
+
             const downvotes = downvoteClass ? getDownvoteLevel(downvoteClass) : 0;
-            commentPositions.set(author, {
+
+            // create a new array to store the comments in the order they appear in the DOM
+            commentsInDOM.set(Number(commentId), {
                 position: index,
-                downvotes: downvotes
+                text: commentText,
+                downvotes: downvotes,
             });
         }
+
     });
-    
-    // Function to recursively update comment scores
-    function updateCommentScores(comment, level = 0) {
-        if (!comment) return;
-        
-        const commentInfo = commentPositions.get(comment.author);
-        if (commentInfo) {
-            comment.position = commentInfo.position;
-            const score = calculateCommentScore(comment, level, commentInfo.downvotes);
-            comment.score = score;
-        } else {
-            comment.score = calculateCommentScore(comment, level, 0);
-        }
-        
-        if (comment.children) {
-            comment.children.forEach(child => updateCommentScores(child, level + 1));
-            // Sort children by their position in the DOM
-            comment.children.sort((a, b) => (a.position || 0) - (b.position || 0));
-        }
-    }
-    
-    // Update scores for all comments
-    updateCommentScores(comments);
-    return comments;
+    return commentsInDOM;
 }
 
-function convertToPathFormat(thread) {
-    const result = [];
-    const commentPathToIdMap = new Map();
+export function structurePostComments(post, commentsInDOM) {
+    let commentsMap = new Map();  // Use map for faster lookups
 
-    function decodeHTMLEntities(text) {
-        return decode(text);
-    }
-
-    function sanitizeText(htmlString) {
-        const root = parse(htmlString);
-
-        // Remove <a> tags
-        root.querySelectorAll('a').forEach(a => a.remove());
-
-        // Remove <code> tags
-        root.querySelectorAll('code').forEach(code => code.remove());
-
-        // Remove <pre> tags
-        root.querySelectorAll('pre').forEach(pre => pre.remove());
-
-        // Replace <p> tags with new line and the content
-        root.querySelectorAll('p').forEach(p => {
-            const text = p.text;
-            p.replaceWith(text);
-        });
-
-        const cleanedHtml = root.toString();
-        return cleanedHtml;
-    }
-
-    function processNode(node, parentPath = "") {
-        const currentPath = parentPath ? parentPath : "0";
-        let content = "";
-
-        if (node) {
-            if (node.type === 'comment') {
-                content = node.title || node.text || "";
-                if (content === null || content === undefined) {
-                    content = "";
-                } else {
-                    content = decodeHTMLEntities(content);
-                    // remove HTML tags like <p>, <a>, <code> etc.
-                    content = sanitizeText(content);
-                }
-                commentPathToIdMap.set(currentPath, node.id);
-                
-                // Format score and reply count
-                const score = node.score || 0;
-                const replyCount = node.children ? node.children.length : 0;
-                result.push(`[${currentPath}] (Score: ${score.toFixed(1)}) <replies: ${replyCount}> ${node.author}: ${content}`);
-            }
-            if (node.children && node.children.length > 0) {
-                node.children.forEach((child, index) => {
-                    let childPath;
-                    if (currentPath === "0") {
-                        childPath = `${index + 1}`;
-                    } else {
-                        childPath = `${currentPath}.${index + 1}`;
-                    }
-                    processNode(child, childPath);
+    // Step 1: Flatten to map and add position and parent relationship
+    function flattenCommentTree(comment, parentId) {
+        // Skip the story, only process comments
+        if (comment.type !== 'comment') {
+            if (comment.children && comment.children.length > 0) {
+                comment.children.forEach(child => {
+                    flattenCommentTree(child, comment.id);
                 });
             }
+            return;
+        }
+
+        // Set the values into the flat comments map - some properties come from the comment, some from the DOM comments map
+        //  - id, author, replies: from the comment
+        //  - position, text, down votes: from the DOM comments map
+        //  - parentId from the caller of this method
+
+        // Get all values from DOM comments map in one lookup
+        const domComment = commentsInDOM.get(comment.id) || {};
+        const { position = 0, text = '', downvotes = 0 } = domComment;
+
+        // Add comment to map
+        commentsMap.set(comment.id, {
+            author: comment.author,
+            replies: comment.children?.length || 0,
+            position: position,
+            text: text,
+            downvotes: downvotes,
+            parentId: parentId,
+        });
+
+        // Process children
+        if (comment.children && comment.children.length > 0) {
+            comment.children.forEach(child => {
+                flattenCommentTree(child, comment.id);
+            });
         }
     }
 
-    processNode(thread);
-    return {
-        formattedComment: result.join('\n'),
-        commentPathToIdMap: commentPathToIdMap
-    };
+    function calculateScore(comment, totalCommentCount) {
+        // Example score calculation using downvotes
+        const downvotes = comment.downvotes || 0;
+
+        // Score is a number between 1000 and 0, and is calculated as follows:
+        //   default_score = 1000 - (comment_position * 1000 / total_comment_count)
+        //   penalty for down votes = default_score * # of downvotes
+
+        const MAX_SCORE = 1000;
+        const MAX_DOWNVOTES = 10;
+
+        const defaultScore = Math.floor(MAX_SCORE - (comment.position * MAX_SCORE / totalCommentCount));
+        const penaltyPerDownvote = defaultScore / MAX_DOWNVOTES;
+        const penalty = penaltyPerDownvote * downvotes;
+
+        const score = Math.floor(Math.max(defaultScore - penalty, 0));
+        return score;
+
+    }
+
+    // Flatten and collect comments
+    flattenCommentTree(post, null);
+
+    // Sort comments by position and convert to new map
+    const structuredComments = new Map([...commentsMap.entries()]
+        .sort((a, b) => a[1].position - b[1].position));
+
+    // Add paths after sorting
+    let topLevelCounter = 1;
+
+    structuredComments.forEach((comment, id) => {
+        if (comment.parentId === post.id) {
+            // Top level comment
+            comment.path = String(topLevelCounter++);
+        } else {
+            // Child comment
+            const parentPath = structuredComments.get(comment.parentId).path;
+
+            const parentChildren = [...structuredComments.values()]
+                .filter(c => c.parentId === comment.parentId);
+
+            const positionInParent = parentChildren
+                .findIndex(c => c.id === comment.id) + 1;
+            comment.path = `${parentPath}.${positionInParent}`;
+        }
+    });
+
+    // Add scores
+    structuredComments.forEach(comment => {
+        comment.score = calculateScore(comment, structuredComments.size);
+    });
+
+    return structuredComments;
+}
+
+function savePostCommentsToDisk(postId, commentsMap) {
+
+    const filePath = path.join(__dirname, 'output', `${postId}.txt`);
+
+    // Get the directory path from the full file path
+    const dir = path.dirname(filePath);
+
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    let content = '';
+    commentsMap.forEach(comment => {
+        content += `[${comment.path}] (Score: ${comment.score}) <replies: ${comment.replies}> ${comment.author}: ${comment.text}\n`;
+    });
+
+    fs.writeFileSync(filePath, content, 'utf8');
+
+    return filePath;
 }
 
 async function saveFormattedComments(postId) {
     try {
-        let thread = await fetchHNComments(postId);
-        // Update thread with scores from HN page
-        thread = await parseHNPageAndUpdateScores(postId, thread);
-        const { formattedComment } = convertToPathFormat(thread);
-        const filePath = path.join(__dirname, 'data', `${postId}.txt`);
-        fs.writeFileSync(filePath, formattedComment, 'utf8');
-        console.log(`Formatted comments saved to ${filePath}`);
+
+        console.log(`Parsing HN page for post ${postId} ...`);
+
+        let post = await fetchHNComments(postId);
+
+        const commentsInDOM = await getCommentsFromDOM(postId);
+        const structuredComments = structurePostComments(post, commentsInDOM);
+
+        console.log('\nStructured Comments:');
+        structuredComments.forEach((comment, id) => {
+            const content = `[${comment.path}] (Score: ${comment.score}) <replies: ${comment.replies}> ${comment.author}: ${comment.text}`;
+            // console.log(`${id}: ${content}`);
+        });
+
+        const filePath = savePostCommentsToDisk(postId, structuredComments);
+        console.log(`\nStructured comments saved to ${filePath}`);
+
     } catch (error) {
         console.error(`Error: ${error.message}`);
     }
