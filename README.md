@@ -186,7 +186,17 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
       ```bash
       pnpm run release
       ```
+## Running the download script
+If you want to run the script that downloads the HN comments for fine-tuning, follow these steps:
+```shell
+cd scripts
+pnpm install
 
+# build better-sqlite3 from source in order to fix the node bindings for ARM64 on macOS
+cd node_modules/better-sqlite3
+pnpm rebuild
+cd ../..
+```
 ## 🔧 Troubleshooting
 
 ### Common Issues

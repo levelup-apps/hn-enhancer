@@ -1,9 +1,16 @@
 {
+  "type": "module",
   "devDependencies": {
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/forms": "^0.5.9",
     "@tailwindcss/typography": "^0.5.15",
     "archiver": "^7.0.1",
+    "better-sqlite3": "^11.8.1",
+    "bottleneck": "^2.19.5",
+    "html-entities": "^2.5.2",
+    "jest": "^29.7.0",
+    "node-fetch": "^3.3.2",
+    "node-html-parser": "^7.0.1",
     "tailwindcss": "^3.4.16"
   },
   "scripts": {
@@ -12,6 +19,10 @@
     "release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --minify",
     "release-build": "NODE_ENV=production pnpm run release:tailwind && node src/build.js",
     "dev-build": "NODE_ENV=development pnpm run build:tailwind && node src/build.js",
-    "dev": "NODE_ENV=development --mode development"
-  }
+    "dev": "NODE_ENV=development --mode development",
+    "download": "node scripts/download.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "generate-post-ids": "node scripts/download-post-ids.js"
+  },
+  "packageManager": "pnpm@10.2.0+sha512.0d27364e0139c6aadeed65ada153135e0ca96c8da42123bd50047f961339dc7a758fc2e944b428f52be570d1bd3372455c1c65fa2e7aa0bfbf931190f9552001"
 }
