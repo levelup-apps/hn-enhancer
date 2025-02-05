@@ -1289,24 +1289,54 @@ class HNEnhancer {
             return textarea.value;
         }
 
+        function computeCommentScore(path, repliesCount, content) {
+            let score = 1;
+            const depthLevel = path.split('.').length;
+            const positionMultiplier = 1.0 / depthLevel;
+            score *= positionMultiplier;
+
+            const childCount = repliesCount;
+            const childMultiplier = 1 + (Math.log(childCount + 1) / Math.log(10));
+            score *= childMultiplier;
+
+            const isCollapsed = content.text?.includes('[flagged]') ||
+                                content.text?.includes('[dead]');
+            if (isCollapsed) {
+                score *= 0.1;
+            }
+
+            return Math.round(score * 100) / 100;
+        }
+
         function processNode(node, parentPath = "") {
-            const currentPath = parentPath ? parentPath : "1";
+            const currentPath = parentPath ? parentPath : "0";
 
             let content = "";
 
             if (node) {
-                content = node.title || node.text || "";
-                if (content === null || content === undefined) {
-                    content = "";
-                } else {
-                    content = decodeHTMLEntities(content);
-                }
-                commentPathToIdMap.set(currentPath, node.id);
-                result.push(`[${currentPath}] ${node ? node.author : "unknown"}: ${content}`);
+                if(node.type === 'comment') {
+                    content = node.title || node.text || "";
+                    if (content === null || content === undefined) {
+                        content = "";
+                    } else {
+                        content = decodeHTMLEntities(content);
+                    }
+                    commentPathToIdMap.set(currentPath, node.id);
 
+                    const replies = node.children?.length || 0;
+                    const score = computeCommentScore(currentPath, replies, content);
+
+                    result.push(`[${currentPath}] (Score: ${score}) <replies: ${replies}> ${node ? node.author : "unknown"}: ${content}`);
+                }
                 if (node.children && node.children.length > 0) {
                     node.children.forEach((child, index) => {
-                        const childPath = `${currentPath}.${index + 1}`;
+                        let childPath;
+                        if(currentPath === "0") {
+                            childPath = `${index + 1}`;
+                        }
+                        else {
+                            childPath = `${currentPath}.${index + 1}`;
+                        }
                         processNode(child, childPath);
                     });
                 }
