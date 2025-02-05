@@ -20,6 +20,7 @@ import path from 'path';
 import fetch from 'node-fetch';
 import {decode} from "html-entities";
 import { parse }  from "node-html-parser";
+import Bottleneck from "bottleneck";
 
 
 async function fetchHNCommentsFromAPI(postId) {
@@ -272,8 +273,13 @@ async function main() {
     const inputJson = JSON.parse(fs.readFileSync(inputFilePath, 'utf8'));
     const postIds = inputJson.postIds;
 
+    const limiter = new Bottleneck({
+        minTime: 10_000, // 10 seconds
+        maxConcurrent: 1
+    });
+
     for (const postId of postIds) {
-        await downloadPostComments(postId);
+        await limiter.schedule(() => downloadPostComments(postId));
     }
 }
 
