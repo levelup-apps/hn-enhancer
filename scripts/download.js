@@ -68,9 +68,20 @@ async function getCommentsFromDOM(postHtml) {
 
             // Get the comment text from the div - this will be the best formatted text for LLM.
             //  - Remove any HTML tags (eg: <code>) from the text and urls
-            // TODO : decide whether to handle html tags specially or remove them
-            const commentText = decode(commentDiv.innerText)
-                .replace(/<[^>]*>/g, '')
+
+            // Remove HTML tags and it content - <a>, <code>, <pre>
+            commentDiv.querySelectorAll('a').forEach(a => a.remove());
+            commentDiv.querySelectorAll('code').forEach(code => code.remove());
+            commentDiv.querySelectorAll('pre').forEach(pre => pre.remove());
+
+            // Replace <p> tags with new line and the content
+            commentDiv.querySelectorAll('p').forEach(p => {
+                const text = p.text;
+                p.replaceWith(text);
+            });
+
+            // decode the HTML entities (to remove url encoding and new lines)
+            const commentText = decode(commentDiv.innerHTML)
                 .replace(/\n+/g, ' ');
 
             // Get the down votes of the comment in order to calculate the score later
