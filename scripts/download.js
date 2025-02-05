@@ -40,22 +40,6 @@ async function fetchHNPage(postId) {
     return response.text();
 }
 
-function getDownvoteLevel(className) {
-    const downvoteMap = {
-        'c00': 0,
-        'c5a': 1,
-        'c73': 2,
-        'c82': 3,
-        'c88': 4,
-        'c9c': 5,
-        'cae': 6,
-        'cbe': 7,
-        'cce': 8,
-        'cdd': 9
-    };
-    return downvoteMap[className] || 0;
-}
-
 export function hello() {
     return "hello";
 }
@@ -82,7 +66,8 @@ async function getCommentsFromDOM(postHtml) {
         if (commentDiv) {
 
             // Get the comment text from the div - this will be the best formatted text for LLM.
-            //  - Remove any HTML tags (eg: <code>) from the text
+            //  - Remove any HTML tags (eg: <code>) from the text and urls
+            // TODO : decide whether to handle html tags specially or remove them
             const commentText = decode(commentDiv.innerText)
                 .replace(/<[^>]*>/g, '')
                 .replace(/\n+/g, ' ');
@@ -95,7 +80,23 @@ async function getCommentsFromDOM(postHtml) {
                 downvoteClass = match[0];
             }
 
-            const downvotes = downvoteClass ? getDownvoteLevel(downvoteClass) : 0;
+            function getDownvoteCount(className) {
+                const downvoteMap = {
+                    'c00': 0,
+                    'c5a': 1,
+                    'c73': 2,
+                    'c82': 3,
+                    'c88': 4,
+                    'c9c': 5,
+                    'cae': 6,
+                    'cbe': 7,
+                    'cce': 8,
+                    'cdd': 9
+                };
+                return downvoteMap[className] || 0;
+            }
+
+            const downvotes = downvoteClass ? getDownvoteCount(downvoteClass) : 0;
 
             // create a new array to store the comments in the order they appear in the DOM
             commentsInDOM.set(Number(commentId), {
@@ -231,9 +232,6 @@ function savePostCommentsToDisk(postId, comments) {
         ].join(' ') + '\n';
 
         content += line;
-    });
-    comments.forEach(comment => {
-        content += `[${comment.path}] (Score: ${comment.score}) <replies: ${comment.replies}> ${comment.author}: ${comment.text}\n`;
     });
 
     fs.writeFileSync(filePath, content, 'utf8');
