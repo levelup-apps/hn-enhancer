@@ -934,6 +934,12 @@ class HNEnhancer {
         const commentDepth = commentPathToIdMap.size;
         const {aiProvider, model} = await this.getAIProviderModel();
 
+        if (!aiProvider) {
+            console.log('AI provider not configured. Prompting user to complete setup.');
+            this.showConfigureAIMessage();
+            return;
+        }
+
         const authorElement = comment.querySelector('.hnuser');
         const author = authorElement.textContent || '';
         const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
@@ -1215,39 +1221,45 @@ class HNEnhancer {
             }
 
             const {aiProvider, model} = await this.getAIProviderModel();
-            if (aiProvider) {
 
-                // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
-                if(aiProvider === 'chrome-ai') {
+            // Soon after installing the extension, the settings may not be available. Show a message to configure the AI provider.
+            if(!aiProvider) {
+                console.log('AI provider not configured. Prompting user to complete setup.');
+                this.showConfigureAIMessage();
+                return;
+            }
 
-                    this.summaryPanel.updateContent({
-                        title: `Summarization not recommended`,
-                        metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
-                        text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
-                        <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
-                    });
+            // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
+            if(aiProvider === 'chrome-ai') {
 
-                    // Once the error message is rendered in the summary panel, add the click handler for the Options page link
-                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                    if (optionsLink) {
-                        optionsLink.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            this.openOptionsPage();
-                        });
-                    }
-                    return;
-                }
-                // Show a meaningful in-progress message before starting the summarization
-                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
                 this.summaryPanel.updateContent({
-                    title: 'Post Summary',
-                    metadata: `Analyzing all threads in this post...`,
-                    text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
+                    title: `Summarization not recommended`,
+                    metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
+                    text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
+                    <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
                 });
 
-                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
-                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+                // Once the error message is rendered in the summary panel, add the click handler for the Options page link
+                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                if (optionsLink) {
+                    optionsLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openOptionsPage();
+                    });
+                }
+                return;
             }
+            // Show a meaningful in-progress message before starting the summarization
+            const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+            this.summaryPanel.updateContent({
+                title: 'Post Summary',
+                metadata: `Analyzing all threads in this post...`,
+                text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
+            });
+
+            const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+
         } catch (error) {
             console.error('Error preparing for summarization:', error);
             this.summaryPanel.updateContent({
@@ -1536,6 +1548,27 @@ class HNEnhancer {
         });
     }
 
+    showConfigureAIMessage() {
+        const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
+            'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
+            '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
+            'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+
+        this.summaryPanel.updateContent({
+            title: 'AI Provider Setup Required',
+            text: message
+        });
+
+        // Add event listener after updating content
+        const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+        if (optionsLink) {
+            optionsLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openOptionsPage();
+            });
+        }
+    }
+
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
@@ -1544,26 +1577,8 @@ class HNEnhancer {
             const model = data.settings?.[providerSelection]?.model;
 
             if (!providerSelection) {
-                console.error('Missing AI summarization configuration');
-
-                const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
-                    'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
-                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
-                    'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
-
-                this.summaryPanel.updateContent({
-                    title: 'AI Provider Setup Required',
-                    text: message
-                });
-
-                // Add event listener after updating content
-                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                if (optionsLink) {
-                    optionsLink.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.openOptionsPage();
-                    });
-                }
+                console.log('AI provider not configured. Prompting user to complete setup.');
+                this.showConfigureAIMessage();
                 return;
             }
 
