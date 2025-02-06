@@ -67,7 +67,7 @@ async function main(startDate, numDays) {
     
     // Collect posts for the specified number of days
     for (let i = 1; i < numDays; i++) {
-        const date = startDate;
+        const date = new Date(startDate);
         date.setDate(startDate.getDate() - i);
         const formattedDate = date.toISOString().split('T')[0];
         
