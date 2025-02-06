@@ -1250,7 +1250,7 @@ class HNEnhancer {
         return itemIdMatch ? itemIdMatch[1] : null;
     }
 
-    async fetchHNCommentsFromAPI(postId) {
+    async fetchHNCommentsFromAPI(itemId) {
         const commentsJson = await this.sendBackgroundMessage(
             'FETCH_API_REQUEST',
             {
@@ -1267,13 +1267,7 @@ class HNEnhancer {
             //  API comments are in JSON format structured as a tree and represents the hierarchy of comments.
             //  DOM comments are in HTML with the correct sequence according to votes.
 
-            const commentsJson = await this.sendBackgroundMessage(
-                'FETCH_API_REQUEST',
-                {
-                    url: `https://hn.algolia.com/api/v1/items/${itemId}`,
-                    method: 'GET'
-                }
-            );
+            const commentsJson = await this.fetchHNCommentsFromAPI(itemId);
             const commentsInDOM = this.getCommentsFromDOM(document);
 
             // Merge the two data sets to structure the comments based on hierarchy, votes and position
@@ -1298,8 +1292,8 @@ class HNEnhancer {
                 })
                 .join('');
 
-            console.debug('formattedComment...', formattedComment);
-            console.debug('commentPathToIdMap...', Object.fromEntries(commentPathToIdMap));
+            this.logDebug('formattedComment...', formattedComment);
+            this.logDebug('commentPathToIdMap...', Object.fromEntries(commentPathToIdMap));
 
             return {
                 formattedComment,
