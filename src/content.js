@@ -1276,24 +1276,25 @@ class HNEnhancer {
 
     async getHNThread(itemId) {
         try {
-            // Get the comments from the HN API as well as the DOM.
+            // Here, we will get the post with the itemId, parse the comments and enhance it with a better structure and score
+            //  Get the comments from the HN API as well as the DOM.
             //  API comments are in JSON format structured as a tree and represents the hierarchy of comments.
-            //  DOM comments are in HTML with the correct sequence according to votes.
+            //  DOM comments (comments in the HTML page) are in the right sequence according to the up votes.
 
             const commentsJson = await this.fetchHNCommentsFromAPI(itemId);
-            const commentsInDOM = this.getCommentsFromDOM(document);
+            const commentsInDOM = this.getCommentsFromDOM();
 
             // Merge the two data sets to structure the comments based on hierarchy, votes and position
-            const structuredComments = this.structurePostComments(commentsJson, commentsInDOM);
+            const enhancedComments = this.enrichPostComments(commentsJson, commentsInDOM);
 
             // Create the path-to-id mapping in order to backlink the comments to the main page.
             const commentPathToIdMap = new Map();
-            structuredComments.forEach((comment, id) => {
+            enhancedComments.forEach((comment, id) => {
                 commentPathToIdMap.set(comment.path, id);
             });
 
             // Convert structured comments to formatted text
-            const formattedComment = [...structuredComments.values()]
+            const formattedComment = [...enhancedComments.values()]
                 .map(comment => {
                     return [
                         `[${comment.path}]`,
@@ -1317,97 +1318,112 @@ class HNEnhancer {
         }
     }
 
-    getCommentsFromDOM(rootElement) {
+    getCommentsFromDOM() {
 
-        // Create a map to store comment positions and scores
-        // const commentPositions = new Map();
+        // Comments in the DOM are arranged according to their up votes. This gives us the position of the comment.
+        //  We will also extract the downvotes and text of the comment (after sanitizing it).
+        // Create a map to store comment positions, downvotes and the comment text.
         const commentsInDOM = new Map();
 
-        // First pass: collect all comments and their metadata
-        const commentElements = rootElement.querySelectorAll('.comtr');
-        // console.log(`Found ${commentElements.length} DOM comments in post`);
+        // Step 1: collect all comments and their metadata
+        const commentElements = document.querySelectorAll('.comtr');
+        this.logDebug(`Found ${commentElements.length} DOM comments in post`);
 
-        // Comments in the DOM are ordered according to the upvotes they received.
-        // We get the down votes of the comment also from these DOM elements only.
         commentElements.forEach((el, index) => {
             const commentId = el.getAttribute('id');
 
             const commentDiv = el.querySelector('.commtext');
 
-            if (commentDiv) {
+            if (!commentDiv) {
+                // If the comment div is not found, skip this iteration and continue the loop
+                this.logInfo(`Comment div not found for comment id: ${commentId}`);
+                return;
+            }
 
-                // Get the comment text from the HTML element after sanitizing it.
+            // Step 2: Sanitize the comment text (remove unnecessary html tags, encodings)
+            function sanitizeCommentText() {
 
-                // Remove content inside HTML tags (a, code, pre). Create copies of the NodeLists before removing them.
-                const linksToRemove = Array.from(commentDiv.querySelectorAll('a'));
-                linksToRemove.forEach(a => a.remove());
-                const codeToRemove = Array.from(commentDiv.querySelectorAll('code'));
-                codeToRemove.forEach(code => code.remove());
-                const preToRemove = Array.from(commentDiv.querySelectorAll('pre'));
-                preToRemove.forEach(pre => pre.remove());
+                // Clone the comment div so that we don't modify the DOM of the main page
+                const tempDiv = commentDiv.cloneNode(true);
 
-                // Replace <p> tags with new line and the content
-                commentDiv.querySelectorAll('p').forEach(p => {
+                // Remove unwanted HTML elements from the clone
+                [...tempDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
+
+                // Replace <p> tags with their text content
+                tempDiv.querySelectorAll('p').forEach(p => {
                     const text = p.textContent;
                     p.replaceWith(text);
                 });
 
                 // decode the HTML entities (to remove url encoding and new lines)
                 function decodeHTML(html) {
-                    const txt = rootElement.createElement('textarea');
+                    const txt = document.createElement('textarea');
                     txt.innerHTML = html;
                     return txt.value;
                 }
 
                 // Remove unnecessary new lines and decode HTML entities
-                const commentText = decodeHTML(commentDiv.innerHTML).replace(/\n+/g, ' ');
+                const sanitizedText = decodeHTML(tempDiv.innerHTML).replace(/\n+/g, ' ');
 
-                // Get the down votes of the comment in order to calculate the score later
+                return sanitizedText;
+            }
+            const commentText = sanitizeCommentText();
+
+            // Step 3: Get the down votes of the comment in order to calculate the score later
+            // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
+            function getDownvoteCount() {
+
                 let downvoteClass = null;
                 const classes = commentDiv.classList.toString();
                 const match = classes.match(/c[0-9a-f]{2}/);
-                if (match) {
-                    downvoteClass = match[0];
+                if (!match) {
+                    return 0;
                 }
 
-                function getDownvoteCount(className) {
-                    const downvoteMap = {
-                        'c00': 0,
-                        'c5a': 1,
-                        'c73': 2,
-                        'c82': 3,
-                        'c88': 4,
-                        'c9c': 5,
-                        'cae': 6,
-                        'cbe': 7,
-                        'cce': 8,
-                        'cdd': 9
-                    };
-                    return downvoteMap[className] || 0;
-                }
-
-                const downvotes = downvoteClass ? getDownvoteCount(downvoteClass) : 0;
-
-                // create a new array to store the comments in the order they appear in the DOM
-                commentsInDOM.set(Number(commentId), {
-                    position: index,
-                    text: commentText,
-                    downvotes: downvotes,
-                });
+                downvoteClass = match[0];
+                const downvoteMap = {
+                    'c00': 0,
+                    'c5a': 1,
+                    'c73': 2,
+                    'c82': 3,
+                    'c88': 4,
+                    'c9c': 5,
+                    'cae': 6,
+                    'cbe': 7,
+                    'cce': 8,
+                    'cdd': 9
+                };
+                return downvoteMap[downvoteClass] || 0;
             }
+            const downvotes = getDownvoteCount();
+
+            // Step 4: Add the position, text and downvotes of the comment to the map
+            commentsInDOM.set(Number(commentId), {
+                position: index,
+                text: commentText,
+                downvotes: downvotes,
+            });
 
         });
         return commentsInDOM;
     }
 
-    structurePostComments(commentsTree, commentsInDOM) {
+    enrichPostComments(commentsTree, commentsInDOM) {
 
-        // Create a map to store comments with their metadata
-        let commentsMap = new Map();
+        // Here, we enrich the comments as follows:
+        //  add the position of the comment in the DOM (according to the up votes)
+        //  add the text and the down votes of the comment (also from the DOM)
+        //  add the author and number of children as replies (from the comment tree)
+        //  sort them based on the position in the DOM (according to the up votes)
+        //  add the path of the comment (1.1, 1.2, 2.1 etc.) based on the position in the DOM
+        //  add the score of the comment based on the position and down votes
 
-        // Step 1: Flatten the comment tree to map and add position and parent relationship
+        // Step 1: Flatten the comment tree to map with metadata, position and parent relationship
+        //  This is a recursive function that traverses the comment tree and adds the metadata to the map
+        let flatComments = new Map();
+
         function flattenCommentTree(comment, parentId) {
-            // Skip the story, only process comments
+            // Skip the story items, do not add to the flat map. Only process its children (comments)
             if (comment.type !== 'comment') {
                 if (comment.children && comment.children.length > 0) {
                     comment.children.forEach(child => {
@@ -1426,8 +1442,8 @@ class HNEnhancer {
             const domComment = commentsInDOM.get(comment.id) || {};
             const { position = 0, text = '', downvotes = 0 } = domComment;
 
-            // Add comment to map
-            commentsMap.set(comment.id, {
+            // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
+            flatComments.set(comment.id, {
                 author: comment.author,
                 replies: comment.children?.length || 0,
                 position: position,
@@ -1436,7 +1452,8 @@ class HNEnhancer {
                 parentId: parentId,
             });
 
-            // Process children
+            // Process children of the current comment, pass the comment id as the parent id to the next iteration
+            //  so that the parent-child relationship is retained and we can use it to calculate the path later.
             if (comment.children && comment.children.length > 0) {
                 comment.children.forEach(child => {
                     flattenCommentTree(child, comment.id);
@@ -1444,6 +1461,44 @@ class HNEnhancer {
             }
         }
 
+        // Flatten the comment tree and collect comments as a map
+        flattenCommentTree(commentsTree, null);
+
+        // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
+        //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
+        const enrichedComments = new Map([...flatComments.entries()]
+            .sort((a, b) => a[1].position - b[1].position));
+
+        // Step 3: Calculate paths (1.1, 2.3 etc.) using the parentId and the sequence of comments
+        //  This step must be done AFTER sorting the comments by position because the path is based on the position of the comments.
+        let topLevelCounter = 1;
+
+        function calculatePath(comment) {
+            let path;
+            if (comment.parentId === commentsTree.id) {
+                // Top level comment (its parent is the root of the comment tree which is the story).
+                //  The path is just a number like 1, 2, 3, etc.
+                path = String(topLevelCounter++);
+            } else {
+                // Child comment at any level.
+                //  The path is the parent's path + the position of the comment in the parent's children list.
+                const parentPath = enrichedComments.get(comment.parentId).path;
+
+                // get all the children of this comment's parents - this is the list of siblings
+                const siblings = [...enrichedComments.values()]
+                    .filter(c => c.parentId === comment.parentId);
+
+                // Find the position of this comment in the siblings list - this is the sequence number in the path
+                const positionInParent = siblings
+                    .findIndex(c => c.id === comment.id) + 1;
+
+                // Set the path as the parent's path + the position in the parent's children list
+                path = `${parentPath}.${positionInParent}`;
+            }
+            return path;
+        }
+
+        // Step 4: Calculate the score for each comment based on its position and downvotes
         function calculateScore(comment, totalCommentCount) {
             // Example score calculation using downvotes
             const downvotes = comment.downvotes || 0;
@@ -1461,42 +1516,15 @@ class HNEnhancer {
 
             const score = Math.floor(Math.max(defaultScore - penalty, 0));
             return score;
-
         }
 
-        // Flatten and collect comments
-        flattenCommentTree(commentsTree, null);
-
-        // Sort comments by position and convert to new map
-        const structuredComments = new Map([...commentsMap.entries()]
-            .sort((a, b) => a[1].position - b[1].position));
-
-        // Add paths after sorting
-        let topLevelCounter = 1;
-
-        structuredComments.forEach((comment) => {
-            if (comment.parentId === commentsTree.id) {
-                // Top level comment
-                comment.path = String(topLevelCounter++);
-            } else {
-                // Child comment
-                const parentPath = structuredComments.get(comment.parentId).path;
-
-                const parentChildren = [...structuredComments.values()]
-                    .filter(c => c.parentId === comment.parentId);
-
-                const positionInParent = parentChildren
-                    .findIndex(c => c.id === comment.id) + 1;
-                comment.path = `${parentPath}.${positionInParent}`;
-            }
+        // Final step: Add the path and score for each comment as calculated above
+        enrichedComments.forEach(comment => {
+            comment.path = calculatePath(comment);
+            comment.score = calculateScore(comment, enrichedComments.size);
         });
 
-        // Add scores
-        structuredComments.forEach(comment => {
-            comment.score = calculateScore(comment, structuredComments.size);
-        });
-
-        return structuredComments;
+        return enrichedComments;
     }
 
     openOptionsPage() {
