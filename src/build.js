@@ -1,8 +1,9 @@
-const fs = require("fs");
-const path = require("path");
-const archiver = require("archiver");
-const manifestChrome = require("../manifest.chrome.json");
-const manifestFirefox = require("../manifest.firefox.json");
+import fs from "fs";
+import path from "path";
+import archiver from "archiver";
+
+const manifestChrome = JSON.parse(fs.readFileSync(new URL("../manifest.chrome.json", import.meta.url)));
+const manifestFirefox = JSON.parse(fs.readFileSync(new URL("../manifest.firefox.json", import.meta.url)));
 
 const DIST_DIR = "dist";
 const OUTPUT_DIR_CHROME = "chrome";
