@@ -1,4 +1,4 @@
-// This is a Node.js script that fetches comments from HN and saves them to a SQLite database
+// This is a Node.js script that fetches comments from HN and saves them to a text file
 // The goal of this script is to create a dataset to fine-tune LLMs to create better summaries for the Hacker News Companion extension.
 // It will create a dataset of comments with the following structure:
 // [hierarchy_path] (Score: 4.5) <replies: 3> Author: Comment content
@@ -15,6 +15,7 @@ import Database from 'better-sqlite3';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import {decode} from "html-entities";
@@ -23,112 +24,144 @@ import Bottleneck from "bottleneck";
 
 
 async function fetchHNCommentsFromAPI(postId) {
-    const url = `https://hn.algolia.com/api/v1/items/${postId}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch comments for post ID ${postId}: ${response.statusText}`);
+    try {
+        const url = `https://hn.algolia.com/api/v1/items/${postId}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        return response.json();
+    } catch (error) {
+        throw new Error(`Failed to fetch post from HN API for post ID ${postId}. Error: ${error.message}`);
     }
-    return response.json();
 }
 
 async function fetchHNPage(postId) {
-    const url = `https://news.ycombinator.com/item?id=${postId}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch HN page for post ID ${postId}: ${response.statusText}`);
-    }
-    return response.text();
-}
+    try {
+        const url = `https://news.ycombinator.com/item?id=${postId}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        const responseText = await response.text();
 
-export function hello() {
-    return "hello";
+        // if the post id is not found, the response will be "No such item.". If so, throw an error
+        if (responseText === 'No such item.') {
+            throw new Error(`Post ID ${postId} not found on HN.`);
+        }
+
+        return responseText;
+    } catch (error) {
+        throw new Error(`Failed to fetch HN page for post ID ${postId}: ${error.message}`);
+    }
 }
 
 async function getCommentsFromDOM(postHtml) {
 
-    const root = parse(postHtml);
-
-    // Create a map to store comment positions and scores
-    // const commentPositions = new Map();
+    // Comments in the DOM are arranged according to their up votes. This gives us the position of the comment.
+    //  We will also extract the downvotes and text of the comment (after sanitizing it).
+    // Create a map to store comment positions, downvotes and the comment text.
     const commentsInDOM = new Map();
 
-    // First pass: collect all comments and their metadata
-    const commentElements = root.querySelectorAll('.comtr');
-    console.log(`Found ${commentElements.length} DOM comments in post`);
+    const rootElement = parse(postHtml);
 
-    // Comments in the DOM are ordered according to the upvotes they received.
-    // We get the down votes of the comment also from these DOM elements only.
+    // Step 1: collect all comments and their metadata
+    const commentElements = rootElement.querySelectorAll('.comtr');
+    console.log(`...Fetched ${commentElements.length} comments from the DOM.`);
+
+    let skippedComments = 0;
     commentElements.forEach((el, index) => {
         const commentId = el.getAttribute('id');
 
         const commentDiv = el.querySelector('.commtext');
 
-        if (commentDiv) {
+        if (!commentDiv) {
+            // If the comment div is not found, that means it is flagged. So we skip this iteration and continue the loop
+            skippedComments++;
+            return;
+        }
 
-            // Get the comment text from the div - this will be the best formatted text for LLM.
-            //  - Remove any HTML tags (eg: <code>) from the text and urls
+        // Step 2: Sanitize the comment text (remove unnecessary html tags, encodings)
+        function sanitizeCommentText() {
 
-            // Remove HTML tags and it content - <a>, <code>, <pre>
-            commentDiv.querySelectorAll('a').forEach(a => a.remove());
-            commentDiv.querySelectorAll('code').forEach(code => code.remove());
-            commentDiv.querySelectorAll('pre').forEach(pre => pre.remove());
+            // Remove unwanted HTML elements from the clone
+            [...commentDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
 
-            // Replace <p> tags with new line and the content
+            // Replace <p> tags with their text content
             commentDiv.querySelectorAll('p').forEach(p => {
-                const text = p.text;
+                const text = p.textContent;
                 p.replaceWith(text);
             });
 
-            // decode the HTML entities (to remove url encoding and new lines)
-            const commentText = decode(commentDiv.innerHTML)
+            // Remove unnecessary new lines and decode HTML entities by decoding the HTML entities
+            const sanitizedText = decode(commentDiv.innerHTML)
                 .replace(/\n+/g, ' ');
 
-            // Get the down votes of the comment in order to calculate the score later
+            return sanitizedText;
+        }
+        const commentText = sanitizeCommentText();
+
+        // Step 3: Get the down votes of the comment in order to calculate the score later
+        // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
+        function getDownvoteCount() {
             let downvoteClass = null;
             const classes = commentDiv.classList.toString();
             const match = classes.match(/c[0-9a-f]{2}/);
-            if (match) {
-                downvoteClass = match[0];
+            if (!match) {
+                return 0;
             }
 
-            function getDownvoteCount(className) {
-                const downvoteMap = {
-                    'c00': 0,
-                    'c5a': 1,
-                    'c73': 2,
-                    'c82': 3,
-                    'c88': 4,
-                    'c9c': 5,
-                    'cae': 6,
-                    'cbe': 7,
-                    'cce': 8,
-                    'cdd': 9
-                };
-                return downvoteMap[className] || 0;
-            }
-
-            const downvotes = downvoteClass ? getDownvoteCount(downvoteClass) : 0;
-
-            // create a new array to store the comments in the order they appear in the DOM
-            commentsInDOM.set(Number(commentId), {
-                position: index,
-                text: commentText,
-                downvotes: downvotes,
-            });
+            downvoteClass = match[0];
+            const downvoteMap = {
+                'c00': 0,
+                'c5a': 1,
+                'c73': 2,
+                'c82': 3,
+                'c88': 4,
+                'c9c': 5,
+                'cae': 6,
+                'cbe': 7,
+                'cce': 8,
+                'cdd': 9
+            };
+            return downvoteMap[downvoteClass] || 0;
         }
+        const downvotes = getDownvoteCount();
+
+        // Step 4: Add the position, text and downvotes of the comment to the map
+        commentsInDOM.set(Number(commentId), {
+            position: index,
+            text: commentText,
+            downvotes: downvotes,
+        });
 
     });
+
+    console.log(`...Extracted ${commentsInDOM.size} comments from DOM. Skipped ${skippedComments} flagged comments.`);
     return commentsInDOM;
 }
 
-export function structurePostComments(commentsTree, commentsInDOM) {
+export function enrichPostComments(commentsTree, commentsInDOM) {
 
-    // Create a map to store comments with their metadata
-    let commentsMap = new Map();
+    // Here, we enrich the comments as follows:
+    //  add the position of the comment in the DOM (according to the up votes)
+    //  add the text and the down votes of the comment (also from the DOM)
+    //  add the author and number of children as replies (from the comment tree)
+    //  sort them based on the position in the DOM (according to the up votes)
+    //  add the path of the comment (1.1, 1.2, 2.1 etc.) based on the position in the DOM
+    //  add the score of the comment based on the position and down votes
 
-    // Step 1: Flatten the comment tree to map and add position and parent relationship
+    // Step 1: Flatten the comment tree to map with metadata, position and parent relationship
+    //  This is a recursive function that traverses the comment tree and adds the metadata to the map
+    let flatComments = new Map();
+
+    let apiComments = 0;
     function flattenCommentTree(comment, parentId) {
-        // Skip the story, only process comments
+
+        // Track the number of comments as we traverse the tree to find the comments from HN API.
+        apiComments++;
+
+        // Skip the story items, do not add to the flat map. Only process its children (comments)
         if (comment.type !== 'comment') {
             if (comment.children && comment.children.length > 0) {
                 comment.children.forEach(child => {
@@ -147,8 +180,8 @@ export function structurePostComments(commentsTree, commentsInDOM) {
         const domComment = commentsInDOM.get(comment.id) || {};
         const { position = 0, text = '', downvotes = 0 } = domComment;
 
-        // Add comment to map
-        commentsMap.set(comment.id, {
+        // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
+        flatComments.set(comment.id, {
             author: comment.author,
             replies: comment.children?.length || 0,
             position: position,
@@ -157,7 +190,8 @@ export function structurePostComments(commentsTree, commentsInDOM) {
             parentId: parentId,
         });
 
-        // Process children
+        // Process children of the current comment, pass the comment id as the parent id to the next iteration
+        //  so that the parent-child relationship is retained and we can use it to calculate the path later.
         if (comment.children && comment.children.length > 0) {
             comment.children.forEach(child => {
                 flattenCommentTree(child, comment.id);
@@ -165,6 +199,45 @@ export function structurePostComments(commentsTree, commentsInDOM) {
         }
     }
 
+    // Flatten the comment tree and collect comments as a map
+    flattenCommentTree(commentsTree, null);
+    console.log(`...Fetched ${apiComments} comments from the API. Flattened ${flatComments.size} comments. Skipped 1 story item.`);
+
+    // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
+    //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
+    const enrichedComments = new Map([...flatComments.entries()]
+        .sort((a, b) => a[1].position - b[1].position));
+
+    // Step 3: Calculate paths (1.1, 2.3 etc.) using the parentId and the sequence of comments
+    //  This step must be done AFTER sorting the comments by position because the path is based on the position of the comments.
+    let topLevelCounter = 1;
+
+    function calculatePath(comment) {
+        let path;
+        if (comment.parentId === commentsTree.id) {
+            // Top level comment (its parent is the root of the comment tree which is the story).
+            //  The path is just a number like 1, 2, 3, etc.
+            path = String(topLevelCounter++);
+        } else {
+            // Child comment at any level.
+            //  The path is the parent's path + the position of the comment in the parent's children list.
+            const parentPath = enrichedComments.get(comment.parentId).path;
+
+            // get all the children of this comment's parents - this is the list of siblings
+            const siblings = [...enrichedComments.values()]
+                .filter(c => c.parentId === comment.parentId);
+
+            // Find the position of this comment in the siblings list - this is the sequence number in the path
+            const positionInParent = siblings
+                .findIndex(c => c.id === comment.id) + 1;
+
+            // Set the path as the parent's path + the position in the parent's children list
+            path = `${parentPath}.${positionInParent}`;
+        }
+        return path;
+    }
+
+    // Step 4: Calculate the score for each comment based on its position and downvotes
     function calculateScore(comment, totalCommentCount) {
         // Example score calculation using downvotes
         const downvotes = comment.downvotes || 0;
@@ -182,42 +255,46 @@ export function structurePostComments(commentsTree, commentsInDOM) {
 
         const score = Math.floor(Math.max(defaultScore - penalty, 0));
         return score;
-
     }
 
-    // Flatten and collect comments
-    flattenCommentTree(commentsTree, null);
-
-    // Sort comments by position and convert to new map
-    const structuredComments = new Map([...commentsMap.entries()]
-        .sort((a, b) => a[1].position - b[1].position));
-
-    // Add paths after sorting
-    let topLevelCounter = 1;
-
-    structuredComments.forEach((comment) => {
-        if (comment.parentId === commentsTree.id) {
-            // Top level comment
-            comment.path = String(topLevelCounter++);
-        } else {
-            // Child comment
-            const parentPath = structuredComments.get(comment.parentId).path;
-
-            const parentChildren = [...structuredComments.values()]
-                .filter(c => c.parentId === comment.parentId);
-
-            const positionInParent = parentChildren
-                .findIndex(c => c.id === comment.id) + 1;
-            comment.path = `${parentPath}.${positionInParent}`;
-        }
+    // Final step: Add the path and score for each comment as calculated above
+    enrichedComments.forEach(comment => {
+        comment.path = calculatePath(comment);
+        comment.score = calculateScore(comment, enrichedComments.size);
     });
 
-    // Add scores
-    structuredComments.forEach(comment => {
-        comment.score = calculateScore(comment, structuredComments.size);
+    console.log(`...Enriched ${enrichedComments.size} comments`);
+    return enrichedComments;
+}
+
+function savePostCommentsToDisk(postId, comments) {
+
+    const filePath = path.join(__dirname, 'output', `${postId}.txt`);
+
+    // Get the directory path from the full file path
+    const dir = path.dirname(filePath);
+
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    let content = '';
+    comments.forEach(comment => {
+        const line = [
+            `[${comment.path}]`,
+            `(score: ${comment.score})`,
+            `<replies: ${comment.replies}>`,
+            `${comment.author}:`,
+            comment.text
+        ].join(' ') + '\n';
+
+        content += line;
     });
 
-    return structuredComments;
+    fs.writeFileSync(filePath, content, 'utf8');
+
+    return filePath;
 }
 
 function savePostToDatabase(postId, postData, comments, db) {
@@ -259,29 +336,43 @@ function savePostToDatabase(postId, postData, comments, db) {
 
 async function downloadPostComments(postId, db) {
     try {
+
         console.log(`Downloading comments for post id: ${postId} ...`);
 
         // Get the comments from the HN API as well as the DOM
         //  API comments are in JSON format structured as a tree and represents the hierarchy of comments
         const commentsJson = await fetchHNCommentsFromAPI(postId);
 
-        // DOM comments are in HTML with the correct order of votes. Fetch them and parse to a map
+        // DOM comments (comments in the HTML page) are ordered in the correct sequence as per the up votes.
+        // Fetch them and extract the position, text and down votes.
         const postHtml = await fetchHNPage(postId);
+        console.log(`...Getting comments from DOM...`);
         const commentsInDOM = await getCommentsFromDOM(postHtml);
 
         // Merge the two data sets to structure the comments based on hierarchy, votes and position
-        console.log(`Structuring comments for post id: ${postId} ...`);
-        const structuredComments = structurePostComments(commentsJson, commentsInDOM);
+        console.log(`...Enriching comments...`);
+        const enrichedComments = enrichPostComments(commentsJson, commentsInDOM);
 
-        // Save to database instead of file
-        savePostToDatabase(postId, commentsJson, structuredComments, db);
-        console.log(`Post ${postId} processed successfully\n`);
+        // Save to database or file
+        const saveToDb = false;
+        if(saveToDb) {
+            savePostToDatabase(postId, commentsJson, enrichedComments, db);
+            console.log(`Post ${postId} processed successfully. Comments saved to DB.\n`);
+        } else {
+            const filePath = savePostCommentsToDisk(postId, enrichedComments);
+            console.log(`Post ${postId} processed successfully. Comments saved to file: ${filePath}\n`);
+        }
 
     } catch (error) {
-        console.error(`Error: ${error.message}`);
+        console.error(`...Error downloading comments. ${error.message}`);
     }
 }
 
+function getPostIdsFromFile() {
+    const inputFilePath = path.join(__dirname, 'input.json');
+    const inputJson = JSON.parse(fs.readFileSync(inputFilePath, 'utf8'));
+    return inputJson.postIds;
+}
 
 // main function that processes posts from SQLite database
 async function main() {
@@ -306,6 +397,8 @@ async function main() {
 
         // Get unprocessed post IDs from daily_posts table
         const posts = db.prepare('SELECT post_id FROM daily_posts WHERE processed = 0').all();
+        // const postIds = posts.map(post => post.post_id);
+        const postIds = getPostIdsFromFile();
 
         const limiter = new Bottleneck({
             minTime: 10_000, // 10 seconds
@@ -313,15 +406,15 @@ async function main() {
         });
 
         // Process each post ID
-        for (const post of posts) {
+        for (const postId of postIds) {
             await limiter.schedule(async () => {
-                await downloadPostComments(post.post_id, db);
+                await downloadPostComments(postId, db);
                 // Mark post as processed
                 db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(post.post_id);
             });
         }
 
-        console.log('All posts processed successfully');
+        console.log('\nAll posts processed successfully');
         db.close();
     } catch (error) {
         console.error('Error in main:', error);
