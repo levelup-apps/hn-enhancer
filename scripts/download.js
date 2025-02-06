@@ -1,4 +1,4 @@
-// This is a Node.js script that fetches comments from HN and saves them to a text file
+// This is a Node.js script that fetches comments from HN and saves them to a SQLite database
 // The goal of this script is to create a dataset to fine-tune LLMs to create better summaries for the Hacker News Companion extension.
 // It will create a dataset of comments with the following structure:
 // [hierarchy_path] (Score: 4.5) <replies: 3> Author: Comment content
@@ -8,14 +8,13 @@
 // The author is the user who wrote the comment.
 // The content is the text of the comment.
 
-
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import Database from 'better-sqlite3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import {decode} from "html-entities";
@@ -221,19 +220,16 @@ export function structurePostComments(commentsTree, commentsInDOM) {
     return structuredComments;
 }
 
-function savePostCommentsToDisk(postId, comments) {
+function savePostToDatabase(postId, postData, comments, db) {
+    const insertStmt = db.prepare(`
+        INSERT INTO data_set (
+            post_id, post_author, post_created_at, post_title,
+            post_url, post_total_comments, post_points, post_formatted_comments
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-    const filePath = path.join(__dirname, 'output', `${postId}.txt`);
-
-    // Get the directory path from the full file path
-    const dir = path.dirname(filePath);
-
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
-
-    let content = '';
+    // Format comments into a single string
+    let formattedComments = '';
     comments.forEach(comment => {
         const line = [
             `[${comment.path}]`,
@@ -243,17 +239,26 @@ function savePostCommentsToDisk(postId, comments) {
             comment.text
         ].join(' ') + '\n';
 
-        content += line;
+        formattedComments += line;
     });
 
-    fs.writeFileSync(filePath, content, 'utf8');
+    // Insert the data
+    insertStmt.run(
+        postId,
+        postData.author,
+        postData.created_at_i,
+        postData.title,
+        postData.url,
+        comments.size,
+        postData.points,
+        formattedComments
+    );
 
-    return filePath;
+    console.log(`Post ${postId} saved to database`);
 }
 
-async function downloadPostComments(postId) {
+async function downloadPostComments(postId, db) {
     try {
-
         console.log(`Downloading comments for post id: ${postId} ...`);
 
         // Get the comments from the HN API as well as the DOM
@@ -268,8 +273,9 @@ async function downloadPostComments(postId) {
         console.log(`Structuring comments for post id: ${postId} ...`);
         const structuredComments = structurePostComments(commentsJson, commentsInDOM);
 
-        const filePath = savePostCommentsToDisk(postId, structuredComments);
-        console.log(`Structured comments saved to ${filePath}\n`);
+        // Save to database instead of file
+        savePostToDatabase(postId, commentsJson, structuredComments, db);
+        console.log(`Post ${postId} processed successfully\n`);
 
     } catch (error) {
         console.error(`Error: ${error.message}`);
@@ -277,20 +283,48 @@ async function downloadPostComments(postId) {
 }
 
 
-// main function that calls the saveFormattedComments function
+// main function that processes posts from SQLite database
 async function main() {
+    try {
+        // Connect to SQLite database
+        const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
 
-    const inputFilePath = path.join(__dirname, 'input.json');
-    const inputJson = JSON.parse(fs.readFileSync(inputFilePath, 'utf8'));
-    const postIds = inputJson.postIds;
+        // Create data_set table if it doesn't exist
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS data_set (
+                post_id INTEGER primary key,
+                post_author TEXT,
+                post_created_at INTEGER,
+                post_title TEXT,
+                post_url TEXT,
+                post_total_comments INTEGER,
+                post_points INTEGER,
+                post_formatted_comments TEXT,
+                llm_response TEXT
+            )
+        `);
 
-    const limiter = new Bottleneck({
-        minTime: 10_000, // 10 seconds
-        maxConcurrent: 1
-    });
+        // Get unprocessed post IDs from daily_posts table
+        const posts = db.prepare('SELECT post_id FROM daily_posts WHERE processed = 0').all();
 
-    for (const postId of postIds) {
-        await limiter.schedule(() => downloadPostComments(postId));
+        const limiter = new Bottleneck({
+            minTime: 10_000, // 10 seconds
+            maxConcurrent: 1
+        });
+
+        // Process each post ID
+        for (const post of posts) {
+            await limiter.schedule(async () => {
+                await downloadPostComments(post.post_id, db);
+                // Mark post as processed
+                db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(post.post_id);
+            });
+        }
+
+        console.log('All posts processed successfully');
+        db.close();
+    } catch (error) {
+        console.error('Error in main:', error);
     }
 }
 

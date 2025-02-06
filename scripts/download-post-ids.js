@@ -42,7 +42,7 @@ async function getPostIdsForDate(date) {
     }
 }
 
-async function main(numDays) {
+async function main(startDate, numDays) {
     const dataDir = path.join(__dirname, 'data');
     const dbPath = path.join(dataDir, 'hn_posts.db');
 
@@ -63,13 +63,12 @@ async function main(numDays) {
     `);
 
     const insertPost = db.prepare('INSERT OR IGNORE INTO daily_posts (date, post_id) VALUES (?, ?)');
-    const today = new Date();
     let totalPosts = 0;
     
     // Collect posts for the specified number of days
-    for (let i = 0; i < numDays; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
+    for (let i = 1; i < numDays; i++) {
+        const date = startDate;
+        date.setDate(startDate.getDate() - i);
         const formattedDate = date.toISOString().split('T')[0];
         
         console.log(`Fetching posts for ${formattedDate}...`);
@@ -99,6 +98,18 @@ async function main(numDays) {
     db.close();
 }
 
+
+// Get start date from command line arguments
+const startDateString = process.argv[2];
+if (!startDateString) {
+    console.error('Please provide a start date in the format: YYYY-MM-DD. eg. 2025-02-04');
+    process.exit(1);
+}
+
+// parse the date string (YYYY-MM-DD) into a Date object
+const startDate = new Date(startDateString);
+
 // Get number of days to collect from command line arguments
-const numDays = parseInt(process.argv[2], 10) || 10; // Default to 10 days
-main(numDays).catch(console.error);
+const numDays = parseInt(process.argv[3], 10) || 10; // Default to 10 days
+
+main(startDate, numDays).catch(console.error);
