@@ -213,7 +213,7 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
     let topLevelCounter = 1;
 
     function calculatePath(comment) {
-        let path = '';
+        let path;
         if (comment.parentId === commentsTree.id) {
             // Top level comment (its parent is the root of the comment tree which is the story).
             //  The path is just a number like 1, 2, 3, etc.
