@@ -77,8 +77,9 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 
 
 # [Theme 1 Title]
-[Discussion evolution - elaborate this theme with a couple of sentences]
-[Key quotes with hierarchy_paths so that we can link back to the comment in the main page. Include direct "quotations" (with author attribution) where appropriate. You MUST quote directly from users when crediting them, with double quotes. You must include hierarchy_path as well. For example: "[1] As a highly-rated comment from [user1] noted, '...'"]
+[Discussion evolution - elaborate this theme with a couple of sentences.]
+[use bullet points to summarize key insights or arguments under this theme.]
+[Identify important quotes and include them here with hierarchy_paths so that we can link back to the comment in the main page. Include direct "quotations" (with author attribution) where appropriate. You MUST quote directly from users when crediting them, with double quotes. You must include hierarchy_path as well. For example: "[1] As a highly-rated comment from [user1] noted, '...'"]
 [Community consensus or disagreements]
 
 
@@ -91,7 +92,7 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 
 
 # Notable Side Discussions
-[Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page]`
+[Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page]`;
 
 function splitInputTextAtTokenLimit(text, tokenLimit) {
     // Approximate token count per character
@@ -130,7 +131,6 @@ async function main() {
 
         // Get all unprocessed posts
         const posts = db.prepare('SELECT post_id, post_title, post_formatted_comments FROM data_set WHERE deepseek_processed IS NULL OR deepseek_processed = 0').all();
-        // const posts = db.prepare('SELECT post_id, post_title, post_formatted_comments FROM data_set WHERE post_id=42899879').all();
 
         for (const post of posts) {
             try {
