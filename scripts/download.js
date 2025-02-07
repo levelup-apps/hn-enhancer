@@ -182,6 +182,7 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
 
         // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
         flatComments.set(comment.id, {
+            id: comment.id,  // Add the id in the comment object so that you can access later
             author: comment.author,
             replies: comment.children?.length || 0,
             position: position,
