@@ -332,7 +332,7 @@ function savePostToDatabase(postId, postData, comments, db) {
         formattedComments
     );
 
-    console.log(`...Post saved to database table data_set. Post Id: ${postId}`);
+    console.log(`...Post saved to database. Post Id: ${postId}`);
 }
 
 async function downloadPostComments(postId) {
