@@ -1,15 +1,9 @@
 import {describe, expect, it} from '@jest/globals';
 
-import { hello, structurePostComments } from './download.js';
+import {enrichPostComments} from './download.js';
 
-describe('hello function', () => {
-    it('should return "hello"', () => {
-        expect(hello()).toBe("hello");
-    });
-});
-
-describe('structurePostComments function', () => {
-    it('should structure comments correctly', () => {
+describe('enrichPostComments function', () => {
+    it('should enrich the comments correctly', () => {
         const post = {
             id: 101,
             type: 'story',
@@ -42,15 +36,15 @@ describe('structurePostComments function', () => {
             [104, { position: 2, text: 'Comment 3', downvotes: 2 }]
         ]);
 
-        const structuredComments = structurePostComments(post, commentsInDOM);
+        const enrichedComments = enrichPostComments(post, commentsInDOM);
 
         // Test that the story (id = 101) does not exist
-        expect(structuredComments.has(101)).toBe(false);
+        expect(enrichedComments.has(101)).toBe(false);
 
-        expect(structuredComments.size).toBe(3);
-        expect(structuredComments.not)
+        expect(enrichedComments.size).toBe(3);
+        expect(enrichedComments.not)
 
-        expect(structuredComments.get(102)).toEqual({
+        expect(enrichedComments.get(102)).toEqual({
             author: 'user1',
             replies: 1,
             position: 0,
@@ -61,7 +55,7 @@ describe('structurePostComments function', () => {
             score: 900
         });
 
-        expect(structuredComments.get(103)).toEqual({
+        expect(enrichedComments.get(103)).toEqual({
             author: 'user2',
             replies: 0,
             position: 1,
@@ -72,7 +66,7 @@ describe('structurePostComments function', () => {
             score: 666
         });
 
-        expect(structuredComments.get(104)).toEqual({
+        expect(enrichedComments.get(104)).toEqual({
             author: 'user3',
             replies: 0,
             position: 2,
@@ -85,7 +79,7 @@ describe('structurePostComments function', () => {
     });
 });
 
-describe('structurePostComments function', () => {
+describe('enrichPostComments function', () => {
     it('should calculate score using downvotes correctly', () => {
         const post = {
             id: 201,
@@ -126,14 +120,14 @@ describe('structurePostComments function', () => {
             [205, { position: 3, text: 'Comment 4', downvotes: 1 }],
         ]);
 
-        const structuredComments = structurePostComments(post, commentsInDOM);
+        const enrichedComments = enrichPostComments(post, commentsInDOM);
 
-        expect(structuredComments.size).toBe(4);
+        expect(enrichedComments.size).toBe(4);
 
         // Test that the story (id = 101) does not exist
-        expect(structuredComments.has(201)).toBe(false);
+        expect(enrichedComments.has(201)).toBe(false);
 
-        expect(structuredComments.get(202)).toEqual({
+        expect(enrichedComments.get(202)).toEqual({
             author: 'user1',
             replies: 1,
             position: 0,
@@ -144,7 +138,7 @@ describe('structurePostComments function', () => {
             score: 900
         });
 
-        expect(structuredComments.get(203)).toEqual({
+        expect(enrichedComments.get(203)).toEqual({
             author: 'user2',
             replies: 0,
             position: 1,
@@ -155,7 +149,7 @@ describe('structurePostComments function', () => {
             score: 0
         });
 
-        expect(structuredComments.get(204)).toEqual({
+        expect(enrichedComments.get(204)).toEqual({
             author: 'user3',
             replies: 0,
             position: 2,
@@ -166,7 +160,7 @@ describe('structurePostComments function', () => {
             score: 500
         });
 
-        expect(structuredComments.get(205)).toEqual({
+        expect(enrichedComments.get(205)).toEqual({
             author: 'user1',
             replies: 0,
             position: 3,

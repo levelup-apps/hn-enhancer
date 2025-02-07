@@ -934,6 +934,12 @@ class HNEnhancer {
         const commentDepth = commentPathToIdMap.size;
         const {aiProvider, model} = await this.getAIProviderModel();
 
+        if (!aiProvider) {
+            console.log('AI provider not configured. Prompting user to complete setup.');
+            this.showConfigureAIMessage();
+            return;
+        }
+
         const authorElement = comment.querySelector('.hnuser');
         const author = authorElement.textContent || '';
         const highlightedAuthor = `<span class="highlight-author">${author}</span>`;
@@ -1124,7 +1130,7 @@ class HNEnhancer {
 
         // 1. Inject the script into the webpage's context
         const pageScript = document.createElement('script');
-        pageScript.src = chrome.runtime.getURL('page-script.js');
+        pageScript.src = chrome.runtime.getURL('src/page-script.js');
         (document.head || document.documentElement).appendChild(pageScript);
 
         pageScript.onload = () => {
@@ -1215,39 +1221,45 @@ class HNEnhancer {
             }
 
             const {aiProvider, model} = await this.getAIProviderModel();
-            if (aiProvider) {
 
-                // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
-                if(aiProvider === 'chrome-ai') {
+            // Soon after installing the extension, the settings may not be available. Show a message to configure the AI provider.
+            if(!aiProvider) {
+                console.log('AI provider not configured. Prompting user to complete setup.');
+                this.showConfigureAIMessage();
+                return;
+            }
 
-                    this.summaryPanel.updateContent({
-                        title: `Summarization not recommended`,
-                        metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
-                        text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
-                        <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
-                    });
+            // If the AI provider is Chrome Built-in AI, do not summarize because it does not handle long text.
+            if(aiProvider === 'chrome-ai') {
 
-                    // Once the error message is rendered in the summary panel, add the click handler for the Options page link
-                    const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                    if (optionsLink) {
-                        optionsLink.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            this.openOptionsPage();
-                        });
-                    }
-                    return;
-                }
-                // Show a meaningful in-progress message before starting the summarization
-                const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
                 this.summaryPanel.updateContent({
-                    title: 'Post Summary',
-                    metadata: `Analyzing all threads in this post...`,
-                    text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
+                    title: `Summarization not recommended`,
+                    metadata: `Content too long for the selected AI <strong>${aiProvider}</strong>`,
+                    text: `This post is too long to be handled by Chrome Built-in AI. The underlying model Gemini Nano may struggle and hallucinate with large content and deep nested threads due to model size limitations. This model works best with individual comments or brief discussion threads. 
+                    <br/><br/>However, if you still want to summarize this thread, you can <a href="#" id="options-page-link">configure another AI provider</a> like local <a href="https://ollama.com/" target="_blank">Ollama</a> or cloud AI services like OpenAI or Claude.`
                 });
 
-                const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
-                this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+                // Once the error message is rendered in the summary panel, add the click handler for the Options page link
+                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+                if (optionsLink) {
+                    optionsLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openOptionsPage();
+                    });
+                }
+                return;
             }
+            // Show a meaningful in-progress message before starting the summarization
+            const modelInfo = aiProvider ? ` using <strong>${aiProvider} ${model || ''}</strong>` : '';
+            this.summaryPanel.updateContent({
+                title: 'Post Summary',
+                metadata: `Analyzing all threads in this post...`,
+                text: `<div>Generating summary${modelInfo}... This may take a few moments. <span class="loading-spinner"></span></div>`
+            });
+
+            const {formattedComment, commentPathToIdMap} = await this.getHNThread(itemId);
+            this.summarizeTextWithAI(formattedComment, commentPathToIdMap);
+
         } catch (error) {
             console.error('Error preparing for summarization:', error);
             this.summaryPanel.updateContent({
@@ -1263,91 +1275,268 @@ class HNEnhancer {
         return itemIdMatch ? itemIdMatch[1] : null;
     }
 
+    async fetchHNCommentsFromAPI(itemId) {
+        const commentsJson = await this.sendBackgroundMessage(
+            'FETCH_API_REQUEST',
+            {
+                url: `https://hn.algolia.com/api/v1/items/${itemId}`,
+                method: 'GET'
+            }
+        );
+        return commentsJson;
+    }
+
     async getHNThread(itemId) {
         try {
-            const data = await this.sendBackgroundMessage(
-                'FETCH_API_REQUEST',
-                {
-                    url: `https://hn.algolia.com/api/v1/items/${itemId}`,
-                    method: 'GET'
-                }
-            );
+            // Here, we will get the post with the itemId, parse the comments and enhance it with a better structure and score
+            //  Get the comments from the HN API as well as the DOM.
+            //  API comments are in JSON format structured as a tree and represents the hierarchy of comments.
+            //  DOM comments (comments in the HTML page) are in the right sequence according to the up votes.
 
-            return this.convertToPathFormat(data);
+            const commentsJson = await this.fetchHNCommentsFromAPI(itemId);
+            const commentsInDOM = this.getCommentsFromDOM();
+
+            // Merge the two data sets to structure the comments based on hierarchy, votes and position
+            const enhancedComments = this.enrichPostComments(commentsJson, commentsInDOM);
+
+            // Create the path-to-id mapping in order to backlink the comments to the main page.
+            const commentPathToIdMap = new Map();
+            enhancedComments.forEach((comment, id) => {
+                commentPathToIdMap.set(comment.path, id);
+            });
+
+            // Convert structured comments to formatted text
+            const formattedComment = [...enhancedComments.values()]
+                .map(comment => {
+                    return [
+                        `[${comment.path}]`,
+                        `(score: ${comment.score})`,
+                        `<replies: ${comment.replies}>`,
+                        `${comment.author}:`,
+                        comment.text
+                    ].join(' ') + '\n';
+                })
+                .join('');
+
+            this.logDebug('formattedComment...', formattedComment);
+            this.logDebug('commentPathToIdMap...', Object.fromEntries(commentPathToIdMap));
+
+            return {
+                formattedComment,
+                commentPathToIdMap
+            };
         } catch (error) {
-            return null;
+            console.error(`Error: ${error.message}`);
         }
     }
 
-    convertToPathFormat(thread) {
-        const result = [];
-        const commentPathToIdMap = new Map();
+    getCommentsFromDOM() {
 
-        function decodeHTMLEntities(text) {
-            const textarea = document.createElement('textarea');
-            textarea.innerHTML = text;
-            return textarea.value;
-        }
+        // Comments in the DOM are arranged according to their up votes. This gives us the position of the comment.
+        //  We will also extract the downvotes and text of the comment (after sanitizing it).
+        // Create a map to store comment positions, downvotes and the comment text.
+        const commentsInDOM = new Map();
 
-        function computeCommentScore(path, repliesCount, content) {
-            let score = 1;
-            const depthLevel = path.split('.').length;
-            const positionMultiplier = 1.0 / depthLevel;
-            score *= positionMultiplier;
+        // Step 1: collect all comments and their metadata
+        const commentElements = document.querySelectorAll('.comtr');
+        this.logDebug(`Found ${commentElements.length} DOM comments in post`);
 
-            const childCount = repliesCount;
-            const childMultiplier = 1 + (Math.log(childCount + 1) / Math.log(10));
-            score *= childMultiplier;
+        commentElements.forEach((el, index) => {
+            const commentId = el.getAttribute('id');
 
-            const isCollapsed = content.text?.includes('[flagged]') ||
-                                content.text?.includes('[dead]');
-            if (isCollapsed) {
-                score *= 0.1;
+            const commentDiv = el.querySelector('.commtext');
+
+            if (!commentDiv) {
+                // If the comment div is not found, that means it is flagged. So we skip this iteration and continue the loop
+                return;
             }
 
-            return Math.round(score * 100) / 100;
-        }
+            // Step 2: Sanitize the comment text (remove unnecessary html tags, encodings)
+            function sanitizeCommentText() {
 
-        function processNode(node, parentPath = "") {
-            const currentPath = parentPath ? parentPath : "0";
+                // Clone the comment div so that we don't modify the DOM of the main page
+                const tempDiv = commentDiv.cloneNode(true);
 
-            let content = "";
+                // Remove unwanted HTML elements from the clone
+                [...tempDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
 
-            if (node) {
-                if(node.type === 'comment') {
-                    content = node.title || node.text || "";
-                    if (content === null || content === undefined) {
-                        content = "";
-                    } else {
-                        content = decodeHTMLEntities(content);
-                    }
-                    commentPathToIdMap.set(currentPath, node.id);
+                // Replace <p> tags with their text content
+                tempDiv.querySelectorAll('p').forEach(p => {
+                    const text = p.textContent;
+                    p.replaceWith(text);
+                });
 
-                    const replies = node.children?.length || 0;
-                    const score = computeCommentScore(currentPath, replies, content);
-
-                    result.push(`[${currentPath}] (Score: ${score}) <replies: ${replies}> ${node ? node.author : "unknown"}: ${content}`);
+                // decode the HTML entities (to remove url encoding and new lines)
+                function decodeHTML(html) {
+                    const txt = document.createElement('textarea');
+                    txt.innerHTML = html;
+                    return txt.value;
                 }
-                if (node.children && node.children.length > 0) {
-                    node.children.forEach((child, index) => {
-                        let childPath;
-                        if(currentPath === "0") {
-                            childPath = `${index + 1}`;
-                        }
-                        else {
-                            childPath = `${currentPath}.${index + 1}`;
-                        }
-                        processNode(child, childPath);
+
+                // Remove unnecessary new lines and decode HTML entities
+                const sanitizedText = decodeHTML(tempDiv.innerHTML).replace(/\n+/g, ' ');
+
+                return sanitizedText;
+            }
+            const commentText = sanitizeCommentText();
+
+            // Step 3: Get the down votes of the comment in order to calculate the score later
+            // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
+            function getDownvoteCount() {
+
+                let downvoteClass = null;
+                const classes = commentDiv.classList.toString();
+                const match = classes.match(/c[0-9a-f]{2}/);
+                if (!match) {
+                    return 0;
+                }
+
+                downvoteClass = match[0];
+                const downvoteMap = {
+                    'c00': 0,
+                    'c5a': 1,
+                    'c73': 2,
+                    'c82': 3,
+                    'c88': 4,
+                    'c9c': 5,
+                    'cae': 6,
+                    'cbe': 7,
+                    'cce': 8,
+                    'cdd': 9
+                };
+                return downvoteMap[downvoteClass] || 0;
+            }
+            const downvotes = getDownvoteCount();
+
+            // Step 4: Add the position, text and downvotes of the comment to the map
+            commentsInDOM.set(Number(commentId), {
+                position: index,
+                text: commentText,
+                downvotes: downvotes,
+            });
+
+        });
+        return commentsInDOM;
+    }
+
+    enrichPostComments(commentsTree, commentsInDOM) {
+
+        // Here, we enrich the comments as follows:
+        //  add the position of the comment in the DOM (according to the up votes)
+        //  add the text and the down votes of the comment (also from the DOM)
+        //  add the author and number of children as replies (from the comment tree)
+        //  sort them based on the position in the DOM (according to the up votes)
+        //  add the path of the comment (1.1, 1.2, 2.1 etc.) based on the position in the DOM
+        //  add the score of the comment based on the position and down votes
+
+        // Step 1: Flatten the comment tree to map with metadata, position and parent relationship
+        //  This is a recursive function that traverses the comment tree and adds the metadata to the map
+        let flatComments = new Map();
+
+        function flattenCommentTree(comment, parentId) {
+            // Skip the story items, do not add to the flat map. Only process its children (comments)
+            if (comment.type !== 'comment') {
+                if (comment.children && comment.children.length > 0) {
+                    comment.children.forEach(child => {
+                        flattenCommentTree(child, comment.id);
                     });
                 }
+                return;
+            }
+
+            // Set the values into the flat comments map - some properties come from the comment, some from the DOM comments map
+            //  - id, author, replies: from the comment
+            //  - position, text, down votes: from the DOM comments map
+            //  - parentId from the caller of this method
+
+            // Get all values from DOM comments map in one lookup
+            const domComment = commentsInDOM.get(comment.id) || {};
+            const { position = 0, text = '', downvotes = 0 } = domComment;
+
+            // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
+            flatComments.set(comment.id, {
+                id: comment.id,  // Add the id in the comment object so that you can access later
+                author: comment.author,
+                replies: comment.children?.length || 0,
+                position: position,
+                text: text,
+                downvotes: downvotes,
+                parentId: parentId,
+            });
+
+            // Process children of the current comment, pass the comment id as the parent id to the next iteration
+            //  so that the parent-child relationship is retained and we can use it to calculate the path later.
+            if (comment.children && comment.children.length > 0) {
+                comment.children.forEach(child => {
+                    flattenCommentTree(child, comment.id);
+                });
             }
         }
 
-        processNode(thread);
-        return {
-            formattedComment: result.join('\n'),
-            commentPathToIdMap: commentPathToIdMap
-        };
+        // Flatten the comment tree and collect comments as a map
+        flattenCommentTree(commentsTree, null);
+
+        // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
+        //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
+        const enrichedComments = new Map([...flatComments.entries()]
+            .sort((a, b) => a[1].position - b[1].position));
+
+        // Step 3: Calculate paths (1.1, 2.3 etc.) using the parentId and the sequence of comments
+        //  This step must be done AFTER sorting the comments by position because the path is based on the position of the comments.
+        let topLevelCounter = 1;
+
+        function calculatePath(comment) {
+            let path;
+            if (comment.parentId === commentsTree.id) {
+                // Top level comment (its parent is the root of the comment tree which is the story).
+                //  The path is just a number like 1, 2, 3, etc.
+                path = String(topLevelCounter++);
+            } else {
+                // Child comment at any level.
+                //  The path is the parent's path + the position of the comment in the parent's children list.
+                const parentPath = enrichedComments.get(comment.parentId).path;
+
+                // get all the children of this comment's parents - this is the list of siblings
+                const siblings = [...enrichedComments.values()]
+                    .filter(c => c.parentId === comment.parentId);
+
+                // Find the position of this comment in the siblings list - this is the sequence number in the path
+                const positionInParent = siblings
+                    .findIndex(c => c.id === comment.id) + 1;
+
+                // Set the path as the parent's path + the position in the parent's children list
+                path = `${parentPath}.${positionInParent}`;
+            }
+            return path;
+        }
+
+        // Step 4: Calculate the score for each comment based on its position and downvotes
+        function calculateScore(comment, totalCommentCount) {
+            // Example score calculation using downvotes
+            const downvotes = comment.downvotes || 0;
+
+            // Score is a number between 1000 and 0, and is calculated as follows:
+            //   default_score = 1000 - (comment_position * 1000 / total_comment_count)
+            //   penalty for down votes = default_score * # of downvotes
+
+            const MAX_SCORE = 1000;
+            const MAX_DOWNVOTES = 10;
+
+            const defaultScore = Math.floor(MAX_SCORE - (comment.position * MAX_SCORE / totalCommentCount));
+            const penaltyPerDownvote = defaultScore / MAX_DOWNVOTES;
+            const penalty = penaltyPerDownvote * downvotes;
+
+            const score = Math.floor(Math.max(defaultScore - penalty, 0));
+            return score;
+        }
+
+        // Final step: Add the path and score for each comment as calculated above
+        enrichedComments.forEach(comment => {
+            comment.path = calculatePath(comment);
+            comment.score = calculateScore(comment, enrichedComments.size);
+        });
+
+        return enrichedComments;
     }
 
     openOptionsPage() {
@@ -1359,6 +1548,27 @@ class HNEnhancer {
         });
     }
 
+    showConfigureAIMessage() {
+        const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
+            'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
+            '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
+            'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
+
+        this.summaryPanel.updateContent({
+            title: 'AI Provider Setup Required',
+            text: message
+        });
+
+        // Add event listener after updating content
+        const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
+        if (optionsLink) {
+            optionsLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openOptionsPage();
+            });
+        }
+    }
+
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
@@ -1367,26 +1577,8 @@ class HNEnhancer {
             const model = data.settings?.[providerSelection]?.model;
 
             if (!providerSelection) {
-                console.error('Missing AI summarization configuration');
-
-                const message = 'To use the summarization feature, you need to configure an AI provider. <br/><br/>' +
-                    'Please <a href="#" id="options-page-link">open the settings page</a> to select and configure your preferred AI provider ' +
-                    '(OpenAI, Anthropic, <a href="https://ollama.com/" target="_blank">Ollama</a>, <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> ' +
-                    'or <a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI</a>).';
-
-                this.summaryPanel.updateContent({
-                    title: 'AI Provider Setup Required',
-                    text: message
-                });
-
-                // Add event listener after updating content
-                const optionsLink = this.summaryPanel.panel.querySelector('#options-page-link');
-                if (optionsLink) {
-                    optionsLink.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.openOptionsPage();
-                    });
-                }
+                console.log('AI provider not configured. Prompting user to complete setup.');
+                this.showConfigureAIMessage();
                 return;
             }
 
@@ -1799,26 +1991,71 @@ class HNEnhancer {
     }
 
     getSystemMessage() {
-        return `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
-1. Identify and highlight the main topics and key arguments.
-2. Capture diverse viewpoints and notable opinions.
-3. Analyze the hierarchical structure of the conversation, paying close attention to the path numbers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
-4. Note where significant conversation shifts occur.
-5. Include brief, relevant quotes to support main points.
-6. Maintain a neutral, objective tone.
-7. Aim for a summary length of 150-300 words, adjusting based on thread complexity.
+        return `
+You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches.
+Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing engaging and high quality content. Follow these guidelines:
 
-Input Format:
-The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
-This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
+1. Discussion Structure Understanding:
+   Comments are formatted as: [hierarchy_path] (score: X) <replies: N> Author: Comment
+   
+   - hierarchy_path: Shows the comment's position in the discussion tree
+     - Single number [1] indicates a top-level comment
+     - Each additional number [1.1.2] represents one level deeper in the reply chain
+     - The full path preserves context of how comments relate to each other
 
-Example:
-[1] author1: First reply to the post
-[1.1] author2: First reply to [1]
-[1.1.1] author3: Second-level reply to [1.1]
-[1.2] author4: Second reply to [1]
+   - score: A normalized value between 1000 and 1, representing the comment's relative importance
+     - 1000 represents the highest-value comment in the discussion
+     - Other scores are proportionally scaled against this maximum
+     - Higher scores indicate better community reception and content quality
+   - replies: Number of direct responses to this comment
 
-Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. Use markdown formatting for clarity and readability.`;
+   Example discussion:
+   [1] (score: 1000) <replies: 3> user1: Main point as the first reply to the post
+   [1.1] (score: 800) <replies: 1> user2: Supporting argument or counter point in response to [1]
+   [1.1.1] (score: 50) <replies: 0> user3: Additional detail as response to [1.1]
+   [2] (score: 300) <replies: 0> user4: Comment with a theme different from [1]
+
+2. Content Prioritization:
+   - Focus on high-scoring comments as they represent valuable community insights
+   - Pay attention to comments with many replies as they sparked discussion
+   - Track how discussions evolve through the hierarchy
+   - Consider the combination of score AND replies to gauge overall impact
+  
+3. Theme Identification:
+   - Use top-level comments ([1], [2], etc.) to identify main discussion themes
+   - Group related top-level comments into thematic clusters
+   - Track how each theme develops through reply chains
+   - Watch for patterns where multiple threads converge on similar points
+
+4. Quality Assessment:
+   - Prioritize comments with both high scores and multiple replies
+   - Note expert explanations (often indicated by detailed responses)
+   - Watch for consensus (consistently high scores in a thread)
+
+Based on the above instructions, you should summarize the discussion. Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. 
+
+Your response should be formatted using markdown and should have the following structure. 
+
+# Overview
+Brief summary of the overall discussion in 2-3 sentences - adjust based on complexity and depth of comments.
+
+# Main Themes & Key Insights
+[Bulleted list of themes, ordered by community engagement (combination of scores and replies). Each bullet should be a summary with 2 or 3 sentences, adjusted based on the complexity of the topic.]
+
+# [Theme 1 Title]
+[Discussion evolution - elaborate this theme with a couple of sentences]
+[Key quotes with hierarchy_paths so that we can link back to the comment in the main page. Include direct "quotations" (with author attribution) where appropriate. You MUST quote directly from users when crediting them, with double quotes. You must include hierarchy_path as well. For example: "[1] As a highly-rated comment from [user1] noted, '...'"]
+[Community consensus or disagreements]
+
+# [Theme 2 Title]
+[Same structure as above.]
+
+# Significant Viewpoints
+[Present contrasting perspectives, noting their community reception. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page.]
+
+# Notable Side Discussions
+[Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page]
+        `;
     }
 
     stripAnchors(text) {
@@ -1857,39 +2094,16 @@ Your output should be well-structured, informative, and easily digestible for so
     }
 
     getUserMessage(title, text) {
-        return `Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
+        return `This is your input: 
+The title of the post and comments are separated by dashed lines:
 -----
-Post Title: ${title}
+Post Title: 
+${title}
 -----
 Comments: 
 ${text}
 -----
-
-Use the following structure as an example of the output (do not copy the content, only use the format). 
-Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. If you add new sections, format them as markdown headers (e.g., ## New Section). If you add 'Notable Quotes' sections, the quotes should be enclosed in italics and should have path-based identifiers of the quoted comment.
-
-# Summary
-## Main discussion points
-[List the main topics discussed across all branches as a list]
-  1. [Topic 1]
-  2. [Topic 2]
-  3. [Topic 3]
-  
-## Key takeaways
-[Summarize the most important insights or conclusions from the entire discussion]
-  1. [Takeaway 1]
-  2. [Takeaway 2]
-  
-# Thread analysis
-## Primary branches
-[Number and brief description of main conversation branches. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
-  - [Branch 1 path]: [ Summary]. [Evaluation of branch effectiveness]
-  - [Branch 2 path]: [Evaluation]
-  
-## Interaction patterns
-[Notable patterns in how the discussion branched and evolved]
-
-Please proceed with your analysis and summary of the Hacker News discussion.`;
+`;
     }
 
     // Show the summary in the summary panel - format the summary for two steps:

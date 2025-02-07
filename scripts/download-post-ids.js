@@ -58,6 +58,7 @@ async function main(startDate, numDays) {
         CREATE TABLE IF NOT EXISTS daily_posts (
             date TEXT,
             post_id TEXT,
+            processed INTEGER DEFAULT 0,
             PRIMARY KEY (date, post_id)
         )
     `);
