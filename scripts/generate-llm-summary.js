@@ -94,8 +94,8 @@ async function main() {
         const genAI = new GoogleGenerativeAI(apiKey);
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            // model: "gemini-2.0-flash-lite-preview-02-05",
+            // model: "gemini-2.0-flash",
+            model: "gemini-2.0-flash-lite-preview-02-05",
             systemInstruction: systemPrompt
         });
 
@@ -115,10 +115,12 @@ async function main() {
         // Get all unprocessed posts
         const posts = db.prepare('SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0').all();
 
+        let postIndex = 0;
+        console.log(`Processing ${posts.length} posts...\n`);
         for (const post of posts) {
             try {
                 const startTime = new Date();
-                console.log(`Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
+                console.log(`[${postIndex + 1}/${posts.length}] Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
 
                 const postTitle = post.post_title;
                 const formattedComments = post.post_formatted_comments;
@@ -156,6 +158,7 @@ ${formattedComments}
                         llm_response_input_token_count  = ?,
                         llm_response_output_token_count = ?,
                         llm_response_total_token_count  = ?,
+                        llm_model_name                  = 'gemini-2.0-flash-lite-preview-02-05',
                         llm_processed                   = true
                     WHERE post_id = ?
                 `);
@@ -164,13 +167,22 @@ ${formattedComments}
 
                 const endTime = new Date();
                 const totalTime = (endTime - startTime) / 1000; // in seconds
-                console.log(`Processing Done. Total time taken: ${totalTime} seconds. \n`);
+                console.log(`Processing Done. Total time taken: ${totalTime} seconds.`);
 
-                // Sleep for 1 min to avoid rate limiting
-                // console.log('Sleeping for 1 min...');
-                // await new Promise(resolve => setTimeout(resolve, 120 * 1000));
             } catch (error) {
+
+
                 console.error(`Error processing post ${post.post_id}:`, error);
+
+                // Sleep for 120 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
+                console.log('Sleeping 120 seconds after error to avoid rate limiting ...');
+                await new Promise(resolve => setTimeout(resolve, 120 * 1000));
+            }
+            finally {
+                postIndex++;
+                // Sleep for 20 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
+                console.log('Sleeping 20 seconds to avoid rate limiting ...\n');
+                await new Promise(resolve => setTimeout(resolve, 20 * 1000));
             }
         }
     } catch (error) {
