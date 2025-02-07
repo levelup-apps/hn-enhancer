@@ -267,7 +267,7 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
     return enrichedComments;
 }
 
-function savePostCommentsToDisk(postId, comments) {
+function savePostToDisk(postId, comments) {
 
     const filePath = path.join(__dirname, 'output', `${postId}.txt`);
 
@@ -331,14 +331,11 @@ function savePostToDatabase(postId, postData, comments, db) {
         formattedComments
     );
 
-    console.log(`Post ${postId} saved to database`);
+    console.log(`...Post saved to database table data_set. Post Id: ${postId}`);
 }
 
-async function downloadPostComments(postId, db) {
+async function downloadPostComments(postId) {
     try {
-
-        console.log(`Downloading comments for post id: ${postId} ...`);
-
         // Get the comments from the HN API as well as the DOM
         //  API comments are in JSON format structured as a tree and represents the hierarchy of comments
         const commentsJson = await fetchHNCommentsFromAPI(postId);
@@ -353,15 +350,10 @@ async function downloadPostComments(postId, db) {
         console.log(`...Enriching comments...`);
         const enrichedComments = enrichPostComments(commentsJson, commentsInDOM);
 
-        // Save to database or file
-        const saveToDb = false;
-        if(saveToDb) {
-            savePostToDatabase(postId, commentsJson, enrichedComments, db);
-            console.log(`Post ${postId} processed successfully. Comments saved to DB.\n`);
-        } else {
-            const filePath = savePostCommentsToDisk(postId, enrichedComments);
-            console.log(`Post ${postId} processed successfully. Comments saved to file: ${filePath}\n`);
-        }
+        return {
+            enrichedComments: enrichedComments,
+            postMetaData: commentsJson
+        };
 
     } catch (error) {
         console.error(`...Error downloading comments. ${error.message}`);
@@ -377,6 +369,8 @@ function getPostIdsFromFile() {
 // main function that processes posts from SQLite database
 async function main() {
     try {
+        const useDatabase = true;
+
         // Connect to SQLite database
         const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
 
@@ -397,8 +391,7 @@ async function main() {
 
         // Get unprocessed post IDs from daily_posts table
         const posts = db.prepare('SELECT post_id FROM daily_posts WHERE processed = 0').all();
-        // const postIds = posts.map(post => post.post_id);
-        const postIds = getPostIdsFromFile();
+        const postIds = useDatabase ? posts.map(post => post.post_id) : getPostIdsFromFile();
 
         const limiter = new Bottleneck({
             minTime: 10_000, // 10 seconds
@@ -406,18 +399,37 @@ async function main() {
         });
 
         // Process each post ID
+        console.log(`Processing ${postIds.length} posts...\n`);
+        let postIndex = 0;
+
         for (const postId of postIds) {
             await limiter.schedule(async () => {
-                await downloadPostComments(postId, db);
-                // Mark post as processed
-                db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(post.post_id);
+
+                try {
+                    console.log(`[${postIndex + 1}/${postIds.length}] Post Id: ${postId}. Downloading comments...`);
+                    const downloadedPost = await downloadPostComments(postId, db);
+
+                    // Save to database or file
+                    if (useDatabase) {
+                        // Save the comments to database and mark post as processed in daily_posts table
+                        savePostToDatabase(postId, downloadedPost.postMetaData, downloadedPost.enrichedComments, db);
+                        db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(postId);
+                        console.log(`SUCCESS! Post ${postId} downloaded and saved to DB table data_set.\n`);
+                    } else {
+                        const filePath = savePostToDisk(postId, downloadedPost.enrichedComments);
+                        console.log(`SUCCESS! Post ${postId} downloaded and saved to file: ${filePath}\n`);
+                    }
+                    postIndex++;
+                } catch (error) {
+                    console.error(`ERROR downloading post ${postId}. Error: ${error.message}`);
+                }
             });
         }
 
         console.log('\nAll posts processed successfully');
         db.close();
     } catch (error) {
-        console.error('Error in main:', error);
+        console.error('ERROR in main:', error);
     }
 }
 
