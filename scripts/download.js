@@ -300,7 +300,7 @@ function savePostToDisk(postId, comments) {
 
 function savePostToDatabase(postId, postData, comments, db) {
     const insertStmt = db.prepare(`
-        INSERT INTO data_set (
+        INSERT INTO posts_comments (
             post_id, post_author, post_created_at, post_title,
             post_url, post_total_comments, post_points, post_formatted_comments
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -375,9 +375,9 @@ async function main() {
         // Connect to SQLite database
         const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
 
-        // Create data_set table if it doesn't exist
+        // Create posts_comments table if it doesn't exist
         db.exec(`
-            CREATE TABLE IF NOT EXISTS data_set (
+            CREATE TABLE IF NOT EXISTS posts_comments (
                 post_id INTEGER primary key,
                 post_author TEXT,
                 post_created_at INTEGER,
@@ -386,7 +386,11 @@ async function main() {
                 post_total_comments INTEGER,
                 post_points INTEGER,
                 post_formatted_comments TEXT,
-                llm_response TEXT
+                llm_response_summary TEXT,
+                llm_response_input_token_count INTEGER,
+                llm_response_output_token_count INTEGER,
+                llm_response_total_token_count INTEGER,
+                llm_processed INTEGER DEFAULT 0
             )
         `);
 
