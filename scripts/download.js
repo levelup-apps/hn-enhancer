@@ -419,7 +419,7 @@ async function main() {
                         // Save the comments to database and mark post as processed in daily_posts table
                         savePostToDatabase(postId, downloadedPost.postMetaData, downloadedPost.enrichedComments, db);
                         db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(postId);
-                        console.log(`SUCCESS! Post ${postId} downloaded and saved to DB table data_set.\n`);
+                        console.log(`SUCCESS! Post ${postId} downloaded and saved to DB.\n`);
                     } else {
                         const filePath = savePostToDisk(postId, downloadedPost.enrichedComments);
                         console.log(`SUCCESS! Post ${postId} downloaded and saved to file: ${filePath}\n`);

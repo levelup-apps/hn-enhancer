@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import Database from 'better-sqlite3';
 import path, {dirname} from "path";
 import {fileURLToPath} from "url";
@@ -6,22 +6,7 @@ import {fileURLToPath} from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const apiKey =  process.env.DEEPSEEK_API_KEY;
-if(!apiKey) {
-    console.error("Please set the DEEPSEEK_API_KEY environment variable.");
-    process.exit(1);
-}
-
-// for backward compatibility, you can still use `https://api.deepseek.com/v1` as `baseURL`.
-const openai = new OpenAI({
-    baseURL: 'https://api.deepseek.com',
-    apiKey: apiKey
-});
-
-// Initialize SQLite database
-const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
-
-const systemMessage = `
+const systemPrompt = `
 You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches. Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing engaging and high quality content. Follow these guidelines:
 
 1. Discussion Structure Understanding:
@@ -94,121 +79,100 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 # Notable Side Discussions
 [Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page]`;
 
-function splitInputTextAtTokenLimit(text, tokenLimit) {
-    // Approximate token count per character
-    const TOKENS_PER_CHAR = 0.25;
-
-    // If the text is short enough, return it as is
-    if (text.length * TOKENS_PER_CHAR < tokenLimit) {
-        return text;
-    }
-
-    console.log(`Input text is ${text.length} long. Splitting text at token limit of ${tokenLimit}...`);
-
-    // Split the text into lines
-    const lines = text.split('\n');
-    let outputText = '';
-    let currentTokenCount = 0;
-
-    // Iterate through each line and accumulate until the token limit is reached
-    for (const line of lines) {
-        const lineTokenCount = line.length * TOKENS_PER_CHAR;
-        if (currentTokenCount + lineTokenCount >= tokenLimit) {
-            break;
-        }
-        outputText += line + '\n';
-        currentTokenCount += lineTokenCount;
-    }
-
-    return outputText;
-}
-
-
 async function main() {
+
+    // Initialize SQLite database
+    const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
+
     try {
 
-        const startTime = new Date();
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error("Please set the GEMINI_API_KEY environment variable.");
+            process.exit(1);
+        }
+        const genAI = new GoogleGenerativeAI(apiKey);
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            // model: "gemini-2.0-flash-lite-preview-02-05",
+            systemInstruction: systemPrompt
+        });
+
+        // configure the model parameters and start the chat session
+        const generationConfig = {
+            temperature: 1,
+            topP: 0.95,
+            topK: 40,
+            maxOutputTokens: 8192,
+            responseMimeType: "text/plain",
+        };
+        const chatSession = model.startChat({
+            generationConfig,
+            history: [],
+        });
 
         // Get all unprocessed posts
-        const posts = db.prepare('SELECT post_id, post_title, post_formatted_comments FROM data_set WHERE deepseek_processed IS NULL OR deepseek_processed = 0').all();
+        const posts = db.prepare('SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0').all();
 
         for (const post of posts) {
             try {
-                console.log(`Processing post ${post.post_id}...`);
+                const startTime = new Date();
+                console.log(`Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
 
                 const postTitle = post.post_title;
-                // DeepSeek model's maximum context length is 65,536 tokens.
-                // System message is around 1,000 tokens.
-                // Output markdown template is around 8,192 tokens.
-                // We need to split the input text at around 55,000 tokens to stay within the limit.
-                const formattedComments = splitInputTextAtTokenLimit(post.post_formatted_comments, 50_000);
+                const formattedComments = post.post_formatted_comments;
 
-                const userMessage = `
-This is your input:
-The title of the post and comments are separated by dashed lines.:
+                const userPrompt = `
+This is your input: 
+The title of the post and comments are separated by dashed lines:
 -----
-Post Title: ${postTitle}
+Post Title: 
+${postTitle}
 -----
-Comments: ${formattedComments}
+Comments: 
+${formattedComments}
 -----`;
 
-                const completion = await openai.chat.completions.create({
-                    messages: [
-                        {role: "system", content: systemMessage},
-                        {role: "user", content: userMessage}
-                    ],
-                    // max_tokens: 8192,
-                    model: "deepseek-chat",
-                });
+                console.log(`...Generating summary...`);
+                const result = await chatSession.sendMessage(userPrompt);
 
-                // Begin transaction
-                const updateStmt = db.prepare(`
-                    UPDATE data_set
-                    SET deepseek_llm_response               = ?,
-                        deepseek_response_prompt_tokens     = ?,
-                        deepseek_response_completion_tokens = ?,
-                        deepseek_response_total_tokens      = ?,
-                        deepseek_response_cached_tokens     = ?,
-                        deepseek_processed                  = true
-                    WHERE post_id = ?
-                `);
+                if(!result || !result.response) {
+                    throw new Error('No response from the model for post ' + post.post_id);
+                }
 
                 // Extract values from completion object
-                const llmResponse = completion.choices[0].message.content;
-                const promptTokens = completion.usage.prompt_tokens;
-                const completionTokens = completion.usage.completion_tokens;
-                const totalTokens = completion.usage.total_tokens;
-                const cachedTokens = completion.usage?.prompt_tokens_details?.cached_tokens || 0;
+                const llmResponse = result.response?.candidates[0]?.content?.parts[0]?.text;
+                const inputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.promptTokenCount : 0;
+                const outputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.candidatesTokenCount : 0;
+                const totalTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.totalTokenCount : 0;
 
+                console.log(`...Summarized post ${post.post_id}. Usage: Input tokens: ${inputTokenCount}, Output tokens: ${outputTokenCount}, Total tokens: ${totalTokenCount}`);
+
+                // Update the database with the LLM response
+                const updateStmt = db.prepare(`
+                    UPDATE posts_comments
+                    SET llm_response_summary            = ?,
+                        llm_response_input_token_count  = ?,
+                        llm_response_output_token_count = ?,
+                        llm_response_total_token_count  = ?,
+                        llm_processed                   = true
+                    WHERE post_id = ?
+                `);
                 // Execute update
-                updateStmt.run(
-                    llmResponse,
-                    promptTokens,
-                    completionTokens,
-                    totalTokens,
-                    cachedTokens,
-                    post.post_id
-                );
+                updateStmt.run(llmResponse, inputTokenCount, outputTokenCount, totalTokenCount, post.post_id);
 
-                console.log(`Processed post ${post.post_id}:` +
-                    `- Prompt tokens: ${promptTokens}` +
-                    `- Completion tokens: ${completionTokens}` +
-                    `- Total tokens: ${totalTokens}` +
-                    `- Cached tokens: ${cachedTokens}`);
+                const endTime = new Date();
+                const totalTime = (endTime - startTime) / 1000; // in seconds
+                console.log(`Processing Done. Total time taken: ${totalTime} seconds. \n`);
 
+                // Sleep for 1 min to avoid rate limiting
+                // console.log('Sleeping for 1 min...');
+                // await new Promise(resolve => setTimeout(resolve, 120 * 1000));
             } catch (error) {
                 console.error(`Error processing post ${post.post_id}:`, error);
             }
-
-            const endTime = new Date();
-            const totalTime = (endTime - startTime) / 1000; // in seconds
-            console.log(`Total time for processing all posts: ${totalTime} seconds`);
-
-            // Sleep for 1 min to avoid rate limiting
-            console.log('Sleeping for 1 min...');
-            await new Promise(resolve => setTimeout(resolve, 120 * 1000));
         }
-
     } catch (error) {
         console.error('Error in main process:', error);
     } finally {
