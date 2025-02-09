@@ -79,16 +79,16 @@ VALIDATION_DATA_DIR = "datasets/validation_data"  # Directory containing your MD
 REPO_NAME = "annjose/hn-comments-new"   # Your desired dataset name
 
 # Create and upload training dataset and validation dataset
-train_dataset = create_dataset_from_files(TRAINING_DATA_DIR)
-val_dataset = create_dataset_from_files(VALIDATION_DATA_DIR)
-
-# Create a DatasetDict with both train and val datasets
-dataset_dict = DatasetDict({
-    'train': train_dataset,
-    'val': val_dataset
-})
-
-import json
+# train_dataset = create_dataset_from_files(TRAINING_DATA_DIR)
+# val_dataset = create_dataset_from_files(VALIDATION_DATA_DIR)
+#
+# # Create a DatasetDict with both train and val datasets
+# dataset_dict = DatasetDict({
+#     'train': train_dataset,
+#     'val': val_dataset
+# })
+#
+# import json
 
 # Print train dataset info
 # print("\nTraining Dataset Preview:")
@@ -103,8 +103,13 @@ import json
 # print(json.dumps(val_dataset[0], indent=2))
 
 # Upload to HuggingFace
-upload_to_hub(
-    dataset_dict=dataset_dict,
-    repo_name=REPO_NAME,
-    private=True
-)
+# upload_to_hub(
+#     dataset_dict=dataset_dict,
+#     repo_name=REPO_NAME,
+#     private=True
+# )
+
+query = 'select post_id, post_formatted_comments as input_comment, llm_response_summary as output_summary from posts_comments where post_id=42584896;'
+uri = "sqlite:///data/hn_posts.db"
+dataset = Dataset.from_sql("states", uri)
+print(dataset)
