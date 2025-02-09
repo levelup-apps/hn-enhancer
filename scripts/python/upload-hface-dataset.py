@@ -1,44 +1,25 @@
 import os
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, load_dataset
 from getpass import getpass
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-def upload_to_hub(dataset_dict: DatasetDict,
-                 repo_name: str,
-                 private: bool = True):
-    """
-    Upload dataset to Hugging Face Hub.
+HF_REPO_NAME = "annjose/hn-comments-new"  # Your desired dataset name
 
-    Args:
-        dataset_dict: The Dataset dictionary to upload
-        repo_name: Name for the dataset (format: 'username/dataset-name')
-        private: Whether to make the dataset private (default: True)
-    """
-    # Check if HuggingFace token is in environment
-    if 'HF_TOKEN' not in os.environ:
-        token = getpass("Enter your Hugging Face token: ")
-        os.environ['HF_TOKEN'] = token
+def upload_from_db_to_hface():
 
-    dataset_dict.push_to_hub(
-        repo_name,
-        token=os.environ['HF_TOKEN'],
-        private=private
-    )
+    # get an array of post_ids and convert into a string separated by comma
+    post_ids = [42607623, 42607794, 42608155, 42608436, 42608923, 42609595, 42609819, 42611536]
+    post_ids_str = ','.join(str(post_id) for post_id in post_ids)
 
-
-if __name__ == "__main__":
-    REPO_NAME = "annjose/hn-comments-new"  # Your desired dataset name
-    # query = 'select post_id, post_formatted_comments as input_comment, llm_response_summary as output_summary from posts_comments where post_id=42584896;'
-    query = '''
+    query = f'''
         select post_id,
-               post_formatted_comments as input_comment,
+               '---- Post Title: \n' || post_title || '\n----- Comments: \n' || post_formatted_comments as input_comment,
                llm_response_summary as output_summary
         from posts_comments
-        where post_id in (42584896, 42606773, 42607623, 42609595, 42609819)  -- if you want specific posts
-        -- or simply remove the where clause to get all posts
+        where post_id in ({post_ids_str})
     '''
 
     uri = "sqlite:///../data/hn_posts.db"
@@ -56,9 +37,38 @@ if __name__ == "__main__":
         'validation': split_dataset['test']
     })
 
-
-    upload_to_hub(
-        dataset_dict=dataset_dict,
-        repo_name=REPO_NAME,
+    dataset_dict.push_to_hub(
+        HF_REPO_NAME,
+        token=os.environ['HF_TOKEN'],
         private=True
     )
+
+def delete_from_hface():
+    # Delete validation dataset
+    dataset = load_dataset(HF_REPO_NAME)
+
+    # Create a new DatasetDict with an empty validation set
+    new_dataset = DatasetDict({
+        'train': Dataset.from_dict({}),
+        'validation': Dataset.from_dict({})  # Empty dataset
+    })
+
+    # Push the modified dataset back to Hub
+    new_dataset.push_to_hub(HF_REPO_NAME)
+
+    print(f"Original size: {len(dataset['validation'])}")
+    print(f"New dataset: {new_dataset}")
+
+if __name__ == "__main__":
+
+    # Check if HuggingFace token is in environment
+    if 'HF_TOKEN' not in os.environ:
+        token = getpass("Enter your Hugging Face token: ")
+        os.environ['HF_TOKEN'] = token
+
+    upload_from_db_to_hface()
+
+    # delete_from_hface()
+
+    # dataset = load_dataset(HF_REPO_NAME)
+    # print(f"Dataset size: {len(dataset['validation'])}")
