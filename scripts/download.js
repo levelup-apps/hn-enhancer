@@ -399,7 +399,7 @@ async function main() {
         const postIds = useDatabase ? posts.map(post => post.post_id) : getPostIdsFromFile();
 
         const limiter = new Bottleneck({
-            minTime: 10_000, // 10 seconds
+            minTime: 4_000, // 4 seconds
             maxConcurrent: 1
         });
 
