@@ -47,26 +47,38 @@ def initialize_hface_dataset():
         })
 
         # Create empty example that matches the schema
-        empty_example = {
-            'post_id': ['000'],
-            'input_comment': ['one'],
-            'output_summary': ['one']
+        initial_example = {
+            'post_id': '000',
+            'input_comment': 'one comment',
+            'output_summary': 'one summary'
         }
 
         # Create empty datasets with schema
-        empty_train_dataset = Dataset.from_dict(empty_example, features=features)
-        empty_validation_dataset = Dataset.from_dict(empty_example, features=features)
-        empty_test_dataset = Dataset.from_dict(empty_example, features=features)
+        train_dataset = Dataset.from_dict({
+              'post_id': [initial_example['post_id']],
+              'input_comment': [initial_example['input_comment']],
+              'output_summary': [initial_example['output_summary']]
+          }, features=features)
+        validation_dataset = Dataset.from_dict({
+               'post_id': [initial_example['post_id']],
+               'input_comment': [initial_example['input_comment']],
+               'output_summary': [initial_example['output_summary']]
+           }, features=features)
+        test_dataset = Dataset.from_dict({
+             'post_id': [initial_example['post_id']],
+             'input_comment': [initial_example['input_comment']],
+             'output_summary': [initial_example['output_summary']]
+         }, features=features)
 
         # Create DatasetDict with both splits
-        empty_dataset = DatasetDict({
-            'train': empty_train_dataset,
-            'validation': empty_validation_dataset,
-            'test': empty_test_dataset
+        initial_dataset = DatasetDict({
+            'train': train_dataset,
+            'validation': validation_dataset,
+            'test': test_dataset
         })
 
         # Push empty dataset with schema to Hub
-        empty_dataset.push_to_hub(
+        initial_dataset.push_to_hub(
             HF_REPO_NAME,
             token=os.environ['HF_TOKEN'],
             private=False
@@ -85,12 +97,15 @@ def load_hface_dataset():
         print(f"...Dataset {HF_REPO_NAME} size:{len(dataset_dict)}, Number of splits: {splits}")
 
         for split in splits:
-            print(f"...Split '{split}', size: {len(dataset_dict[split])}.")
+            print(f"\n...Split '{split}', size: {len(dataset_dict[split])}.")
             split_dataset = load_dataset(HF_REPO_NAME, split=split, token=os.environ['HF_TOKEN'])
             if len(split_dataset) > 0:
-                print(f"...Split: '{split}' First row: {split_dataset[0]}")
+                print(f"...  First row:"
+                      f"\n      post_id: {split_dataset[0]['post_id']}"
+                      f"\n      input_comment: {split_dataset[0]['input_comment'][:100]}..."
+                      f"\n      output_summary: {split_dataset[0]['output_summary'][:100]}...")
             else:
-                print(f"...Split: '{split}'No rows")
+                print(f"...No rows")
 
         # print(f"Full dataset info: size:{len(dataset)}. dataset: \n{dataset}")
         return dataset_dict
@@ -111,100 +126,170 @@ def get_datarow(dataset, post_id, split = None):
 
     return datarow_000
 
-def upload_dataset_from_db():
-
-    print("\nPreparing dataset to upload to HF...")
+def upload_sample_set_from_db():
 
     # Create test dataset with two posts (use dummy date for testing)
-    test_post_ids = ['001', '002']
-    test_data = {
-        'post_id': test_post_ids,
-        'input_comment': [
-            'Test comment 1 for post_id: 001',
-            'Test comment 2 for post_id: 002'
-        ],
-        'output_summary': [
-            'Summary 1 for post_id: 001',
-            'Summary 2 for post_id: 002'
-        ]
-    }
+    #test_post_ids = ['001', '002']
+    #test_data = {
+    #    'post_id': test_post_ids,
+    #    'input_comment': [
+    #        'Test comment 1 for post_id: 001',
+    #        'Test comment 2 for post_id: 002'
+    #    ],
+    #    'output_summary': [
+    #        'Summary 1 for post_id: 001',
+    #        'Summary 2 for post_id: 002'
+    #    ]
+    #}
     # test_dataset = Dataset.from_dict(test_data)
     # print(f"Test dataset size: {len(test_dataset)}")
 
-    # select a few post ids for training/validation and one for testing
-    # train_post_ids = ['42607794', '42608436']
-    train_post_ids = [42607623, 42607794, 42608155, 42608436, 42608923, 42609595, 42609819, 42611536]
-    # 42607623 and 42608155 have length > 120K
-    train_post_ids = [42607794, 42608436, 42608923, 42609595, 42609819, 42611536]
-    test_post_ids = ['42611540']
+    # Create a dataset from SQLite DB
 
-    # After testing, reverse this logic - keep a few aside for testing; everything else include in training set
-    # Convert test_post_ids array into SQL string format ('001', '002') so that they can be excluded from train/val set
-    # use with - where post_id not in {test_ids_sql}
-    test_ids_sql = "('" + "', '".join(test_post_ids) + "')"
+    # Ultimately, for real testing, we will upload all the rows in the table to HuggingFace,
+    #  with a split of train, validation and test datasets. At that time, we will set aside a few posts for the test set
+    #  and put everything else in training and validation sets (as 80-20 split).
+    #  We will use the following SQL fragment to get all the posts other than the posts for test dataset.
+    #     test_post_ids = ['123', '456', '789']
+    #     test_ids_sql = "('" + "', '".join(test_post_ids) + "')"
+    #     query = f'''select cast ... where post_id not in {test_ids_sql}'''
 
-    # create test dataset from the train post ids
-    train_post_ids_str = ','.join(str(post_id) for post_id in train_post_ids)
-    query = f'''
-        select cast(post_id as text) as post_id,
-               '---- Post Title: \n' || post_title || '\n----- Comments: \n' || post_formatted_comments as input_comment,
-               llm_response_summary as output_summary
-        from posts_comments
-        where post_id in ({train_post_ids_str})
-    '''
-    # print(f"query for train and val: {query}")
+    # But for now for testing purpose, we will handpick a few post ids and upload them as train, validation and test.
+    # Select a few post ids for training/validation and one for testing
+    # sample_train_val_post_ids = [42607623, 42607794, 42608155, 42608436, 42608923, 42609595, 42609819, 42611536]
 
-    uri = "sqlite:///../data/hn_posts.db"
-    dataset = Dataset.from_sql(query, uri)
+    # sample of small and big posts ()42607623 and 42608155 have length > 120K)
+    # sample_train_val_post_ids = [42607794, 42608436, 42608923, 42609595, 42609819, 42611536]
 
-    print(f"Dataset from sqlite query (for training): {dataset}")
+    # sample of posts with length between 5000 and 6000, and have threads with <replies: 6> or <replies: 7>
+    # sample_train_val_post_ids = [42889786, 42884556]
+    sample_train_val_post_ids = [42889786, 42884556, 42681762, 42864221, 42684257, 42901616, 42803774, 42931109]
+    # sample_train_val_post_ids = []
 
-    # create test dataset from the test post ids
-    test_post_ids_str = ','.join(str(post_id) for post_id in test_post_ids)
-    query_test_data = f'''
+    # Select a specific one for test dataset
+    sample_test_post_ids = [42866572]
+    # sample_test_post_ids = []
+
+    print(f"Sample post Ids for training/validation: {sample_train_val_post_ids}")
+    print(f"Sample post Ids for test: {sample_test_post_ids}")
+    upload_dataset_from_db(sample_train_val_post_ids, sample_test_post_ids)
+
+def upload_dataset_from_db(train_val_post_ids, test_post_ids):
+
+    print("\nPreparing dataset to upload to HF...")
+
+    if len(train_val_post_ids) > 0:
+        # create train+val dataset from the train post ids
+        train_val_post_ids_str = ','.join(str(post_id) for post_id in train_val_post_ids)
+        query = f'''
             select cast(post_id as text) as post_id,
                    '---- Post Title: \n' || post_title || '\n----- Comments: \n' || post_formatted_comments as input_comment,
                    llm_response_summary as output_summary
             from posts_comments
-            where post_id in ({test_post_ids_str})
+            where post_id in ({train_val_post_ids_str})
         '''
-    test_dataset = Dataset.from_sql(query_test_data, uri)
-    print(f"Dataset from sqlite query (for testing): {test_dataset}")
+        # print(f"query for train and val: {query}")
 
-    # Verify that data was loaded into the dataset and it conforms to the schema
-    if len(dataset) == 0:
-        raise ValueError("No records found in database for given post_ids")
-    expected_features = ['post_id', 'input_comment', 'output_summary']
+        uri = "sqlite:///../data/hn_posts.db"
 
-    for feature in expected_features:
-        if feature not in dataset.features:
-            raise ValueError(f"Missing expected feature: {feature}")
+        print(f"Executing Dataset.from_sql() with train_val_post_ids_str: {train_val_post_ids_str}")
+        train_val_dataset = Dataset.from_sql(query, uri)
+        print(f"Dataset from sqlite query (for training and validation): {train_val_dataset}")
 
-    print(f"Dataset is valid and ready to upload. \n Size: {len(dataset)}. \n Features: {dataset.features}.")
+        # Verify that data was loaded into the dataset and it conforms to the schema
+        if len(train_val_dataset) == 0:
+            raise ValueError("No records found in database for given post_ids")
 
-    # Split the remaining data 80-20 for train/validation
-    split_dataset = dataset.train_test_split(test_size=0.2, seed=42)
+        expected_features = ['post_id', 'input_comment', 'output_summary']
+        for feature in expected_features:
+            if feature not in train_val_dataset.features:
+                raise ValueError(f"Missing expected feature: {feature}")
 
-    # Create the final DatasetDict
-    dataset_dict = DatasetDict({
-        'train': split_dataset['train'],
-        'validation': split_dataset['test'],
-        'test': test_dataset
-    })
-    print(f" Number of splits: {dataset_dict.keys()}")
-    print(f" Train size: {len(dataset_dict['train'])}, Validation size: {len(dataset_dict['validation'])}, Test size: {len(test_dataset)}")
+        # Split the remaining data 80-20 for train/validation.
+        # Note: datasets library's test split is intended to be used as validation set.
+        if(len(train_val_dataset) > 1):
+            split_dataset = train_val_dataset.train_test_split(test_size=0.2, seed=42)
+            train_dataset = split_dataset['train']
+            validation_dataset = split_dataset['test']
+        else:
+            # If there is only one post, we cannot split it into train and validation sets.
+            #  So use the single-element list for training set and leave validation set as None
+            train_dataset = train_val_dataset
+            validation_dataset = None
+    else:
+        print("No training post ids provided. (train_val_post_ids is empty.)")
+        train_dataset = None
+        validation_dataset = None
 
-    print(f"Post Ids for training: \t{dataset_dict['train']['post_id']}")
-    print(f"Post Ids for validation: \t{dataset_dict['validation']['post_id']}")
-    print(f"Post Ids for testing: \t{dataset_dict['test']['post_id']}")
+    # create test dataset from the test post ids
+    if(len(test_post_ids) > 0):
+        test_post_ids_str = ','.join(str(post_id) for post_id in test_post_ids)
+        query_test_data = f'''
+                select cast(post_id as text) as post_id,
+                       '---- Post Title: \n' || post_title || '\n----- Comments: \n' || post_formatted_comments as input_comment,
+                       llm_response_summary as output_summary
+                from posts_comments
+                where post_id in ({test_post_ids_str})
+            '''
+        print(f"Executing Dataset.from_sql() with test_post_ids_str: {test_post_ids_str}")
+        test_dataset = Dataset.from_sql(query_test_data, uri)
+    else:
+        # If there are no test post ids, create an empty dataset
+        print(f"No test post ids provided. test_post_ids is empty. Creating empty test dataset")
+        test_dataset = None
 
+    print(f"\nTraining dataset:   {train_dataset}")
+    print(f"Validation dataset: {validation_dataset}")
+    print(f"Test dataset:       {test_dataset}")
+
+    # Create the final DatasetDict to upload to HF
+    # Add the train, validation and test datasets if they are non-empty
+    dataset_dict_components = {}
+
+    # Add train, validation and test datasets only if they have data
+    if train_dataset and len(train_dataset) > 0:
+        dataset_dict_components = {'train': train_dataset}
+    if validation_dataset and len(validation_dataset) > 0:
+        dataset_dict_components['validation'] = validation_dataset
+    if test_dataset and len(test_dataset) > 0:
+        dataset_dict_components['test'] = test_dataset
+
+    # Create the final DatasetDict with only non-empty datasets
+    if(dataset_dict_components) :
+        dataset_dict = DatasetDict(dataset_dict_components)
+    else:
+        print(f"All datasets are empty. No data to upload to HF")
+        return
+
+    print(f"\nFull dataset info: size:{len(dataset_dict)}. dataset: {dataset_dict}")
+    print(f"  Number of splits: {dataset_dict.keys()}")
+
+    if 'train' in dataset_dict and dataset_dict['train'] is not None:
+        print(f"  Train dataset: Size: {len(dataset_dict['train'])}. Post ids: {dataset_dict['train']['post_id']}")
+    else:
+        print("  Train dataset: empty")
+
+    if 'validation' in dataset_dict and dataset_dict['validation'] is not None:
+        print(f"  Validation dataset: Size: {len(dataset_dict['validation'])}. Post ids: {dataset_dict['validation']['post_id']}")
+    else:
+        print("  Validation dataset: empty")
+
+    if 'test' in dataset_dict and dataset_dict['test'] is not None:
+        print(f"  Test dataset: Size: {len(dataset_dict['test'])}. Post ids: {dataset_dict['test']['post_id']}")
+    else:
+        print("  Test dataset: empty")
+
+    # Upload the dataset to HF
     try:
         print(f"Uploading to HF repo: {HF_REPO_NAME} ...")
+
         dataset_dict.push_to_hub(
             HF_REPO_NAME,
             token=os.environ['HF_TOKEN'],
             private=False
         )
+
+        print(f"Successfully uploaded dataset to HF repo: {HF_REPO_NAME}")
     except Exception as e:
         raise Exception(f"Error uploading dataset: Exception thrown by HF API push_to_hub() \n\t---(exc_start)---\n\t{e}\n\t---(exc_end)---")
 
@@ -246,7 +331,7 @@ def delete_hface_dataset():
 ## Main function
 if __name__ == "__main__":
 
-    # HF_REPO_NAME = "annjose/hn-comments-new"  # Your desired dataset name
+#     HF_REPO_NAME = "annjose/hn-comments-new"  # Your desired dataset name
     HF_REPO_NAME = "annjose/hn-comments-small"  # Your desired dataset name
 
     # Check if HuggingFace token is in environment
@@ -272,6 +357,9 @@ if __name__ == "__main__":
         # print(f"\nChecking if dataset is valid: {HF_REPO_NAME} ...")
         # post_dataset_dict = load_hface_dataset()
 
+        # empty_hface_dataset(post_dataset_dict)
+        # initialize_hface_dataset()
+
         # # look up a post id in the dataset
         # test_post_id = '000'
         # print(f"\nLooking up post_id {test_post_id}...")
@@ -285,7 +373,14 @@ if __name__ == "__main__":
         #       f"\n\tpost_id: post_datarow['post_id'][0] = {post_datarow['post_id'][0]} = post_datarow[0]['post_id'] = {post_datarow[0]['post_id']}, ",
         #       f"\n\tinput_comment={post_datarow['input_comment'][0]}")
 
-        upload_dataset_from_db()
+        # print(f"\nUploading sample dataset to {HF_REPO_NAME} ...")
+        # upload_sample_set_from_db()
+
+        # print(f"\nLoading the full dataset from {HF_REPO_NAME} ...")
+        # upload_dataset_from_db()
+
+        print(f"\nChecking if dataset is valid: {HF_REPO_NAME} ...")
+        post_dataset_dict = load_hface_dataset()
 
         # empty_hface_dataset(post_dataset_dict)
         # delete_hface_dataset()
