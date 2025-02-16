@@ -105,10 +105,12 @@ def load_training_data(dataset_id="annjose/hn-comments-small", hf_token=None):
     # ...item[5]: post id: 42681762, comment length: 8109, summary length: 4158
 
     # in the smaller dataset, exclude two posts with 3000+ token length
-    # exclude_ids = ['42889786', '42901616'] # training starts and ends in 180 seconds
-    exclude_ids = ['42803774', '42931109'] # training starts and ends in 180 seconds => max posts that work = 4
-    # exclude_ids = ['42889786']   # training does NOT start, even with truncating to 2000 chars
-    # exclude_ids = ['42901616']   # training does NOT start, even with truncating to 2000 chars
+    # exclude_ids = ['42889786', '42901616'] # training works fine - starts and ends in ~ 180 seconds
+    exclude_ids = ['42803774', '42931109'] # training works fine - starts and ends in ~ 180 seconds => doesn't matter which posts we choose.
+    # exclude_ids = ['42803774', '42931109', '42901616'] # training works fine - starts and ends in ~ 180 seconds => doesn't matter which posts we choose.
+    # exclude_ids = ['42803774'] # training does NOT start, it stalls at 0 epoch. starts and ends in 180 seconds => if there are more than 4 posts, it stalls.
+    # exclude_ids = ['42889786']   # training does NOT start, even with truncating to 2000 chars, max_seq_length = 4096, 8192
+    # exclude_ids = ['42901616']   # training does NOT start, even with truncating to 2000 chars, max_seq_length = 4096, 8192
     # exclude_ids = []
 
     # Filter the dataset to keep only rows where post_id is not in exclude_ids
