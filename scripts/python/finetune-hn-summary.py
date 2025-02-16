@@ -4,7 +4,7 @@ Fine-tune AI models for summarizing HN comments using Unsloth
 
 This script contains the code to fine-tune large language models for the task of
 summarizing Hacker News comments. The script:
-1. Sets up environment and dependencies 
+1. Sets up environment and dependencies
 2. Loads and prepares training data from HuggingFace
 3. Configures and initializes the base model
 4. Fine-tunes using LoRA adapters
@@ -16,40 +16,41 @@ improved performance while reducing costs.
 """
 
 import os
-import json
 import subprocess
 import time
 from dotenv import load_dotenv
 from unsloth import FastLanguageModel
-import torch
+from unsloth import is_bfloat16_supported
 from datasets import load_dataset
 from trl import SFTTrainer
 from transformers import TrainingArguments, TextStreamer
+import wandb
 
 # Load environment variables
 load_dotenv()
 
-def initialize_model(base_model_name="unsloth/llama-3-8b-bnb-4bit", max_seq_length=4096):
+
+def initialize_model(base_model_name, max_seq_length):
     """Initialize the base model and tokenizer"""
-    print(f"\nInitializing base model: {base_model_name}")
+    print(f"\nInitializing base model: {base_model_name} with max_seq_length: {max_seq_length}\n")
 
     fourbit_models = [
-        "unsloth/mistral-7b-v0.3-bnb-4bit",      # New Mistral v3 2x faster!
+        "unsloth/mistral-7b-v0.3-bnb-4bit",  # New Mistral v3 2x faster!
         "unsloth/mistral-7b-instruct-v0.3-bnb-4bit",
-        "unsloth/llama-3-8b-bnb-4bit",           # Llama-3 15 trillion tokens model 2x faster!
+        "unsloth/llama-3-8b-bnb-4bit",  # Llama-3 15 trillion tokens model 2x faster!
         "unsloth/llama-3-8b-Instruct-bnb-4bit",
         "unsloth/llama-3-70b-bnb-4bit",
-        "unsloth/Phi-3-mini-4k-instruct",        # Phi-3 2x faster!
+        "unsloth/Phi-3-mini-4k-instruct",  # Phi-3 2x faster!
         "unsloth/Phi-3-medium-4k-instruct",
         "unsloth/mistral-7b-bnb-4bit",
-        "unsloth/gemma-7b-bnb-4bit",             # Gemma 2.2x faster!
+        "unsloth/gemma-7b-bnb-4bit",  # Gemma 2.2x faster!
         "unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit"
-    ] # More models at https://huggingface.co/unsloth
-    
+    ]  # More models at https://huggingface.co/unsloth
+
     # Model initialization parameters
     dtype = None  # None for auto detection
     load_in_4bit = True  # Use 4bit quantization to reduce memory usage
-    
+
     # Initialize base model and tokenizer
     base_model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=base_model_name,
@@ -57,11 +58,16 @@ def initialize_model(base_model_name="unsloth/llama-3-8b-bnb-4bit", max_seq_leng
         dtype=dtype,
         load_in_4bit=load_in_4bit
     )
-    
+    print(f"\nBase model {base_model_name} initialized with max_seq_length={max_seq_length}")
+
     return base_model, tokenizer
+
 
 def setup_lora_adapter(base_model):
     """Set up LoRA adapters for efficient fine-tuning"""
+
+    print(f"\nSetting up LoRA adapter...")
+    # Ann: change r from 8 to 16
     lora_model = FastLanguageModel.get_peft_model(
         base_model,
         r=16,  # Rank of the fine-tuning process
@@ -77,24 +83,45 @@ def setup_lora_adapter(base_model):
         use_rslora=False,
         loftq_config=None,
     )
+    print(f"LoRA adapter setup complete.")
+
     return lora_model
+
 
 def load_training_data(dataset_id="annjose/hn-comments-small", hf_token=None):
     """Load the training dataset from HuggingFace"""
+
+    print(f"\nLoading training data from {dataset_id}")
     # Load dataset splits
     train_dataset = load_dataset(dataset_id, split="train", token=hf_token)
-    val_dataset = load_dataset(dataset_id, split="validation", token=hf_token) 
+    val_dataset = load_dataset(dataset_id, split="validation", token=hf_token)
     test_dataset = load_dataset(dataset_id, split="test", token=hf_token)
-    
-    print(f"Dataset sizes:")
-    print(f"Train: {len(train_dataset)}")
-    print(f"Validation: {len(val_dataset)}")
-    print(f"Test: {len(test_dataset)}")
-    
-    return train_dataset, val_dataset, test_dataset
 
-def format_training_data(dataset, tokenizer):
+    # ...item[0]: post id: 42803774, comment length: 6762, summary length: 4460
+    # ...item[1]: post id: 42931109, comment length: 5864, summary length: 3380
+    # ...item[2]: post id: 42901616, comment length: 6824, summary length: 5738
+    # ...item[3]: post id: 42684257, comment length: 7283, summary length: 3457
+    # ...item[4]: post id: 42889786, comment length: 7953, summary length: 8070
+    # ...item[5]: post id: 42681762, comment length: 8109, summary length: 4158
+
+    # in the smaller dataset, exclude two posts with 3000+ token length
+    # exclude_ids = ['42889786', '42901616'] # training starts and ends in 180 seconds
+    exclude_ids = ['42803774', '42931109'] # training starts and ends in 180 seconds => max posts that work = 4
+    # exclude_ids = ['42889786']   # training does NOT start, even with truncating to 2000 chars
+    # exclude_ids = ['42901616']   # training does NOT start, even with truncating to 2000 chars
+    # exclude_ids = []
+
+    # Filter the dataset to keep only rows where post_id is not in exclude_ids
+    train_filtered_dataset = train_dataset.filter(lambda x: x['post_id'] not in exclude_ids)
+
+    print(f"Dataset Size: Train: {len(train_filtered_dataset)}, Validation: {len(val_dataset)}, Test: {len(test_dataset)}")
+    return train_filtered_dataset, val_dataset, test_dataset
+
+
+def format_training_data(dataset, tokenizer, truncate, max_char_length=4000):
     """Format the dataset according to model's template"""
+    print(f"\nFormatting training data with truncate: {truncate}, max_char_length: {max_char_length}...")
+
     # Define prompts and templates
     system_prompt = """You are an AI assistant specialized in analyzing and summarizing Hacker News discussions.
 A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it,
@@ -102,7 +129,7 @@ forming interconnected conversation branches. Your task is to provide concise, m
 essence of the discussion while prioritizing engaging and high quality content."""
 
     user_prompt_prefix = "This is your input:\n The title of the post and comments are separated by dashed lines."
-    
+
     llama_template = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 {SYSTEM}<|eot_id|><|start_header_id|>user<|end_header_id|>
@@ -116,11 +143,23 @@ essence of the discussion while prioritizing engaging and high quality content."
             post_ids = examples["post_id"]
             input_comments = examples["input_comment"]
             summaries = examples["output_summary"]
+            print(f"\nFormatting data of {len(examples["post_id"])} posts...")
 
             formatted_texts = []
             for post_id, comment, summary in zip(post_ids, input_comments, summaries):
                 if not all([comment, summary]):
+                    print("Comment or summary is empty. Skipping {post_id}...")
                     continue
+
+                print(f"...Formatting post {post_id}...")
+                if truncate:
+                    print(f"\tTruncating: Original Text length: system_prompt: {len(system_prompt)}. comment: {len(comment)}. summary: {len(summary)}")
+
+                    # Truncate comment and summary if they exceed max_chars
+                    comment = comment[:max_char_length] if len(comment) > max_char_length else comment
+                    summary = summary[:max_char_length] if len(summary) > max_char_length else summary
+
+                print(f"\tText length: system_prompt: {len(system_prompt)}. comment: {len(comment)}. summary: {len(summary)}")
 
                 user_prompt = f"{user_prompt_prefix}\n{comment}"
                 formatted_text = llama_template.format(
@@ -138,12 +177,22 @@ essence of the discussion while prioritizing engaging and high quality content."
 
     # Format the dataset
     formatted_dataset = dataset.map(format_prompts_func, batched=True)
+
+    print(f"Formatting completed with {len(formatted_dataset)} examples.")
     return formatted_dataset
 
-def setup_trainer(lora_model, tokenizer, dataset, max_seq_length=4096):
+
+def setup_trainer(lora_model, tokenizer, dataset, run_name, max_seq_length):
     """Set up the SFT trainer with training arguments"""
-    current_run_name = "llama_4096_6posts_below_4k_tokensize"
-    
+    print(f"\nSetting up trainer...")
+
+    wandb.login()
+
+    run = wandb.init(
+        project='HN-Summarize FineTune DeepSeek-R1-Distill-Llama-8B using HN Comments Data',
+        name=run_name,
+    )
+
     trainer = SFTTrainer(
         model=lora_model,
         tokenizer=tokenizer,
@@ -158,8 +207,8 @@ def setup_trainer(lora_model, tokenizer, dataset, max_seq_length=4096):
             warmup_steps=5,
             max_steps=60,
             learning_rate=2e-4,
-            fp16=not FastLanguageModel.is_bfloat16_supported(),
-            bf16=FastLanguageModel.is_bfloat16_supported(),
+            fp16=not is_bfloat16_supported(),
+            bf16=is_bfloat16_supported(),
             logging_steps=1,
             optim="adamw_8bit",
             weight_decay=0.01,
@@ -167,56 +216,81 @@ def setup_trainer(lora_model, tokenizer, dataset, max_seq_length=4096):
             seed=3407,
             output_dir="outputs",
             report_to="wandb",
-            run_name=current_run_name,
+            run_name=run_name,
         ),
     )
     return trainer
 
+
 def export_model(model, tokenizer, output_dir="model"):
     """Export the model to GGUF format"""
-    print("Exporting model to GGUF format...")
+
+    print("\nExporting model to GGUF format...")
     model.save_pretrained_gguf(output_dir, tokenizer)
+    print(f"Model exported to GGUF format in {output_dir}")
 
 def setup_ollama():
     """Initialize Ollama server"""
+    print("\nStarting Ollama server...")
+
     # Start Ollama server
     subprocess.Popen(["ollama", "serve"])
     time.sleep(3)  # Wait for server to start
-    
+
     # Create Ollama model
-    subprocess.run(["ollama", "create", "unsloth_model", "-f", "./model/Modelfile"])
+    # Make sure that the Modelfile has the full path to the location FROM /home/george/work/unsloth/model/unsloth.Q8_0.gguf
+    # run directly with this command: create hn-finetune-model -f ./model/Modelfile
+    subprocess.run(["ollama", "create", "hn-finetune-text-trunc-2medium", "-f", "./model/Modelfile"])
+    print("Ollama model created.")
 
 def main():
     # Get HuggingFace token
     hf_token = os.environ.get('HF_TOKEN')
     if not hf_token:
         raise ValueError("HF_TOKEN environment variable not set")
-    
+
     # Initialize model
-    base_model, tokenizer = initialize_model()
-    
+    # base_model_name="unsloth/llama-3-8b-Instruct-bnb-4bit"
+    base_model_name = "unsloth/llama-3-8b-bnb-4bit"
+    # max_seq_length = 4096
+    max_seq_length = 8192
+    base_model, tokenizer = initialize_model(base_model_name, max_seq_length)
+
     # Setup LoRA adapter
     lora_model = setup_lora_adapter(base_model)
-    
+
     # Load and format training data
     train_dataset, val_dataset, test_dataset = load_training_data(hf_token=hf_token)
-    formatted_dataset = format_training_data(train_dataset, tokenizer)
-    
+    print(f"\nPost ids selected for training (after filtering):")
+    print(f"...Train: {train_dataset['post_id']}, Val: {val_dataset['post_id']}, Test: {test_dataset['post_id']}")
+    print("\nLoaded train dataset - text lengths:")
+    for idx, item in enumerate(train_dataset):
+        print(f"...item[{idx}]: post id: {item['post_id']}, comment length: {len(item['input_comment'])}, summary length: {len(item['output_summary'])}")
+
+    formatted_dataset = format_training_data(train_dataset, tokenizer, True, 2000)
+    print("\nFormatted dataset text lengths:", {
+        f"text[{idx}]": len(text)
+        for idx, text in enumerate(formatted_dataset['text'])
+    })
+
     # Setup trainer
-    trainer = setup_trainer(lora_model, tokenizer, formatted_dataset)
-    
+    run_name = "ann-text-trunc-1medium_4small_posts_Llama-3-8b-bnb-4bit_beast_4096"
+    trainer = setup_trainer(lora_model, tokenizer, formatted_dataset, run_name, max_seq_length)
+
     # Train model
-    print("Starting training...")
+    print(f"Starting training... Base Model: {base_model_name}, Max context window: {max_seq_length}, WandB logs in run name: {run_name}")
     trainer_stats = trainer.train()
-    print(f"Training completed in {trainer_stats.metrics['train_runtime']} seconds")
-    
-    # Export model
-    export_model(lora_model, tokenizer)
-    
-    # Setup Ollama integration
-    setup_ollama()
-    
+    wandb.finish()
+    print(f"Training completed in {trainer_stats.metrics['train_runtime']} seconds. WandB logs in run name: {run_name}")
+    #
+    # # Export model
+    # export_model(lora_model, tokenizer)
+    #
+    # # Setup Ollama integration
+    # setup_ollama()
+
     print("Model training and export completed successfully!")
+
 
 if __name__ == "__main__":
     main()
