@@ -10,6 +10,7 @@
     "bottleneck": "^2.19.5",
     "html-entities": "^2.5.2",
     "jest": "^29.7.0",
+    "jsonlines": "^0.1.1",
     "node-fetch": "^3.3.2",
     "node-html-parser": "^7.0.1",
     "tailwindcss": "^3.4.16"
