@@ -241,7 +241,8 @@ def setup_ollama():
 
     # Create Ollama model
     # Make sure that the Modelfile has the full path to the location FROM /home/george/work/unsloth/model/unsloth.Q8_0.gguf
-    # run directly with this command: create hn-finetune-model -f ./model/Modelfile
+    # run directly with this command:
+    #      ollama create hn-finetune-model -f ./model/Modelfile
     subprocess.run(["ollama", "create", "hn-finetune-text-trunc-2medium", "-f", "./model/Modelfile"])
     print("Ollama model created.")
 
