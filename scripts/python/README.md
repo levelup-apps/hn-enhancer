@@ -37,7 +37,12 @@ pip install gguf protobuf
 python3 convert_hf_to_gguf.py <folder_where_model_is_extracted> --outfile <gguf_output_folder>/hn-finetune-llama-3-8.1b-lora-q8_0.gguf --outtype q8_0 
 
 # To generate GGUF with BFloat16 quantization 
-python3 convert_hf_to_gguf.py <folder_where_model_is_extracted> --outfile <gguf_output_folder>/hn-finetune-llama-3-8.1b-lora-bf16.gguf --outtype bf16 
+python3 convert_hf_to_gguf.py <folder_where_model_is_extracted> --outfile <gguf_output_folder>/hn-finetune-llama-3-8.1b-lora-bf16.gguf --outtype bf16
+
+# To quantize to Q5_K_M using `llama-quantize' from llama cpp
+cd llama.cpp/build/bin/
+
+./llama-quantize ./hn-finetune-openpipe-llama-3-1-8b-lora-bf16.gguf ./hn-finetune-openpipe-llama-3-1-8b-lora-q5km.gguf Q5_K_M 
 ```
 ## 4. Infer the model using llama.cpp
 Use the `llama-cli` from llama.cpp
