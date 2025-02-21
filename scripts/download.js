@@ -10,7 +10,8 @@
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import Database from 'better-sqlite3';
+import {createClient} from "@libsql/client";
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +23,7 @@ import {decode} from "html-entities";
 import { parse }  from "node-html-parser";
 import Bottleneck from "bottleneck";
 
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 async function fetchHNCommentsFromAPI(postId) {
     try {
@@ -298,13 +300,7 @@ function savePostToDisk(postId, comments) {
     return filePath;
 }
 
-function savePostToDatabase(postId, postData, comments, db) {
-    const insertStmt = db.prepare(`
-        INSERT INTO posts_comments (
-            post_id, post_author, post_created_at, post_title,
-            post_url, post_total_comments, post_points, post_formatted_comments
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+async function savePostToDatabase(postId, postData, comments, commentPathMap, db) {
 
     // Format comments into a single string
     let formattedComments = '';
@@ -320,18 +316,22 @@ function savePostToDatabase(postId, postData, comments, db) {
         formattedComments += line;
     });
 
-    // Insert the data
-    insertStmt.run(
-        postId,
-        postData.author,
-        postData.created_at_i,
-        postData.title,
-        postData.url,
-        comments.size,
-        postData.points,
-        formattedComments
-    );
-
+    await db.execute({
+        sql: `INSERT INTO posts_comments (post_id, post_author, post_created_at, post_title,
+                                          post_url, post_total_comments, post_points, post_formatted_comments, comment_path_map)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+            postId,
+            postData.author,
+            postData.created_at_i,
+            postData.title,
+            postData.url,
+            comments.size,
+            postData.points,
+            formattedComments,
+            JSON.stringify([...commentPathMap.entries()])
+        ]
+    });
     console.log(`...Post saved to database. Post Id: ${postId}`);
 }
 
@@ -351,9 +351,16 @@ async function downloadPostComments(postId) {
         console.log(`...Enriching comments...`);
         const enrichedComments = enrichPostComments(commentsJson, commentsInDOM);
 
+        // Create a map of comment path to comment ID
+        const commentPathMap = new Map();
+        enrichedComments.forEach(comment => {
+            commentPathMap.set(comment.path, comment.id);
+        });
+
         return {
             enrichedComments: enrichedComments,
-            postMetaData: commentsJson
+            postMetaData: commentsJson,
+            commentPathMap: commentPathMap
         };
 
     } catch (error) {
@@ -369,34 +376,50 @@ function getPostIdsFromFile() {
 
 // main function that processes posts from SQLite database
 async function main() {
+    let db;
     try {
         const useDatabase = true;
 
-        // Connect to SQLite database
-        const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
+        const dbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
+
+        db = createClient({
+            url: dbPath,
+            syncUrl: process.env.TURSO_DATABASE_URL,
+            authToken: process.env.TURSO_AUTH_TOKEN,
+            syncInterval: 5,
+        });
+
+        await db.sync();
 
         // Create posts_comments table if it doesn't exist
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS posts_comments (
-                post_id INTEGER primary key,
-                post_author TEXT,
-                post_created_at INTEGER,
-                post_title TEXT,
-                post_url TEXT,
-                post_total_comments INTEGER,
-                post_points INTEGER,
-                post_formatted_comments TEXT,
-                llm_response_summary TEXT,
-                llm_response_input_token_count INTEGER,
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS posts_comments
+            (
+                post_id                         INTEGER
+                    primary key,
+                post_author                     TEXT,
+                post_created_at                 INTEGER,
+                retrieved_at                    TEXT DEFAULT (datetime('now')),
+                post_title                      TEXT,
+                post_url                        TEXT,
+                post_total_comments             INTEGER,
+                post_points                     INTEGER,
+                post_formatted_comments         TEXT,
+                comment_path_map                TEXT,
+                llm_response_summary            TEXT,
+                llm_response_input_token_count  INTEGER,
                 llm_response_output_token_count INTEGER,
-                llm_response_total_token_count INTEGER,
-                llm_processed INTEGER DEFAULT 0
-            )
+                llm_response_total_token_count  INTEGER,
+                llm_processed                   INTEGER default 0,
+                llm_model_name                  TEXT
+            );
         `);
 
         // Get unprocessed post IDs from daily_posts table
-        const posts = db.prepare('SELECT post_id FROM daily_posts WHERE processed = 0').all();
-        const postIds = useDatabase ? posts.map(post => post.post_id) : getPostIdsFromFile();
+
+
+        const result = await db.execute('SELECT post_id FROM daily_posts WHERE processed = 0');
+        const postIds = useDatabase ? result.rows.map(post => post.post_id) : getPostIdsFromFile();
 
         const limiter = new Bottleneck({
             minTime: 4_000, // 4 seconds
@@ -412,13 +435,17 @@ async function main() {
 
                 try {
                     console.log(`[${postIndex + 1}/${postIds.length}] Post Id: ${postId}. Downloading comments...`);
-                    const downloadedPost = await downloadPostComments(postId, db);
+                    const downloadedPost = await downloadPostComments(postId);
 
                     // Save to database or file
                     if (useDatabase) {
                         // Save the comments to database and mark post as processed in daily_posts table
-                        savePostToDatabase(postId, downloadedPost.postMetaData, downloadedPost.enrichedComments, db);
-                        db.prepare('UPDATE daily_posts SET processed = 1 WHERE post_id = ?').run(postId);
+                        await savePostToDatabase(postId, downloadedPost.postMetaData, downloadedPost.enrichedComments,
+                            downloadedPost.commentPathMap, db);
+                        await db.execute({
+                            sql: 'UPDATE daily_posts SET processed = 1 WHERE post_id = ?',
+                            args: [postId]
+                        });
                         console.log(`SUCCESS! Post ${postId} downloaded and saved to DB.\n`);
                     } else {
                         const filePath = savePostToDisk(postId, downloadedPost.enrichedComments);
@@ -430,11 +457,12 @@ async function main() {
                 }
             });
         }
-
         console.log('\nAll posts processed successfully');
-        db.close();
     } catch (error) {
         console.error('ERROR in main:', error);
+    }
+    finally {
+        await db.close();
     }
 }
 

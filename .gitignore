@@ -12,3 +12,5 @@ src/options/options-styles.css
 # Script generated files and input data
 /scripts/output
 /scripts/data/hn_posts.db
+
+/scripts/.env
