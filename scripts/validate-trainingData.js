@@ -47,7 +47,7 @@ async function validateJSONL(filePath, schema = null) {
 
 
 // More detailed schema validation function
-function validateAgainstSchema(data, schema) {
+function validateAgainstSchema(data) {
     if (!Array.isArray(data.messages)) return false;
 
     return data.messages.every(message => {
@@ -57,7 +57,8 @@ function validateAgainstSchema(data, schema) {
 
 // Example usage
 async function main() {
-    const filePath = path.join(__dirname, 'hn-companion-training-data-all.jsonl');
+    const fileName = 'hn-companion-training-data-test.jsonl';
+    const filePath = path.join(__dirname, fileName);
 
     // Optional schema definition
     const schema = {
