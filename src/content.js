@@ -1312,6 +1312,7 @@ class HNEnhancer {
                         `[${comment.path}]`,
                         `(score: ${comment.score})`,
                         `<replies: ${comment.replies}>`,
+                        `{downvotes: ${comment.downvotes}}`,
                         `${comment.author}:`,
                         comment.text
                     ].join(' ') + '\n';
@@ -1319,7 +1320,7 @@ class HNEnhancer {
                 .join('');
 
             this.logDebug('formattedComment...', formattedComment);
-            this.logDebug('commentPathToIdMap...', Object.fromEntries(commentPathToIdMap));
+            this.logDebug('commentPathToIdMap...', JSON.stringify([...commentPathToIdMap.entries()]));
 
             return {
                 formattedComment,
