@@ -11,4 +11,8 @@ src/options/options-styles.css
 
 # Script generated files and input data
 /scripts/output
-/scripts/data/hn_posts.db
+
+# SQLite database (the db and wal files)
+/scripts/data
+
+/scripts/.env

@@ -45,6 +45,7 @@ describe('enrichPostComments function', () => {
         expect(enrichedComments.not)
 
         expect(enrichedComments.get(102)).toEqual({
+            id: 102,
             author: 'user1',
             replies: 1,
             position: 0,
@@ -56,6 +57,7 @@ describe('enrichPostComments function', () => {
         });
 
         expect(enrichedComments.get(103)).toEqual({
+            id: 103,
             author: 'user2',
             replies: 0,
             position: 1,
@@ -67,6 +69,7 @@ describe('enrichPostComments function', () => {
         });
 
         expect(enrichedComments.get(104)).toEqual({
+            id: 104,
             author: 'user3',
             replies: 0,
             position: 2,
@@ -128,6 +131,7 @@ describe('enrichPostComments function', () => {
         expect(enrichedComments.has(201)).toBe(false);
 
         expect(enrichedComments.get(202)).toEqual({
+            id: 202,
             author: 'user1',
             replies: 1,
             position: 0,
@@ -139,6 +143,7 @@ describe('enrichPostComments function', () => {
         });
 
         expect(enrichedComments.get(203)).toEqual({
+            id: 203,
             author: 'user2',
             replies: 0,
             position: 1,
@@ -150,6 +155,7 @@ describe('enrichPostComments function', () => {
         });
 
         expect(enrichedComments.get(204)).toEqual({
+            id: 204,
             author: 'user3',
             replies: 0,
             position: 2,
@@ -161,6 +167,7 @@ describe('enrichPostComments function', () => {
         });
 
         expect(enrichedComments.get(205)).toEqual({
+            id: 205,
             author: 'user1',
             replies: 0,
             position: 3,

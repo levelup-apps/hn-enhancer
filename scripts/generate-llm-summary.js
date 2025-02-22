@@ -1,10 +1,13 @@
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import Database from 'better-sqlite3';
 import path, {dirname} from "path";
 import {fileURLToPath} from "url";
+import {createClient} from "@libsql/client";
+import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+dotenv.config({path: path.join(__dirname, '.env')});
 
 const systemPrompt = `
 You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches. Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing engaging and high quality content. Follow these guidelines:
@@ -82,7 +85,20 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 async function main() {
 
     // Initialize SQLite database
-    const db = new Database(path.join(__dirname, 'data/hn_posts.db'));
+    const localDbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
+    const db = createClient({
+        url: localDbPath,
+        syncUrl: process.env.TURSO_DATABASE_URL,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+        syncInterval: 30,
+    });
+
+    try {
+        await db.sync();
+    } catch (error) {
+        console.error('Error establishing database connection:', error);
+        throw error;
+    }
 
     try {
 
@@ -91,11 +107,14 @@ async function main() {
             console.error("Please set the GEMINI_API_KEY environment variable.");
             process.exit(1);
         }
+
+        // Initialize the Google Generative AI client
         const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = "gemini-2.0-flash";
+        // const modelName = "gemini-2.0-flash-lite-preview-02-05";
 
         const model = genAI.getGenerativeModel({
-            // model: "gemini-2.0-flash",
-            model: "gemini-2.0-flash-lite-preview-02-05",
+            model: modelName,
             systemInstruction: systemPrompt
         });
 
@@ -113,10 +132,20 @@ async function main() {
         });
 
         // Get all unprocessed posts
-        const posts = db.prepare('SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0').all();
+        const selectStmt = 'SELECT post_id, post_title, post_total_comments, post_formatted_comments ' +
+                           'FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0';
+        const result = await db.execute(selectStmt);
+        const posts = result.rows;
+
+        // const posts = db.prepare('SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0').all();
+        if (!posts || posts.length === 0) {
+            console.log('No posts to process and generate LLM summary. Exiting....');
+            return;
+        }
 
         let postIndex = 0;
         console.log(`Processing ${posts.length} posts...\n`);
+
         for (const post of posts) {
             try {
                 const startTime = new Date();
@@ -126,8 +155,8 @@ async function main() {
                 const formattedComments = post.post_formatted_comments;
 
                 const userPrompt = `
-This is your input: 
-The title of the post and comments are separated by dashed lines:
+Summarize the following Hacker News discussion according to the provided guidelines.
+The discussion is formatted below with post title and comments separated by dashed lines:
 -----
 Post Title: 
 ${postTitle}
@@ -136,15 +165,15 @@ Comments:
 ${formattedComments}
 -----`;
 
-                console.log(`...Generating summary...`);
+                console.log(`...Generating summary using LLM model: ${modelName}`);
                 const result = await chatSession.sendMessage(userPrompt);
 
-                if(!result || !result.response) {
+                if (!result || !result.response) {
                     throw new Error('No response from the model for post ' + post.post_id);
                 }
 
                 // Extract values from completion object
-                const llmResponse = result.response?.candidates[0]?.content?.parts[0]?.text;
+                const llmResponseSummary = result.response?.candidates[0]?.content?.parts[0]?.text;
                 const inputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.promptTokenCount : 0;
                 const outputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.candidatesTokenCount : 0;
                 const totalTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.totalTokenCount : 0;
@@ -152,18 +181,27 @@ ${formattedComments}
                 console.log(`...Summarized post ${post.post_id}. Usage: Input tokens: ${inputTokenCount}, Output tokens: ${outputTokenCount}, Total tokens: ${totalTokenCount}`);
 
                 // Update the database with the LLM response
-                const updateStmt = db.prepare(`
-                    UPDATE posts_comments
-                    SET llm_response_summary            = ?,
-                        llm_response_input_token_count  = ?,
-                        llm_response_output_token_count = ?,
-                        llm_response_total_token_count  = ?,
-                        llm_model_name                  = 'gemini-2.0-flash-lite-preview-02-05',
-                        llm_processed                   = true
-                    WHERE post_id = ?
-                `);
-                // Execute update
-                updateStmt.run(llmResponse, inputTokenCount, outputTokenCount, totalTokenCount, post.post_id);
+                try {
+                    const updateStmt = `
+                        UPDATE posts_comments
+                        SET llm_response_summary            = ?,
+                            llm_response_input_token_count  = ?,
+                            llm_response_output_token_count = ?,
+                            llm_response_total_token_count  = ?,
+                            llm_model_name                  = ?,
+                            llm_processed                   = true
+                        WHERE post_id = ?
+                    `;
+                    await db.execute({
+                        sql: updateStmt,
+                        args: [llmResponseSummary, inputTokenCount, outputTokenCount, totalTokenCount,
+                            modelName, post.post_id]
+                    });
+                    console.log(`...Updated post ${post.post_id} in database with LLM response summary.`);
+                } catch (error) {
+                    console.error('Error updating the post in database with LLM response:', error);
+                    throw error;
+                }
 
                 const endTime = new Date();
                 const totalTime = (endTime - startTime) / 1000; // in seconds
@@ -171,14 +209,12 @@ ${formattedComments}
 
             } catch (error) {
 
-
                 console.error(`Error processing post ${post.post_id}:`, error);
 
                 // Sleep for 120 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
                 console.log('Sleeping 120 seconds after error to avoid rate limiting ...');
                 await new Promise(resolve => setTimeout(resolve, 120 * 1000));
-            }
-            finally {
+            } finally {
                 postIndex++;
                 // Sleep for 20 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
                 console.log('Sleeping 20 seconds to avoid rate limiting ...\n');
@@ -188,7 +224,7 @@ ${formattedComments}
     } catch (error) {
         console.error('Error in main process:', error);
     } finally {
-        db.close();
+        await db.close();
     }
 }
 
