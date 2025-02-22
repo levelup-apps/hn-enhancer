@@ -85,9 +85,9 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 async function main() {
 
     // Initialize SQLite database
-    const localDbUrl = "file:" + path.join(__dirname, 'data/hn_posts.db');
+    const localDbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
     const db = createClient({
-        url: localDbUrl,
+        url: localDbPath,
         syncUrl: process.env.TURSO_DATABASE_URL,
         authToken: process.env.TURSO_AUTH_TOKEN,
         syncInterval: 30,
@@ -133,7 +133,7 @@ async function main() {
 
         // Get all unprocessed posts
         const selectStmt = 'SELECT post_id, post_title, post_total_comments, post_formatted_comments ' +
-            'FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0';
+                           'FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0';
         const result = await db.execute(selectStmt);
         const posts = result.rows;
 
@@ -155,8 +155,8 @@ async function main() {
                 const formattedComments = post.post_formatted_comments;
 
                 const userPrompt = `
-This is your input: 
-The title of the post and comments are separated by dashed lines:
+Summarize the following Hacker News discussion according to the provided guidelines.
+The discussion is formatted below with post title and comments separated by dashed lines:
 -----
 Post Title: 
 ${postTitle}
