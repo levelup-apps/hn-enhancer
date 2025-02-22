@@ -114,6 +114,8 @@ async function getCommentsFromDOM(postHtml) {
             }
 
             downvoteClass = match[0];
+
+            // TODO: match case insensitive
             const downvoteMap = {
                 'c00': 0,
                 'c5a': 1,
@@ -301,6 +303,7 @@ function savePostToDisk(postId, comments) {
     return filePath;
 }
 
+// TODO: This method needs only three parameters - post, db and comments list.
 async function savePostToDatabase(postId, db, postData, comments, commentPathMap) {
 
     // Format comments into a single string
@@ -354,16 +357,21 @@ async function downloadPostComments(postId) {
         console.log(`...Getting comments from DOM...`);
         const commentsInDOM = await getCommentsFromDOM(postHtml);
 
-        // Merge the two data sets to structure the comments based on hierarchy, votes and position
+        // Merge the two data sets to structure the comments based on hierarchy, votes and position.
+        //  API is the source of truth of post and comments, but that data doesn't have all the information we need.
+        //  Specifically, the data from API doesn't have the position down votes and 'flagged' marker of the comments.
+        //  The data from the DOM has this information, so we enrich the API data with this information.
         console.log(`...Enriching comments...`);
         const enrichedComments = enrichPostComments(commentsJson, commentsInDOM);
 
+        // TODO: Move this code to savePostToDatabase and savePostToDisk methods (with a util function)
         // Create a map of comment path to comment ID
         const commentPathMap = new Map();
         enrichedComments.forEach(comment => {
             commentPathMap.set(comment.path, comment.id);
         });
 
+        // TODO: return a post object with metadata and comments as properties instead of returning them separately
         return {
             enrichedComments: enrichedComments,
             postMetaData: commentsJson,
@@ -385,47 +393,52 @@ function getPostIdsFromFile() {
 async function main() {
     let db;
     try {
-        const useDatabase = true;
+        const useDatabase = false;
+        console.log(`\nStarting download process. Getting post ids from ${useDatabase ? 'database data/hn_posts.db' : 'file input.json'}...`);
 
-        const dbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
+        let postIds = [];
+        if(useDatabase) {
+            const dbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
 
-        db = createClient({
-            url: dbPath,
-            syncUrl: process.env.TURSO_DATABASE_URL,
-            authToken: process.env.TURSO_AUTH_TOKEN,
-            syncInterval: 5,
-        });
+            db = createClient({
+                url: dbPath,
+                syncUrl: process.env.TURSO_DATABASE_URL,
+                authToken: process.env.TURSO_AUTH_TOKEN
+            });
 
-        await db.sync();
+            await db.sync();
 
-        // Create posts_comments table if it doesn't exist
-        await db.execute(`
-            CREATE TABLE IF NOT EXISTS posts_comments
-            (
-                post_id                         INTEGER primary key,
-                post_author                     TEXT,
-                post_created_at                 INTEGER,
-                retrieved_at                    TEXT DEFAULT (datetime('now')),
-                post_title                      TEXT,
-                post_url                        TEXT,
-                post_total_comments             INTEGER,
-                post_points                     INTEGER,
-                post_formatted_comments         TEXT,
-                comment_path_map                TEXT,
-                llm_response_summary            TEXT,
-                llm_response_input_token_count  INTEGER,
-                llm_response_output_token_count INTEGER,
-                llm_response_total_token_count  INTEGER,
-                llm_processed                   INTEGER default 0,
-                llm_model_name                  TEXT
-            );
-        `);
+            // Create posts_comments table if it doesn't exist
+            await db.execute(`
+                CREATE TABLE IF NOT EXISTS posts_comments
+                (
+                    post_id                         INTEGER primary key,
+                    post_author                     TEXT,
+                    post_created_at                 INTEGER,
+                    retrieved_at                    TEXT    DEFAULT (datetime('now')),
+                    post_title                      TEXT,
+                    post_url                        TEXT,
+                    post_total_comments             INTEGER,
+                    post_points                     INTEGER,
+                    post_formatted_comments         TEXT,
+                    comment_path_map                TEXT,
+                    llm_response_summary            TEXT,
+                    llm_response_input_token_count  INTEGER,
+                    llm_response_output_token_count INTEGER,
+                    llm_response_total_token_count  INTEGER,
+                    llm_processed                   INTEGER default 0,
+                    llm_model_name                  TEXT
+                );
+            `);
 
-        // Get unprocessed post IDs from daily_posts table
+            // Get unprocessed post IDs from daily_posts table
 
 
-        const result = await db.execute('SELECT post_id FROM daily_posts WHERE processed = 0');
-        const postIds = useDatabase ? result.rows.map(post => post.post_id) : getPostIdsFromFile();
+            const result = await db.execute('SELECT post_id FROM daily_posts WHERE processed = 0');
+            postIds = result.rows.map(post => post.post_id);
+        } else {
+            postIds = getPostIdsFromFile();
+        }
 
         const limiter = new Bottleneck({
             minTime: 4_000, // 4 seconds
@@ -470,7 +483,9 @@ async function main() {
         console.error('ERROR in main:', error);
     }
     finally {
-        await db.close();
+        if(db) {
+            await db.close();
+        }
     }
 }
 
