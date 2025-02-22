@@ -194,7 +194,7 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
         });
 
         // Process children of the current comment, pass the comment id as the parent id to the next iteration
-        //  so that the parent-child relationship is retained and we can use it to calculate the path later.
+        //  so that the parent-child relationship is retained, and we can use it to calculate the path later.
         if (comment.children && comment.children.length > 0) {
             comment.children.forEach(child => {
                 flattenCommentTree(child, comment.id);
@@ -288,6 +288,7 @@ function savePostToDisk(postId, comments) {
             `[${comment.path}]`,
             `(score: ${comment.score})`,
             `<replies: ${comment.replies}>`,
+            `{downvotes: ${comment.downvotes}}`,
             `${comment.author}:`,
             comment.text
         ].join(' ') + '\n';
@@ -300,7 +301,7 @@ function savePostToDisk(postId, comments) {
     return filePath;
 }
 
-async function savePostToDatabase(postId, postData, comments, commentPathMap, db) {
+async function savePostToDatabase(postId, db, postData, comments, commentPathMap) {
 
     // Format comments into a single string
     let formattedComments = '';
@@ -309,12 +310,18 @@ async function savePostToDatabase(postId, postData, comments, commentPathMap, db
             `[${comment.path}]`,
             `(score: ${comment.score})`,
             `<replies: ${comment.replies}>`,
+            `{downvotes: ${comment.downvotes}}`,
             `${comment.author}:`,
             comment.text
         ].join(' ') + '\n';
 
         formattedComments += line;
     });
+
+
+    // Convert the comment path map to an array and then to a JSON string to store in the database
+    //   You can read it back like this: new Map(JSON.parse(commentPathMapAsArray))
+    const commentPathMapAsArray = JSON.stringify([...commentPathMap.entries()]);
 
     await db.execute({
         sql: `INSERT INTO posts_comments (post_id, post_author, post_created_at, post_title,
@@ -329,7 +336,7 @@ async function savePostToDatabase(postId, postData, comments, commentPathMap, db
             comments.size,
             postData.points,
             formattedComments,
-            JSON.stringify([...commentPathMap.entries()])
+            commentPathMapAsArray
         ]
     });
     console.log(`...Post saved to database. Post Id: ${postId}`);
@@ -395,8 +402,7 @@ async function main() {
         await db.execute(`
             CREATE TABLE IF NOT EXISTS posts_comments
             (
-                post_id                         INTEGER
-                    primary key,
+                post_id                         INTEGER primary key,
                 post_author                     TEXT,
                 post_created_at                 INTEGER,
                 retrieved_at                    TEXT DEFAULT (datetime('now')),
@@ -440,8 +446,10 @@ async function main() {
                     // Save to database or file
                     if (useDatabase) {
                         // Save the comments to database and mark post as processed in daily_posts table
-                        await savePostToDatabase(postId, downloadedPost.postMetaData, downloadedPost.enrichedComments,
-                            downloadedPost.commentPathMap, db);
+                        await savePostToDatabase(postId, db,
+                                                downloadedPost.postMetaData,
+                                                downloadedPost.enrichedComments,
+                                                downloadedPost.commentPathMap);
                         await db.execute({
                             sql: 'UPDATE daily_posts SET processed = 1 WHERE post_id = ?',
                             args: [postId]
