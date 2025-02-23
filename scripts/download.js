@@ -108,6 +108,7 @@ async function getCommentsFromDOM(postHtml) {
         const commentFlagged = commentRow.classList.contains('coll') || commentRow.classList.contains('noshow');
         const commentTextDiv = commentRow.querySelector('.commtext');
         if( commentFlagged || !commentTextDiv ) {
+            // console.log(`...Skipping flagged comment at position ${index}. commentFlagged: ${commentFlagged}, commentTextDiv: ${commentTextDiv}`);
             skippedComments++;
             return;
         }
@@ -425,15 +426,21 @@ async function main() {
 
         let postIds = [];
         if(useDatabase) {
-            const dbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
+            const localDbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
 
+            // Use the embedded replica version of Turso to connect to the database.
+            //  Doing this will incur sync cost in Turso. So use it ONLY if you want to sync local copy with remote copy.
+            // db = createClient({
+            //     url: localDbPath,
+            //     syncUrl: process.env.TURSO_DATABASE_URL,
+            //     authToken: process.env.TURSO_AUTH_TOKEN
+            // });
+            // await db.sync();
+
+            // Use the local-only version of Turso to connect to the database. This will prevent syncing with the cloud.
             db = createClient({
-                url: dbPath,
-                syncUrl: process.env.TURSO_DATABASE_URL,
-                authToken: process.env.TURSO_AUTH_TOKEN
+                url: localDbPath
             });
-
-            await db.sync();
 
             // Create posts_comments table if it doesn't exist
             await db.execute(`

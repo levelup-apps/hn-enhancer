@@ -95,16 +95,25 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 
 async function main() {
 
-    // Initialize SQLite database
-    const localDbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
-    const db = createClient({
-        url: localDbPath,
-        syncUrl: process.env.TURSO_DATABASE_URL,
-        authToken: process.env.TURSO_AUTH_TOKEN,
-    });
-
+    let db;
     try {
-        await db.sync();
+        // Initialize SQLite database connection
+        const localDbPath = "file:" + path.join(__dirname, 'data/hn_posts.db');
+
+        // Use the embedded replica version of Turso to connect to the database.
+        //  Doing this will incur sync cost in Turso. So use it ONLY if you want to sync local copy with remote copy.
+        // db = createClient({
+        //     url: localDbPath,
+        //     syncUrl: process.env.TURSO_DATABASE_URL,
+        //     authToken: process.env.TURSO_AUTH_TOKEN
+        // });
+        // await db.sync();
+
+        // Use the local-only version of Turso to connect to the database. This will prevent syncing with the cloud.
+        db = createClient({
+            url: localDbPath
+        });
+
     } catch (error) {
         console.error('Error establishing database connection:', error);
         throw error;
