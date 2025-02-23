@@ -58,6 +58,35 @@ async function fetchHNPage(postId) {
     }
 }
 
+export function getDownvoteCount(commentTextDiv) {
+
+    // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
+    const downvotePattern = /c[0-9a-f]{2}/;
+
+    // Find the first class that matches the downvote pattern
+    const downvoteClass = [...commentTextDiv.classList.values()]
+        .find(className => downvotePattern.test(className.toLowerCase()))
+        ?.toLowerCase();
+
+    if (!downvoteClass) {
+        return 0;
+    }
+
+    const downvoteMap = {
+        'c00': 0,
+        'c5a': 1,
+        'c73': 2,
+        'c82': 3,
+        'c88': 4,
+        'c9c': 5,
+        'cae': 6,
+        'cbe': 7,
+        'cce': 8,
+        'cdd': 9
+    };
+    return downvoteMap[downvoteClass] || 0;
+}
+
 async function getCommentsFromDOM(postHtml) {
 
     // Comments in the DOM are arranged according to their up votes. This gives us the position of the comment.
@@ -103,36 +132,7 @@ async function getCommentsFromDOM(postHtml) {
         const commentText = sanitizeCommentText();
 
         // Step 3: Get the down votes of the comment in order to calculate the score later
-        function getDownvoteCount(commentDiv) {
 
-            // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
-            let downvoteClass = null;
-            const classes = commentDiv.classList.toString();
-            // const classes = Array.from(commentDiv.classList.values())[1]
-            // commentDiv.classList.filter(c => c.startsWith('c'));
-
-            const match = classes.match(/c[0-9a-f]{2}/);
-            if (!match) {
-                return 0;
-            }
-
-            downvoteClass = match[0];
-
-            // TODO: match case insensitive
-            const downvoteMap = {
-                'c00': 0,
-                'c5a': 1,
-                'c73': 2,
-                'c82': 3,
-                'c88': 4,
-                'c9c': 5,
-                'cae': 6,
-                'cbe': 7,
-                'cce': 8,
-                'cdd': 9
-            };
-            return downvoteMap[downvoteClass] || 0;
-        }
         const downvotes = getDownvoteCount(commentTextDiv);
 
         const commentId = commentRow.getAttribute('id');

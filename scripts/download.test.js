@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals';
 
-import {enrichPostComments} from './download.js';
+import {enrichPostComments, getDownvoteCount} from './download.js';
 
 describe('enrichPostComments function', () => {
     it('should enrich the comments correctly', () => {
@@ -176,6 +176,99 @@ describe('enrichPostComments function', () => {
             parentId: 201,
             path: '3',
             score: 225
+        });
+    });
+});
+
+describe('getDownvoteCount', () => {
+// Helper function to create a mock div with classList
+    const createMockDiv = (classes) => ({
+        classList: classes
+    });
+
+    it('should return correct downvote count for valid class names', () => {
+        const testCases = [
+            { classes: ['commText', 'c00'], expected: 0 },
+            { classes: ['commText', 'c5a'], expected: 1 },
+            { classes: ['commText', 'c73'], expected: 2 },
+            { classes: ['commText', 'c82'], expected: 3 },
+            { classes: ['commText', 'c88'], expected: 4 },
+            { classes: ['commText', 'c9c'], expected: 5 },
+            { classes: ['commText', 'cae'], expected: 6 },
+            { classes: ['commText', 'cbe'], expected: 7 },
+            { classes: ['commText', 'cce'], expected: 8 },
+            { classes: ['commText', 'cdd'], expected: 9 },
+            { classes: ['c00'], expected: 0 },
+            { classes: ['c5a'], expected: 1 },
+            { classes: ['c73'], expected: 2 },
+            { classes: ['c82'], expected: 3 },
+            { classes: ['c88'], expected: 4 },
+            { classes: ['c9c'], expected: 5 },
+            { classes: ['cae'], expected: 6 },
+            { classes: ['cbe'], expected: 7 },
+            { classes: ['cce'], expected: 8 },
+            { classes: ['cdd'], expected: 9 }
+        ];
+
+        testCases.forEach(({ classes, expected }) => {
+            const mockDiv = createMockDiv(classes);
+            const downvoteCount = getDownvoteCount(mockDiv);
+            expect(downvoteCount).toBe(expected);
+        });
+    });
+
+    it('should handle uppercase class names correctly', () => {
+        const testCases = [
+            { classes: ['commText', 'C00'], expected: 0 },
+            { classes: ['commText', 'C5A'], expected: 1 },
+            { classes: ['commText', 'C73'], expected: 2 },
+            { classes: ['commText', 'C82'], expected: 3 },
+            { classes: ['commText', 'C88'], expected: 4 },
+            { classes: ['commText', 'C9C'], expected: 5 },
+            { classes: ['commText', 'CAE'], expected: 6 },
+            { classes: ['commText', 'CBE'], expected: 7 },
+            { classes: ['commText', 'CCE'], expected: 8 },
+            { classes: ['commText', 'CDD'], expected: 9 },
+            { classes: ['commText', 'cdD'], expected: 9 },
+        ];
+
+        testCases.forEach(({ classes, expected }) => {
+            const mockDiv = createMockDiv(classes);
+            const downvoteCount = getDownvoteCount(mockDiv);
+            expect(downvoteCount).toBe(expected);
+        });
+    });
+
+    it('should return undefined when no valid downvote class is present', () => {
+        const testCases = [
+            { classes: ['other-class'], expected: 0 },
+            { classes: [], expected: 0 },
+            { classes: ['cx5', 'abc'], expected: 0 }
+        ];
+
+        testCases.forEach(({ classes, expected }) => {
+            const mockDiv = createMockDiv(classes);
+            const downvoteCount = getDownvoteCount(mockDiv);
+            expect(downvoteCount).toBe(expected);
+        });
+    });
+
+    it('should handle multiple classes and pick the correct downvote class', () => {
+        const mockDiv = createMockDiv(['header', 'c82', 'footer']);
+        const downvoteCount = getDownvoteCount(mockDiv);
+        expect(downvoteCount).toBe(3);
+    });
+
+    it('should return 0 for invalid downvote class format that matches pattern', () => {
+        const testCases = [
+            { classes: ['cxx'], expected: 0 },
+            { classes: ['cfg'], expected: 0 }
+        ];
+
+        testCases.forEach(({ classes, expected }) => {
+            const mockDiv = createMockDiv(classes);
+            const downvoteCount = getDownvoteCount(mockDiv);
+            expect(downvoteCount).toBe(expected);
         });
     });
 });
