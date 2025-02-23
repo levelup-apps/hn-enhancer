@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals';
 
-import {enrichPostComments, getDownvoteCount} from './download.js';
+import {extractCommentsFromPost, getDownvoteCount} from './download.js';
 
 describe('enrichPostComments function', () => {
     it('should enrich the comments correctly', () => {
@@ -36,7 +36,7 @@ describe('enrichPostComments function', () => {
             [104, { position: 2, text: 'Comment 3', downvotes: 2 }]
         ]);
 
-        const enrichedComments = enrichPostComments(post, commentsInDOM);
+        const enrichedComments = extractCommentsFromPost(post, commentsInDOM);
 
         // Test that the story (id = 101) does not exist
         expect(enrichedComments.has(101)).toBe(false);
@@ -123,7 +123,7 @@ describe('enrichPostComments function', () => {
             [205, { position: 3, text: 'Comment 4', downvotes: 1 }],
         ]);
 
-        const enrichedComments = enrichPostComments(post, commentsInDOM);
+        const enrichedComments = extractCommentsFromPost(post, commentsInDOM);
 
         expect(enrichedComments.size).toBe(4);
 

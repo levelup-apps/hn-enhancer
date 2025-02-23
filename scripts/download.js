@@ -25,7 +25,7 @@ import Bottleneck from "bottleneck";
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-async function fetchHNCommentsFromAPI(postId) {
+async function fetchHNPostFromAPI(postId) {
     try {
         const url = `https://hn.algolia.com/api/v1/items/${postId}`;
         const response = await fetch(url);
@@ -151,7 +151,7 @@ async function getCommentsFromDOM(postHtml) {
     return commentsInDOM;
 }
 
-export function enrichPostComments(commentsTree, commentsInDOM) {
+export function extractCommentsFromPost(commentsTree, commentsInDOM) {
 
     // Here, we enrich the comments as follows:
     //  add the position of the comment in the DOM (according to the up votes)
@@ -315,8 +315,7 @@ function savePostToDisk(postId, comments) {
     return filePath;
 }
 
-// TODO: This method needs only three parameters - post, db and comments list.
-async function savePostToDatabase(postId, db, postData, comments, commentPathMap) {
+async function savePostToDatabase(postId, db, postData, comments, commentPathMap, commentInfoMap) {
 
     // Format comments into a single string
     let formattedComments = '';
@@ -337,11 +336,13 @@ async function savePostToDatabase(postId, db, postData, comments, commentPathMap
     // Convert the comment path map to an array and then to a JSON string to store in the database
     //   You can read it back like this: new Map(JSON.parse(commentPathMapAsArray))
     const commentPathMapAsArray = JSON.stringify([...commentPathMap.entries()]);
+    const commentInfoMapAsArray = JSON.stringify([...commentInfoMap.entries()]);
 
     await db.execute({
         sql: `INSERT INTO posts_comments (post_id, post_author, post_created_at, post_title,
-                                          post_url, post_total_comments, post_points, post_formatted_comments, comment_path_map)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                          post_url, post_total_comments, post_points, 
+                                          post_formatted_comments, comment_path_map, comment_info_map)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
             postId,
             postData.author,
@@ -351,7 +352,8 @@ async function savePostToDatabase(postId, db, postData, comments, commentPathMap
             comments.size,
             postData.points,
             formattedComments,
-            commentPathMapAsArray
+            commentPathMapAsArray,
+            commentInfoMapAsArray
         ]
     });
     console.log(`...Post saved to database. Post Id: ${postId}`);
@@ -361,7 +363,7 @@ async function downloadPostComments(postId) {
     try {
         // Get the comments from the HN API as well as the DOM
         //  API comments are in JSON format structured as a tree and represents the hierarchy of comments
-        const commentsJson = await fetchHNCommentsFromAPI(postId);
+        const post = await fetchHNPostFromAPI(postId);
 
         // DOM comments (comments in the HTML page) are ordered in the correct sequence as per the up votes.
         // Fetch them and extract the position, text and down votes.
@@ -373,21 +375,32 @@ async function downloadPostComments(postId) {
         //  API is the source of truth of post and comments, but that data doesn't have all the information we need.
         //  Specifically, the data from API doesn't have the position down votes and 'flagged' marker of the comments.
         //  The data from the DOM has this information, so we enrich the API data with this information.
-        console.log(`...Enriching comments...`);
-        const enrichedComments = enrichPostComments(commentsJson, commentsInDOM);
+        console.log(`...Extracting comments...`);
+        const postComments = extractCommentsFromPost(post, commentsInDOM);
 
-        // TODO: Move this code to savePostToDatabase and savePostToDisk methods (with a util function)
         // Create a map of comment path to comment ID
         const commentPathMap = new Map();
-        enrichedComments.forEach(comment => {
+        postComments.forEach(comment => {
             commentPathMap.set(comment.path, comment.id);
         });
 
-        // TODO: return a post object with metadata and comments as properties instead of returning them separately
+        // Create a map of comment info for further analysis
+        const commentInfoMap = new Map();
+        postComments.forEach(comment => {
+            commentInfoMap.set(comment.id, {
+                author: comment.author,
+                path: comment.path,
+                replies: comment.replies,
+                position: comment.position,
+                downvotes: comment.downvotes,
+                score: comment.score,
+            });
+        });
         return {
-            enrichedComments: enrichedComments,
-            postMetaData: commentsJson,
-            commentPathMap: commentPathMap
+            post,
+            postComments,
+            commentPathMap,
+            commentInfoMap
         };
 
     } catch (error) {
@@ -405,7 +418,7 @@ function getPostIdsFromFile() {
 async function main() {
     let db;
     try {
-        const useDatabase = false;
+        const useDatabase = true;
         console.log(`\nStarting download process. Getting post ids from ${useDatabase ? 'database data/hn_posts.db' : 'file input.json'}...`);
 
         let postIds = [];
@@ -427,13 +440,14 @@ async function main() {
                     post_id                         INTEGER primary key,
                     post_author                     TEXT,
                     post_created_at                 INTEGER,
-                    retrieved_at                    TEXT    DEFAULT (datetime('now')),
                     post_title                      TEXT,
                     post_url                        TEXT,
                     post_total_comments             INTEGER,
                     post_points                     INTEGER,
                     post_formatted_comments         TEXT,
                     comment_path_map                TEXT,
+                    comment_info_map                TEXT,
+                    downloaded_at                   TEXT    DEFAULT (datetime('now')),
                     llm_response_summary            TEXT,
                     llm_response_input_token_count  INTEGER,
                     llm_response_output_token_count INTEGER,
@@ -472,16 +486,17 @@ async function main() {
                     if (useDatabase) {
                         // Save the comments to database and mark post as processed in daily_posts table
                         await savePostToDatabase(postId, db,
-                                                downloadedPost.postMetaData,
-                                                downloadedPost.enrichedComments,
-                                                downloadedPost.commentPathMap);
+                                                downloadedPost.post,
+                                                downloadedPost.postComments,
+                                                downloadedPost.commentPathMap,
+                                                downloadedPost.commentInfoMap);
                         await db.execute({
                             sql: 'UPDATE daily_posts SET processed = 1 WHERE post_id = ?',
                             args: [postId]
                         });
                         console.log(`SUCCESS! Post ${postId} downloaded and saved to DB.\n`);
                     } else {
-                        const filePath = savePostToDisk(postId, downloadedPost.enrichedComments);
+                        const filePath = savePostToDisk(postId, downloadedPost.postComments);
                         console.log(`SUCCESS! Post ${postId} downloaded and saved to file: ${filePath}\n`);
                     }
                     postIndex++;
