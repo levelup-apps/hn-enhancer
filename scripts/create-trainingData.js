@@ -29,7 +29,10 @@ try {
 }
 
 // Define the system message
-const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Analyze threaded comments with scores and reply counts. Focus on high-scoring and highly-replied comments to identify main themes and key insights.  Summarize in markdown format with these sections: Overview, Main Themes & Key Insights, [Theme Titles], Significant Viewpoints, Notable Side Discussions.  In 'Main Themes', use bullet points. When quoting comments, include the hierarchy path like '[1.2]' and attribute the author.`;
+const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Analyze threaded comments with scores and reply counts. 
+Focus on high-scoring and highly-replied comments to identify main themes and key insights.  
+Summarize in markdown format with these sections: Overview, Main Themes & Key Insights, [Theme Titles], Key Perspectives, Notable Side Discussions.  
+In 'Main Themes', use bullet points. When quoting comments, include the hierarchy path like '[1.2]' and attribute the author.`;
 
 // Create a write stream for the JSONL file
 const outputFileName = 'hn-companion-training-data-test.jsonl';
@@ -60,15 +63,19 @@ for (const post of posts) {
     try {
 
         const userPrompt = `
-Summarize the following Hacker News discussion according to the provided guidelines.
-The discussion is formatted below with post title and comments separated by dashed lines:
------
-Post Title: 
+Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
+The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
+Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
+The post title and comments are separated by three dashed lines:
+---
+Post Title:
 ${post.post_title}
------
-Comments: 
+---
+Comments:
 ${post.post_formatted_comments}
------`;
+---
+`;
+
         const targetSummary = post.llm_response_summary;
 
         // const jsonlObject = {

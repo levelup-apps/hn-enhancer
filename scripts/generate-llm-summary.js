@@ -10,8 +10,11 @@ const __dirname = dirname(__filename);
 dotenv.config({path: path.join(__dirname, '.env')});
 
 const systemPrompt = `
-You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. Your goal is to help users quickly understand the key discussions and insights from Hacker News threads without having to read through lengthy comment sections. A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches. 
-Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing high quality content. Follow these guidelines:
+You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. 
+Your goal is to help users quickly understand the key discussions and insights from Hacker News threads without having to read through lengthy comment sections. 
+A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches. 
+Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing high quality content. 
+Follow these guidelines:
 
 1. Discussion Structure Understanding:
    Comments are formatted as: [hierarchy_path] (score: X) <replies: Y> {downvotes: Z} Author: Comment
@@ -90,17 +93,6 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 # Notable Side Discussions
 [Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths and author, so that we can link back to the comment in the main page]`;
 
-const userPrompt = `
-Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments. Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
-The post title and comments are separated by dashed lines:
------
-Post Title: 
-${postTitle}
------
-Comments: 
-${formattedComments}
------`;
-
 async function main() {
 
     // Initialize SQLite database
@@ -169,20 +161,19 @@ async function main() {
                 const startTime = new Date();
                 console.log(`[${postIndex + 1}/${posts.length}] Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
 
-                const postTitle = post.post_title;
-                const formattedComments = post.post_formatted_comments;
-
                 const userPrompt = `
-Summarize the following Hacker News discussion according to the provided guidelines.
-The discussion is formatted below with post title and comments separated by dashed lines:
------
-Post Title: 
-${postTitle}
------
-Comments: 
-${formattedComments}
------`;
-
+Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
+The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
+Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
+The post title and comments are separated by three dashed lines:
+---
+Post Title:
+${post.post_title}
+---
+Comments:
+${post.post_formatted_comments}
+---
+`;
                 console.log(`...Generating summary using LLM model: ${modelName}`);
                 const result = await chatSession.sendMessage(userPrompt);
 
