@@ -68,35 +68,34 @@ async function getCommentsFromDOM(postHtml) {
     const rootElement = parse(postHtml);
 
     // Step 1: collect all comments and their metadata
-    const commentElements = rootElement.querySelectorAll('.comtr');
-    console.log(`...Fetched ${commentElements.length} comments from the DOM.`);
+    const commentRows = rootElement.querySelectorAll('.comtr');
 
     let skippedComments = 0;
-    commentElements.forEach((el, index) => {
-        const commentId = el.getAttribute('id');
+    commentRows.forEach((commentRow, index) => {
 
-        const commentDiv = el.querySelector('.commtext');
-
-        if (!commentDiv) {
-            // If the comment div is not found, that means it is flagged. So we skip this iteration and continue the loop
+        // if comment is flagged, it will have the class "coll" (collapsed) or "noshow" (children of collapsed comments)
+        const commentFlagged = commentRow.classList.contains('coll') || commentRow.classList.contains('noshow');
+        if (commentFlagged) {
             skippedComments++;
             return;
         }
+
+        const commentTextDiv = commentRow.querySelector('.commtext');
 
         // Step 2: Sanitize the comment text (remove unnecessary html tags, encodings)
         function sanitizeCommentText() {
 
             // Remove unwanted HTML elements from the clone
-            [...commentDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
+            [...commentTextDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
 
             // Replace <p> tags with their text content
-            commentDiv.querySelectorAll('p').forEach(p => {
+            commentTextDiv.querySelectorAll('p').forEach(p => {
                 const text = p.textContent;
                 p.replaceWith(text);
             });
 
             // Remove unnecessary new lines and decode HTML entities by decoding the HTML entities
-            const sanitizedText = decode(commentDiv.innerHTML)
+            const sanitizedText = decode(commentTextDiv.innerHTML)
                 .replace(/\n+/g, ' ');
 
             return sanitizedText;
@@ -104,10 +103,14 @@ async function getCommentsFromDOM(postHtml) {
         const commentText = sanitizeCommentText();
 
         // Step 3: Get the down votes of the comment in order to calculate the score later
-        // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
-        function getDownvoteCount() {
+        function getDownvoteCount(commentDiv) {
+
+            // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
             let downvoteClass = null;
             const classes = commentDiv.classList.toString();
+            // const classes = Array.from(commentDiv.classList.values())[1]
+            // commentDiv.classList.filter(c => c.startsWith('c'));
+
             const match = classes.match(/c[0-9a-f]{2}/);
             if (!match) {
                 return 0;
@@ -130,18 +133,21 @@ async function getCommentsFromDOM(postHtml) {
             };
             return downvoteMap[downvoteClass] || 0;
         }
-        const downvotes = getDownvoteCount();
+        const downvotes = getDownvoteCount(commentTextDiv);
+
+        const commentId = commentRow.getAttribute('id');
 
         // Step 4: Add the position, text and downvotes of the comment to the map
-        commentsInDOM.set(Number(commentId), {
-            position: index,
-            text: commentText,
-            downvotes: downvotes,
-        });
-
+        commentsInDOM.set(
+            Number(commentId), {
+                position: index,
+                text: commentText,
+                downvotes: downvotes,
+            }
+        );
     });
 
-    console.log(`...Extracted ${commentsInDOM.size} comments from DOM. Skipped ${skippedComments} flagged comments.`);
+    console.log(`...Comments from DOM:: Total: ${commentRows.length}. Skipped (flagged): ${skippedComments}. Remaining: ${commentsInDOM.size}`);
     return commentsInDOM;
 }
 
@@ -160,18 +166,20 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
     let flatComments = new Map();
 
     let apiComments = 0;
+    let skippedComments = 0;
     function flattenCommentTree(comment, parentId) {
 
         // Track the number of comments as we traverse the tree to find the comments from HN API.
         apiComments++;
 
-        // Skip the story items, do not add to the flat map. Only process its children (comments)
-        if (comment.type !== 'comment') {
+        // If this is the story item (root of the tree), flatten its children, but do not add the story item to the map.
+        if (comment.type === 'story') {
             if (comment.children && comment.children.length > 0) {
                 comment.children.forEach(child => {
                     flattenCommentTree(child, comment.id);
                 });
             }
+            skippedComments++;
             return;
         }
 
@@ -180,18 +188,22 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
         //  - position, text, down votes: from the DOM comments map
         //  - parentId from the caller of this method
 
-        // Get all values from DOM comments map in one lookup
-        const domComment = commentsInDOM.get(comment.id) || {};
-        const { position = 0, text = '', downvotes = 0 } = domComment;
+        // Get the DOM comment corresponding to this comment from the commentsInDOM map
+        const commentInDOM = commentsInDOM.get(comment.id);
+        if(!commentInDOM) {
+            // This comment is not found in the DOM comments because it was flagged or collapsed, skip it
+            skippedComments++;
+            return;
+        }
 
         // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
         flatComments.set(comment.id, {
             id: comment.id,  // Add the id in the comment object so that you can access later
             author: comment.author,
             replies: comment.children?.length || 0,
-            position: position,
-            text: text,
-            downvotes: downvotes,
+            position: commentInDOM.position,
+            text: commentInDOM.text,
+            downvotes: commentInDOM.downvotes,
             parentId: parentId,
         });
 
@@ -206,7 +218,7 @@ export function enrichPostComments(commentsTree, commentsInDOM) {
 
     // Flatten the comment tree and collect comments as a map
     flattenCommentTree(commentsTree, null);
-    console.log(`...Fetched ${apiComments} comments from the API. Flattened ${flatComments.size} comments. Skipped 1 story item.`);
+    console.log(`...Comments from API:: Total: ${apiComments}. Skipped: ${skippedComments}. Remaining: ${flatComments.size}`);
 
     // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
     //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
