@@ -19,7 +19,6 @@ const db = createClient({
     url: localDbPath,
     syncUrl: process.env.TURSO_DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
-    syncInterval: 30,
 });
 
 try {

@@ -53,7 +53,6 @@ async function downloadPostIds(startDate, numDays) {
         url: localDbPath,
         syncUrl: process.env.TURSO_DATABASE_URL,
         authToken: process.env.TURSO_AUTH_TOKEN,
-        syncInterval: 10,
     });
 
     try {
