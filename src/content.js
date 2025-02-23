@@ -1339,16 +1339,19 @@ class HNEnhancer {
         const commentsInDOM = new Map();
 
         // Step 1: collect all comments and their metadata
-        const commentElements = document.querySelectorAll('.comtr');
-        this.logDebug(`Found ${commentElements.length} DOM comments in post`);
+        const commentRows = document.querySelectorAll('.comtr');
+        this.logDebug(`Found ${commentRows.length} DOM comments in post`);
 
-        commentElements.forEach((el, index) => {
-            const commentId = el.getAttribute('id');
+        let skippedComments = 0;
+        commentRows.forEach((commentRow, index) => {
 
-            const commentDiv = el.querySelector('.commtext');
-
-            if (!commentDiv) {
-                // If the comment div is not found, that means it is flagged. So we skip this iteration and continue the loop
+            // if comment is flagged, it will have the class "coll" (collapsed) or "noshow" (children of collapsed comments)
+            // if the commText class is not found, the comment is deleted or not visible.
+            // Check for these two conditions and skip it.
+            const commentFlagged = commentRow.classList.contains('coll') || commentRow.classList.contains('noshow');
+            const commentTextDiv = commentRow.querySelector('.commtext');
+            if( commentFlagged || !commentTextDiv ) {
+                skippedComments++;
                 return;
             }
 
@@ -1356,7 +1359,7 @@ class HNEnhancer {
             function sanitizeCommentText() {
 
                 // Clone the comment div so that we don't modify the DOM of the main page
-                const tempDiv = commentDiv.cloneNode(true);
+                const tempDiv = commentTextDiv.cloneNode(true);
 
                 // Remove unwanted HTML elements from the clone
                 [...tempDiv.querySelectorAll('a, code, pre')].forEach(element => element.remove());
@@ -1383,16 +1386,20 @@ class HNEnhancer {
 
             // Step 3: Get the down votes of the comment in order to calculate the score later
             // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
-            function getDownvoteCount() {
+            function getDownvoteCount(commentTextDiv) {
 
-                let downvoteClass = null;
-                const classes = commentDiv.classList.toString();
-                const match = classes.match(/c[0-9a-f]{2}/);
-                if (!match) {
+                // Downvotes are represented by the color of the text. The color is a class name like 'c5a', 'c73', etc.
+                const downvotePattern = /c[0-9a-f]{2}/;
+
+                // Find the first class that matches the downvote pattern
+                const downvoteClass = [...commentTextDiv.classList.values()]
+                    .find(className => downvotePattern.test(className.toLowerCase()))
+                    ?.toLowerCase();
+
+                if (!downvoteClass) {
                     return 0;
                 }
 
-                downvoteClass = match[0];
                 const downvoteMap = {
                     'c00': 0,
                     'c5a': 1,
@@ -1407,7 +1414,9 @@ class HNEnhancer {
                 };
                 return downvoteMap[downvoteClass] || 0;
             }
-            const downvotes = getDownvoteCount();
+            const downvotes = getDownvoteCount(commentTextDiv);
+
+            const commentId = commentRow.getAttribute('id');
 
             // Step 4: Add the position, text and downvotes of the comment to the map
             commentsInDOM.set(Number(commentId), {
@@ -1417,6 +1426,9 @@ class HNEnhancer {
             });
 
         });
+
+        this.logDebug(`...Comments from DOM:: Total: ${commentRows.length}. Skipped (flagged): ${skippedComments}. Remaining: ${commentsInDOM.size}`);
+
         return commentsInDOM;
     }
 
@@ -1434,9 +1446,15 @@ class HNEnhancer {
         //  This is a recursive function that traverses the comment tree and adds the metadata to the map
         let flatComments = new Map();
 
+        let apiComments = 0;
+        let skippedComments = 0;
         function flattenCommentTree(comment, parentId) {
-            // Skip the story items, do not add to the flat map. Only process its children (comments)
-            if (comment.type !== 'comment') {
+
+            // Track the number of comments as we traverse the tree to find the comments from HN API.
+            apiComments++;
+
+            // If this is the story item (root of the tree), flatten its children, but do not add the story item to the map.
+            if (comment.type === 'story') {
                 if (comment.children && comment.children.length > 0) {
                     comment.children.forEach(child => {
                         flattenCommentTree(child, comment.id);
@@ -1450,23 +1468,27 @@ class HNEnhancer {
             //  - position, text, down votes: from the DOM comments map
             //  - parentId from the caller of this method
 
-            // Get all values from DOM comments map in one lookup
-            const domComment = commentsInDOM.get(comment.id) || {};
-            const { position = 0, text = '', downvotes = 0 } = domComment;
+            // Get the DOM comment corresponding to this comment from the commentsInDOM map
+            const commentInDOM = commentsInDOM.get(comment.id);
+            if(!commentInDOM) {
+                // This comment is not found in the DOM comments because it was flagged or collapsed, skip it
+                skippedComments++;
+                return;
+            }
 
             // Add comment to map along with its metadata including position, downvotes and parentId that are needed for scoring.
             flatComments.set(comment.id, {
                 id: comment.id,  // Add the id in the comment object so that you can access later
                 author: comment.author,
                 replies: comment.children?.length || 0,
-                position: position,
-                text: text,
-                downvotes: downvotes,
+                position: commentInDOM.position,
+                text: commentInDOM.text,
+                downvotes: commentInDOM.downvotes,
                 parentId: parentId,
             });
 
             // Process children of the current comment, pass the comment id as the parent id to the next iteration
-            //  so that the parent-child relationship is retained and we can use it to calculate the path later.
+            //  so that the parent-child relationship is retained, and we can use it to calculate the path later.
             if (comment.children && comment.children.length > 0) {
                 comment.children.forEach(child => {
                     flattenCommentTree(child, comment.id);
@@ -1476,6 +1498,9 @@ class HNEnhancer {
 
         // Flatten the comment tree and collect comments as a map
         flattenCommentTree(commentsTree, null);
+
+        // Log the comments so far, skip the top level comment (story) because it is not added to the map
+        this.logDebug(`...Comments from API:: Total: ${apiComments - 1}. Skipped: ${skippedComments}. Remaining: ${flatComments.size}`);
 
         // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
         //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
@@ -1993,45 +2018,57 @@ class HNEnhancer {
 
     getSystemMessage() {
         return `
-You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches.
-Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing engaging and high quality content. Follow these guidelines:
+You are an AI assistant specialized in analyzing and summarizing Hacker News discussions. 
+Your goal is to help users quickly understand the key discussions and insights from Hacker News threads without having to read through lengthy comment sections. 
+A discussion consists of threaded comments where each comment can have child comments (replies) nested underneath it, forming interconnected conversation branches. 
+Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing high quality content. 
+Follow these guidelines:
 
 1. Discussion Structure Understanding:
-   Comments are formatted as: [hierarchy_path] (score: X) <replies: N> Author: Comment
+   Comments are formatted as: [hierarchy_path] (score: X) <replies: Y> {downvotes: Z} Author: Comment
    
    - hierarchy_path: Shows the comment's position in the discussion tree
      - Single number [1] indicates a top-level comment
-     - Each additional number [1.1.2] represents one level deeper in the reply chain
+     - Each additional number represents one level deeper in the reply chain. e.g., [1.2.1] is a reply to [1.2]
      - The full path preserves context of how comments relate to each other
 
    - score: A normalized value between 1000 and 1, representing the comment's relative importance
      - 1000 represents the highest-value comment in the discussion
      - Other scores are proportionally scaled against this maximum
-     - Higher scores indicate better community reception and content quality
+     - Higher scores indicate more upvotes from the community and content quality
+     
    - replies: Number of direct responses to this comment
 
+   - downvotes: Number of downvotes the comment received
+     - Exclude comments with high downvotes from the summary
+     - DO NOT include comments that are have 4 or more downvotes
+   
    Example discussion:
-   [1] (score: 1000) <replies: 3> user1: Main point as the first reply to the post
-   [1.1] (score: 800) <replies: 1> user2: Supporting argument or counter point in response to [1]
-   [1.1.1] (score: 50) <replies: 0> user3: Additional detail as response to [1.1]
-   [2] (score: 300) <replies: 0> user4: Comment with a theme different from [1]
+   [1] (score: 1000) <replies: 3> {downvotes: 0} user1: Main point as the first reply to the post
+   [1.1] (score: 800) <replies: 1> {downvotes: 0} user2: Supporting argument or counter point in response to [1]
+   [1.1.1] (score: 150) <replies: 0> {downvotes: 6} user3: Additional detail as response to [1.1], but should be excluded due to more than 4 downvotes
+   [2] (score: 400) <replies: 1> {downvotes: 0} user4: Comment with a theme different from [1]
+   [2.1] (score: 250) <replies: 0> {downvotes: 1} user2: Counter point to [2], by previous user2, but should have lower priority due to low score and 1 downvote
+   [3] (score: 200) <replies: 0> {downvotes: 0} user5: Another top-level comment with a different perspective
 
 2. Content Prioritization:
    - Focus on high-scoring comments as they represent valuable community insights
    - Pay attention to comments with many replies as they sparked discussion
    - Track how discussions evolve through the hierarchy
-   - Consider the combination of score AND replies to gauge overall impact
+   - Consider the combination of score, downvotes AND replies to gauge overall importance, prioritizing insightful, well-reasoned, and informative content
   
 3. Theme Identification:
    - Use top-level comments ([1], [2], etc.) to identify main discussion themes
+   - Identify recurring themes across top-level comments 
+   - Look for comments that address similar aspects of the main post or propose related ideas.
    - Group related top-level comments into thematic clusters
    - Track how each theme develops through reply chains
-   - Watch for patterns where multiple threads converge on similar points
 
 4. Quality Assessment:
-   - Prioritize comments with both high scores and multiple replies
-   - Note expert explanations (often indicated by detailed responses)
-   - Watch for consensus (consistently high scores in a thread)
+    - Prioritize comments that exhibit a combination of high score, low downvotes, substantial replies, and depth of content
+    - High scores indicate community agreement, downvotes indicate comments not aligned with Hacker News guidelines or community standards
+    - Replies suggest engagement and discussion, and depth (often implied by longer or more detailed comments) can signal valuable insights or expertise
+    - Actively identify and highlight expert explanations or in-depth analyses. These are often found in detailed responses, comments with high scores, or from users who demonstrate expertise on the topic
 
 Based on the above instructions, you should summarize the discussion. Your output should be well-structured, informative, and easily digestible for someone who hasn't read the original thread. 
 
@@ -2041,22 +2078,29 @@ Your response should be formatted using markdown and should have the following s
 Brief summary of the overall discussion in 2-3 sentences - adjust based on complexity and depth of comments.
 
 # Main Themes & Key Insights
-[Bulleted list of themes, ordered by community engagement (combination of scores and replies). Each bullet should be a summary with 2 or 3 sentences, adjusted based on the complexity of the topic.]
+[Bulleted list of themes, ordered by community engagement (combination of scores and replies). Order themes based on the overall community engagement they generated. Each bullet should be a summary with 2 or 3 sentences, adjusted based on the complexity of the topic.]
 
-# [Theme 1 Title]
-[Discussion evolution - elaborate this theme with a couple of sentences]
-[Key quotes with hierarchy_paths so that we can link back to the comment in the main page. Include direct "quotations" (with author attribution) where appropriate. You MUST quote directly from users when crediting them, with double quotes. You must include hierarchy_path as well. For example: "[1] As a highly-rated comment from [user1] noted, '...'"]
-[Community consensus or disagreements]
+# [Theme 1 title - from the first bullet above]
+[Summarize key insights or arguments under this theme in a couple of sentences. Use bullet points.]
+[Identify important quotes and include them here with hierarchy_paths so that we can link back to the comment in the main page. Include direct "quotations" (with author attribution) where appropriate. You MUST quote directly from users with double quotes. You MUST include hierarchy_path as well. Do NOT include comments with 4 or more downvotes. For example: 
+- [1.1.1] (user3) noted, '...'
+- [2.1] (user2) explained that '...'"
+- [3] Perspective from (user5) added, "..."
+- etc.
 
-# [Theme 2 Title]
+# [Theme 2 title - from the second bullet in the main themes section]
 [Same structure as above.]
 
-# Significant Viewpoints
-[Present contrasting perspectives, noting their community reception. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page.]
+# [Theme 3 title and 4 title - if the discussion has more themes]
+
+# Key Perspectives
+[Present contrasting perspectives, noting their community reception. When including key quotes, you MUST include hierarchy_paths and author, so that we can link back to the comment in the main page.]
+[Present these concisely and highlight any significant community reactions (agreement, disagreement, etc.)]
+[Watch for community consensus or disagreements]
 
 # Notable Side Discussions
-[Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths so that we can link back to the comment in the main page]
-        `;
+[Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths and author, so that we can link back to the comment in the main page]
+`;
     }
 
     stripAnchors(text) {
@@ -2095,16 +2139,18 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
     }
 
     getUserMessage(title, text) {
-        return `This is your input: 
-The title of the post and comments are separated by dashed lines:
------
-Post Title: 
+        return `Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
+The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
+Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
+The post title and comments are separated by three dashed lines:
+---
+Post Title:
 ${title}
------
-Comments: 
+---
+Comments:
 ${text}
------
-`;
+---`;
+
     }
 
     // Show the summary in the summary panel - format the summary for two steps:
