@@ -103,13 +103,14 @@ async function getCommentsFromDOM(postHtml) {
     commentRows.forEach((commentRow, index) => {
 
         // if comment is flagged, it will have the class "coll" (collapsed) or "noshow" (children of collapsed comments)
+        // if the commText class is not found, the comment is deleted or not visible.
+        // Check for these two conditions and skip it.
         const commentFlagged = commentRow.classList.contains('coll') || commentRow.classList.contains('noshow');
-        if (commentFlagged) {
+        const commentTextDiv = commentRow.querySelector('.commtext');
+        if( commentFlagged || !commentTextDiv ) {
             skippedComments++;
             return;
         }
-
-        const commentTextDiv = commentRow.querySelector('.commtext');
 
         // Step 2: Sanitize the comment text (remove unnecessary html tags, encodings)
         function sanitizeCommentText() {
@@ -179,7 +180,6 @@ export function extractCommentsFromPost(commentsTree, commentsInDOM) {
                     flattenCommentTree(child, comment.id);
                 });
             }
-            skippedComments++;
             return;
         }
 
@@ -218,7 +218,9 @@ export function extractCommentsFromPost(commentsTree, commentsInDOM) {
 
     // Flatten the comment tree and collect comments as a map
     flattenCommentTree(commentsTree, null);
-    console.log(`...Comments from API:: Total: ${apiComments}. Skipped: ${skippedComments}. Remaining: ${flatComments.size}`);
+
+    // Log the comments so far, skip the top level comment (story) because it is not added to the map
+    console.log(`...Comments from API:: Total: ${apiComments - 1}. Skipped: ${skippedComments}. Remaining: ${flatComments.size}`);
 
     // Step 2: Start building the map of enriched comments, start with the flat comments and sorting them by position.
     //  We have to do this BEFORE calculating the path because the path is based on the position of the comments.
