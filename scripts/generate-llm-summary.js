@@ -121,38 +121,23 @@ async function main() {
 
     try {
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
+        let apiKeys;
+        try {
+            // apiKey could be a Json array of keys
+            const geminiApiKeys = process.env.GEMINI_API_KEY;
+            const parsedKey = JSON.parse(geminiApiKeys);
+            apiKeys = Array.isArray(parsedKey) ? parsedKey : new Array(process.env.GEMINI_API_KEY);
+        } catch {
+            apiKeys = process.env.GEMINI_API_KEY;
+        }
+
+        if (!apiKeys) {
             console.error("Please set the GEMINI_API_KEY environment variable.");
             process.exit(1);
         }
 
-        // Initialize the Google Generative AI client
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = "gemini-2.0-flash";
-        // const modelName = "gemini-2.0-flash-lite-preview-02-05";
-
-        const model = genAI.getGenerativeModel({
-            model: modelName,
-            systemInstruction: systemPrompt
-        });
-
-        // configure the model parameters and start the chat session
-        const generationConfig = {
-            temperature: 1,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 8192,
-            responseMimeType: "text/plain",
-        };
-        const chatSession = model.startChat({
-            generationConfig,
-            history: [],
-        });
-
         // Get all unprocessed posts
-        const selectStmt = 'SELECT post_id, post_title, post_total_comments, post_formatted_comments ' +
-                           'FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0';
+        const selectStmt = 'SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0 order by post_id desc limit 10';
         const result = await db.execute(selectStmt);
         const posts = result.rows;
 
@@ -170,6 +155,32 @@ async function main() {
                 const startTime = new Date();
                 console.log(`[${postIndex + 1}/${posts.length}] Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
 
+                // Cycle through the array of API keys for each iteration
+                const apiKey = apiKeys[postIndex % apiKeys.length];
+
+                // Initialize the Google Generative AI client
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const modelName = "gemini-2.0-flash";
+                // const modelName = "gemini-2.0-flash-lite-preview-02-05";
+
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    systemInstruction: systemPrompt
+                });
+
+                // configure the model parameters and start the chat session
+                const generationConfig = {
+                    temperature: 1,
+                    topP: 0.95,
+                    topK: 40,
+                    maxOutputTokens: 8192,
+                    responseMimeType: "text/plain",
+                };
+                const chatSession = model.startChat({
+                    generationConfig,
+                    history: [],
+                });
+
                 const userPrompt = `
 Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
 The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
@@ -183,7 +194,7 @@ Comments:
 ${post.post_formatted_comments}
 ---
 `;
-                console.log(`...Generating summary using LLM model: ${modelName}`);
+                console.log(`...Generating summary using LLM model: ${modelName}; API Key: ${apiKey}`);
                 const result = await chatSession.sendMessage(userPrompt);
 
                 if (!result || !result.response) {
@@ -226,17 +237,16 @@ ${post.post_formatted_comments}
                 console.log(`Processing Done. Total time taken: ${totalTime} seconds.`);
 
             } catch (error) {
-
                 console.error(`Error processing post ${post.post_id}:`, error);
 
                 // Sleep for 120 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
-                console.log('Sleeping 120 seconds after error to avoid rate limiting ...');
-                await new Promise(resolve => setTimeout(resolve, 120 * 1000));
+                // console.log('Sleeping 120 seconds after error to avoid rate limiting ...');
+                // await new Promise(resolve => setTimeout(resolve, 120 * 1000));
             } finally {
                 postIndex++;
                 // Sleep for 20 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
-                console.log('Sleeping 20 seconds to avoid rate limiting ...\n');
-                await new Promise(resolve => setTimeout(resolve, 20 * 1000));
+                // console.log('Sleeping 20 seconds to avoid rate limiting ...\n');
+                // await new Promise(resolve => setTimeout(resolve, 20 * 1000));
             }
         }
     } catch (error) {
