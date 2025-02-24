@@ -141,8 +141,10 @@ async function main() {
         }
 
         // Get all unprocessed posts
-        const selectStmt = `SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments 
-                                                                         WHERE llm_processed IS NULL OR llm_processed = 0 order by post_id desc limit ${limitValue} offset ${offsetAmount}`;
+        const selectStmt = `SELECT post_id, post_title, post_total_comments, post_formatted_comments
+                            FROM (SELECT * FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0)
+                            ORDER BY post_id DESC limit ${limitValue} offset ${offsetAmount}`;
+
         const result = await db.execute(selectStmt);
         const posts = result.rows;
 
