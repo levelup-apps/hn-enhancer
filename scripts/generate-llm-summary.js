@@ -3,6 +3,7 @@ import path, {dirname} from "path";
 import {fileURLToPath} from "url";
 import {createClient} from "@libsql/client";
 import dotenv from "dotenv";
+import Bottleneck from "bottleneck";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -93,6 +94,87 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 # Notable Side Discussions
 [Interesting tangents that added value. When including key quotes, you MUST include hierarchy_paths and author, so that we can link back to the comment in the main page]`;
 
+async function processPost(post, apiKey, postIndex, totalPosts, db) {
+    try {
+        const startTime = new Date();
+        console.log(`\n[${postIndex + 1}/${totalPosts}] Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
+
+        // Initialize the Google Generative AI client
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = "gemini-2.0-flash";
+
+        const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: systemPrompt
+        });
+
+        // configure the model parameters and start the chat session
+        const generationConfig = {
+            temperature: 1,
+            topP: 0.95,
+            topK: 40,
+            maxOutputTokens: 8192,
+            responseMimeType: "text/plain",
+        };
+        const chatSession = model.startChat({
+            generationConfig,
+            history: [],
+        });
+
+        const userPrompt = `
+Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given.
+The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
+Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
+The post title and comments are separated by three dashed lines:
+---
+Post Title:
+${post.post_title}
+---
+Comments:
+${post.post_formatted_comments}
+---
+`;
+        console.log(`...Generating summary for post_id: ${post.post_id} using LLM model: ${modelName}; API Key: ${apiKey}`);
+        const result = await chatSession.sendMessage(userPrompt);
+
+        if (!result || !result.response) {
+            throw new Error('No response from the model for post ' + post.post_id);
+        }
+
+        // Extract values from completion object
+        const llmResponseSummary = result.response?.candidates[0]?.content?.parts[0]?.text;
+        const inputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.promptTokenCount : 0;
+        const outputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.candidatesTokenCount : 0;
+        const totalTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.totalTokenCount : 0;
+
+        console.log(`...Summarized post ${post.post_id}. Usage: Input tokens: ${inputTokenCount}, Output tokens: ${outputTokenCount}, Total tokens: ${totalTokenCount}`);
+
+        // Update the database with the LLM response
+        const updateStmt = `
+        UPDATE posts_comments
+        SET llm_response_summary            = ?,
+            llm_response_input_token_count  = ?,
+            llm_response_output_token_count = ?,
+            llm_response_total_token_count  = ?,
+            llm_model_name                  = ?,
+            llm_processed                   = true
+        WHERE post_id = ?
+    `;
+        await db.execute({
+            sql: updateStmt,
+            args: [llmResponseSummary, inputTokenCount, outputTokenCount, totalTokenCount,
+                modelName, post.post_id]
+        });
+
+        const endTime = new Date();
+        const totalTime = (endTime - startTime) / 1000; // in seconds
+        console.log(`...Updated post ${post.post_id} in database with LLM response summary. Total time taken: ${totalTime} seconds.`);
+
+    } catch (error) {
+        console.error(`Error processing post ${post.post_id}:`, error);
+    }
+}
+
 async function main() {
 
     // Get the start post_id and count of posts to process from the command line arguments
@@ -140,10 +222,16 @@ async function main() {
             process.exit(1);
         }
 
+        // Create a Bottleneck instance with a maximum of 7 concurrent jobs
+        const limiter = new Bottleneck({
+            maxConcurrent: apiKeys.length
+        });
+
         // Get all unprocessed posts
         const selectStmt = `SELECT post_id, post_title, post_total_comments, post_formatted_comments
                             FROM (SELECT * FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0)
-                            ORDER BY post_id DESC limit ${limitValue} offset ${offsetAmount}`;
+                            ORDER BY post_id DESC
+                            limit ${limitValue} offset ${offsetAmount}`;
 
         const result = await db.execute(selectStmt);
         const posts = result.rows;
@@ -154,108 +242,15 @@ async function main() {
             return;
         }
 
-        let postIndex = 0;
         console.log(`Processing ${posts.length} posts...\n`);
 
-        for (const post of posts) {
-            try {
-                const startTime = new Date();
-                console.log(`[${postIndex + 1}/${posts.length}] Processing post ${post.post_id} with ${post.post_total_comments} comments...`);
+        const promises = posts.map((post, index) => {
+            const apiKey = apiKeys[index % apiKeys.length];
+            return limiter.schedule(() => processPost(post, apiKey, index, posts.length, db));
+        });
 
-                // Cycle through the array of API keys for each iteration
-                const apiKey = apiKeys[postIndex % apiKeys.length];
+        await Promise.all(promises);
 
-                // Initialize the Google Generative AI client
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const modelName = "gemini-2.0-flash";
-                // const modelName = "gemini-2.0-flash-lite-preview-02-05";
-
-                const model = genAI.getGenerativeModel({
-                    model: modelName,
-                    systemInstruction: systemPrompt
-                });
-
-                // configure the model parameters and start the chat session
-                const generationConfig = {
-                    temperature: 1,
-                    topP: 0.95,
-                    topK: 40,
-                    maxOutputTokens: 8192,
-                    responseMimeType: "text/plain",
-                };
-                const chatSession = model.startChat({
-                    generationConfig,
-                    history: [],
-                });
-
-                const userPrompt = `
-Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
-The goal is to help someone quickly grasp the main discussion points and key perspectives without reading all comments.
-Please focus on extracting the main themes, significant viewpoints, and high-quality contributions.
-The post title and comments are separated by three dashed lines:
----
-Post Title:
-${post.post_title}
----
-Comments:
-${post.post_formatted_comments}
----
-`;
-                console.log(`...Generating summary using LLM model: ${modelName}; API Key: ${apiKey}`);
-                const result = await chatSession.sendMessage(userPrompt);
-
-                if (!result || !result.response) {
-                    throw new Error('No response from the model for post ' + post.post_id);
-                }
-
-                // Extract values from completion object
-                const llmResponseSummary = result.response?.candidates[0]?.content?.parts[0]?.text;
-                const inputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.promptTokenCount : 0;
-                const outputTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.candidatesTokenCount : 0;
-                const totalTokenCount = result.response?.usageMetadata ? result.response?.usageMetadata?.totalTokenCount : 0;
-
-                console.log(`...Summarized post ${post.post_id}. Usage: Input tokens: ${inputTokenCount}, Output tokens: ${outputTokenCount}, Total tokens: ${totalTokenCount}`);
-
-                // Update the database with the LLM response
-                try {
-                    const updateStmt = `
-                        UPDATE posts_comments
-                        SET llm_response_summary            = ?,
-                            llm_response_input_token_count  = ?,
-                            llm_response_output_token_count = ?,
-                            llm_response_total_token_count  = ?,
-                            llm_model_name                  = ?,
-                            llm_processed                   = true
-                        WHERE post_id = ?
-                    `;
-                    await db.execute({
-                        sql: updateStmt,
-                        args: [llmResponseSummary, inputTokenCount, outputTokenCount, totalTokenCount,
-                            modelName, post.post_id]
-                    });
-                    console.log(`...Updated post ${post.post_id} in database with LLM response summary.`);
-                } catch (error) {
-                    console.error('Error updating the post in database with LLM response:', error);
-                    throw error;
-                }
-
-                const endTime = new Date();
-                const totalTime = (endTime - startTime) / 1000; // in seconds
-                console.log(`Processing Done. Total time taken: ${totalTime} seconds.`);
-
-            } catch (error) {
-                console.error(`Error processing post ${post.post_id}:`, error);
-
-                // Sleep for 120 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
-                // console.log('Sleeping 120 seconds after error to avoid rate limiting ...');
-                // await new Promise(resolve => setTimeout(resolve, 120 * 1000));
-            } finally {
-                postIndex++;
-                // Sleep for 20 secs to avoid rate limiting (Gemini API has a rate limit of 15 requests per minute)
-                // console.log('Sleeping 20 seconds to avoid rate limiting ...\n');
-                // await new Promise(resolve => setTimeout(resolve, 20 * 1000));
-            }
-        }
     } catch (error) {
         console.error('Error in main process:', error);
     } finally {
