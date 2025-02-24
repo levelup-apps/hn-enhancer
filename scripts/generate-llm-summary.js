@@ -95,6 +95,10 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 
 async function main() {
 
+    // Get the start post_id and count of posts to process from the command line arguments
+    const limitValue = process.argv[2] ? parseInt(process.argv[2]) : 500;
+    const offsetAmount = process.argv[3] ? parseInt(process.argv[3]) : 0;
+
     let db;
     try {
         // Initialize SQLite database connection
@@ -137,7 +141,8 @@ async function main() {
         }
 
         // Get all unprocessed posts
-        const selectStmt = 'SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments WHERE llm_processed IS NULL OR llm_processed = 0 order by post_id desc limit 10';
+        const selectStmt = `SELECT post_id, post_title, post_total_comments, post_formatted_comments FROM posts_comments 
+                                                                         WHERE llm_processed IS NULL OR llm_processed = 0 order by post_id desc limit ${limitValue} offset ${offsetAmount}`;
         const result = await db.execute(selectStmt);
         const posts = result.rows;
 
