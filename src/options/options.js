@@ -18,6 +18,9 @@ async function saveSettings() {
         ollama: {
             model: document.getElementById('ollama-model').value
         },
+        static: {
+            model: document.getElementById('static-model').value
+        },
         openrouter: {
             apiKey: document.getElementById('openrouter-key').value,
             model: document.getElementById('openrouter-model').value

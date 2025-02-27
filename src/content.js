@@ -1643,9 +1643,11 @@ class HNEnhancer {
                     this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
                     break;
 
-                case 'none':
-                    this.showSummaryInPanel(formattedComment, commentPathToIdMap).catch(error => {
-                        console.error('Error showing summary:', error);
+                case 'static':
+                    console.log(`Fetching static summary for model: ${model}`);
+                    const staticSummary = this.getStaticSummary(model);
+                    this.showSummaryInPanel(staticSummary, commentPathToIdMap).catch(error => {
+                        console.error('Error showing static summary:', error);
                     });
                     break;
             }
@@ -1654,6 +1656,179 @@ class HNEnhancer {
         });
     }
 
+    getStaticSummary(model) {
+        let staticSummary;
+        switch (model) {
+            case 'gguf-bf16':
+                staticSummary = this.getSummaryBf16()
+                break;
+            case 'raw-bf16':
+                staticSummary = this.getSummary_RawBf16();
+                break;
+            case 'raw-bf16-qtz':
+                staticSummary = this.getSummary_RawBf16_Qtz();
+                break;
+            default:
+                staticSummary = 'No static summary found';
+                break;
+        }
+        staticSummary = staticSummary.replace(/\\\\n/g, '\\n');
+        staticSummary = staticSummary.replace(/\\\\"/g, '\\"');
+
+        return staticSummary;
+    }
+
+    getSummary_RawBf16() {
+        return `
+# Overview
+The Hacker News discussion revolves around OfflineLLM, a Vision Pro application utilizing TinyLlama for on-device Language Model processing. Key areas of interest include memory limitations, model comparisons, pricing considerations, and the broader implications of integrating AI assistants into daily life. Users shared experiences, offered suggestions, and debated the practicality and potential pitfalls of smaller versus larger LLM implementations.
+
+# Main Themes & Key Insights
+* Memory Limitations and Performance Trade-offs: Initial concern centered on whether existing memory constraints allow for effective utilization of large LLMs on the Vision Pro.
+* Comparisons Between Models and Optimizations: Several participants weighed in on various models, focusing on improvements achieved through optimization techniques like Quantization.
+* Pricing Debate and Value Perception: There was considerable debate regarding the perceived value of such tools, especially concerning the choice of TinyLlama over potentially superior alternatives.
+* Future Development of Avatar-Assisted Interfaces: Exciting prospects emerged around creating immersive interactive environments empowered by advancements in AI avatars.
+
+# Memory Limitations and Performance Trade-offs
+This initial concern explores the feasibility of implementing Large Language Models (LLMs) on the Vision Pro, considering potential memory restrictions imposed by the operating system.
+*   [1] (jsheard): Questioned the amount of memory accessible to individual apps on the Vision Pro, questioning the practicality of utilizing massive models given mobile os restrictions.
+*   [1.1.1] (jsheard): Clarified assumptions about iOS/iPadOS memory allocation strategies, suggesting similarities with Vision Pro.
+*   [1.1.1] (samstave): Suggested innovative solutions within iOS for managing memory allocations among Apps, sparking further discussion about optimizing resource usage.
+*   [1.1.1] (dannyw): Provided firsthand experience verifying memory availability in Split Screen Mode scenarios on iPads.
+
+# Comparisons Between Models and Optimizations
+Discussion highlights the ongoing evaluation and improvement of Local Language Models. Participants weigh-in on optimal choices balancing efficiency vs. Accuracy needs
+*   [2] (codepixel): Acknowledged shortcomings in early Screenshots and committed to updates reflecting enhanced User Interface Improvements.
+*   [3] (emadm): Urged consideration of Machine Learning optimizations to improve efficiency and effectiveness of LLMs on Device.
+*   [3.1] (woadwarrior01): Shared positive results upgrading an existing offline LLM app to Stable LM 1.6B, citing impressive speed gains despite reduced size.
+*   [4] (LorenDB): Introduced Gemma 2B and Qwen 0.5B as viable alternatives to TinyLlama, offering opportunities for exploration and comparison.
+*   [4.1.1] (refulentis): Asserted Stable LM 3B Zephyr possesses unique capabilities, effectively handling Retrieval-Augmented Generation tasks compared to other options. They said, "Stable LM 3B Zephyr, it's the only model below 7B that can handle RAG: i.e. understand 'hey those are documents, use them to answer these questions'."
+*   [4.1.1.1] (emadm): Highlighted Stable LM 2 1.6b's exceptional speed while acknowledging Multilingual strengths in newer versions.
+
+# Pricing Debate and Value Perception
+An active discussion emerges surrounding the monetary value attributed to such applications, especially given the selection of TinyLlama as the primary language model.
+*   [8] (reactordev): Prompted a reassessment of the product's price tag, leading to defensive stances from developers and enthusiastic supporters alike.
+*   [8.1] (xp84): Criticized attempts to extract products for free, emphasizing the inherent risks associated with sacrificing quality for convenience.
+*   [8.1] (dannyw): Argued that prices between $10-$15 would be reasonable for such a service, signaling acceptance for monetized efforts.
+*   [8.3.1.1] (coder543): Expressed skepticism toward TinyLlama-based apps, arguing they offer limited utility beyond experimental purposes.
+*   [8.3.1.1] (arjvik): Confused meaning behind question.
+*   [12] (petesergeant): Offered philosophical take, stating, "IMO, small LLMs are not good enough yet. I understand that people prefer running stuff on-device for privacy and cost reason, but a model that makes mistakes all the time is not worth the tradeoff."
+
+# Future Development of Avatar-Assisted Interfaces
+Aspirational goals encompass development of rich, immersive virtual worlds guided by AI-powered characters.
+*   [6] (aussieguy1234): Envisioned futuristic benefits derived from integrating 3D Avatars seamlessly integrated into everyday interactions.
+*   [6.1] (codepixel): Indicated proactive involvement in realizing this vision, envisioning expanded functionality incorporating Voice Input/Ouput alongside advanced contextual awareness. He stated, "yes i'm working on this 3D avatar idea as well."
+*   [6.1.1] (aussieguy1234): Contemplated transformative impacts arising from wearable technology merging seamlessly into personal lives.
+
+# Key Perspectives
+Several opinions diverge on the necessity of adopting Small LLMs.
+*   **Advocates:** Emphasizes Privacy, Cost savings, experimentation with new technologies.
+*   **Skeptics:** Questions Utility of TinyLlama, Cites Inaccuracy Issues, suggests switching to better models.
+
+# Notable Side Discussions
+*   **Model Fine-Tuning Techniques**: One participant described their method for improving Task Alignment using PEFT (Prompt Engineering Finetunning).
+*   **Vision Pro Optimization**: Speculation exists regarding potential optimizations for Apple Silicon chips, influencing overall performance.
+*   **Entanglement Concerns**: Reference is made to concerns around humans falling in love with AI bots and the ethical ramifications of releasing uncontrolled robots onto society.        
+`;
+    }
+    getSummary_RawBf16_Qtz() {
+        return `
+# Overview
+The Hacker News discussion revolves around OfflineLLM, a Vision Pro application utilizing TinyLlama. Key areas of interest include the practical limitations of running large models on-device, comparisons with larger language models (like Stable LM 1.6B), the utility of smaller models, and considerations regarding pricing and market positioning within the emerging AI-assistant landscape.
+
+# Main Themes & Key Insights
+* **Memory Limitations and Optimization**: Users discuss the constraints on app memory usage on Vision Pro and explore optimizations for running smaller LLMs efficiently.
+* **Model Choices and Performance Trade-offs**: The merits of various LLM models (TinyLlama vs. alternatives like Stable LM 1.6B/Gemma/Qwen) are debated in terms of speed, capabilities (RAG), and suitability for different tasks.
+* **Future Direction and Avatar-Assisted Computing**: Speculation emerges concerning advanced uses like 3D avatars and the integration of AI assistants, blurring lines between personal tools and conversational entities.
+* **Value Proposition and Pricing Strategies**: Questions arise about the perceived value of a TinyLlama-based app versus larger models and whether the subscription price ($7/month) accurately reflects the service offered.
+
+# Memory Limitations and Optimization
+* The initial question concerns the amount of memory allocated to individual apps on the Vision Pro, considering the physical RAM availability.
+* Subsequent discussion references the limited allocation (typically 5 GB per app) in iOS/iPadOS environments and speculates about similar restrictions on the Vision Pro.
+* Optimizations mentioned included MLX optimization techniques and exploring newer methods involving 1.6-bit quantization for efficient model fitting onto devices.
+
+Key Quotes:
+* [1.1.1] (jsheard) stated, "Apparently 16GB iPads set the line at 5GB per app by default, and while that flag lets you request more they don't make any guarantees of how much extra quota you will get, so I'm not sure how useful that is for loading a big model if it might randomly fail."
+* [3] (emadm) suggested evaluating "MLX optimisations too," referencing experiences with Stable LM 1.6b achieving 100 token/sec speeds on a M2 Mac Mini.
+* [12.2] (codepixel) mentioned plans for future updates, stating "...swapping for another model will be possible and soon i will support this."
+
+# Model Choices and Performance Trade-offs
+* Comparisons emerge between TinyLlama and larger models like Stable LM 1.6B regarding speed, capacity for reasoning-and-action-gathering (RAG), and effectiveness in handling diverse inputs.
+* Fine-tuning approaches for improving TinyLlama's performance, especially relevant for resource-constrained devices requiring offline operation.
+* Alternative models such as Gemma 2B and Qwen 0.5B are proposed, sparking further debate on optimal choices depending on desired functionalities and computational resources.
+
+Significant Exchanges:
+* [4.1.1] (refulgientis) argued strongly for Stable LM 3Zephry as the go-to option below 700 million parameters because "It'll work too, it was quite delightful to open Test Flight, install my Flutter app not designed for Vision Pro at all, and everything 'just worked'."
+* [7] (d--b) expressed skepticism toward small LLMs, claiming "small LLMs are not good enough yet," citing frequent errors during interactions.
+* Countering this viewpoint, [7.2] (mmcwilliams) shared positive results from fine-tuning TinyLlama for specific tasks, highlighting superior task alignment over larger models. They elaborated "[7.2]...finetuned TinyLlama with the same dataset and technique as Llama2 7B for on-device purposes (not for cost or privacy but for physical hardware that have to run offline and with low power consumption) and it produces higher task alignment in 1/4 the inference time."
+
+# Future Direction and Avatar-Assisted Computing
+* Envisionment of futuristic scenarios featuring integrated AI assistants embedded within virtual personas.
+* Concerns raised about potential misuse of highly personalized AI companions and the evolving dynamic between humans and artificial intelligence.
+
+Noteworthy Contributions:
+* [6.1] (codepixel) acknowledged ongoing development focusing on 3D avatars and enhanced functionality beyond basic text processing.
+* In contrast, [13] (samstave) cautioned developers to consider ethical implications of creating AI-driven avatars, suggesting viewing films like HER and EX MAACHINA.
+* Community members showed enthusiasm for the prospect of AI-powered avatars becoming integral components of computing, with [14] (aussieguy1234) proclaiming, "This is the future of computing. Especially when tech like vision pro becomes the size of normal sunglasses."
+
+# Value Proposition and Pricing Strategies
+* Critical evaluation of the product's value proposition, questioning whether the investment in a TinyLlama-based app provides sufficient benefits compared to larger models accessible through other means.
+* Contrasting opinions emerged regarding the fairness and appropriateness of the chosen price point ($7/month).
+* Anecdotal evidence suggests that perceptions may vary significantly among consumers, influenced by factors such as prior experience with TinyLlama and expectations surrounding AI frontends.
+
+Perspectives:
+* Skepticism towards the value proposition was voiced by [19] (coder543): "No… not for an app focused on TinyLlama, which I haven’t been able to find a single use case for that an end user would care about. It’s essentially a toy...".
+* Conversely, [20] (bastawhiz) defended the purchase decision, asserting "$7 is a pittance." Their statement highlights differing tolerance levels among consumers for AI-related expenses.
+
+# Key Perspectives
+There appears to be divergence regarding the efficacy of Small Language Models, specifically TinyLlama. While some argue for continued iteration and refinement despite imperfections, others advocate for more robust models to ensure reliability and avoid frustration caused by inaccuracies. Furthermore, debates exist regarding the applicability and usefulness of current offerings, especially those centered on TinyLlama, prompting calls for greater innovation and differentiation within the marketplace.
+`;
+}
+    getSummaryBf16() {
+        return `
+# Overview
+The Hacker News discussion revolves around OfflineLLM, a Vision Pro app that runs TinyLlama locally. Key discussion points include memory limitations on the Vision Pro, the utility and performance of small LLMs like TinyLlama, comparisons to other models and apps, and future directions like 3D avatar assistants. There's also discussion around the pricing of such apps.
+
+# Main Themes & Key Insights
+*   **Memory and Performance Constraints:** The primary concern raised is the limited memory available to apps on the Vision Pro, and how it affects the performance and size of models that can be run locally. This includes discussion of iOS/iPadOS memory allocation strategies and the potential for Apple to introduce user-configurable memory allocation for specific apps.
+*   **Utility of Small LLMs:** A central debate is whether small LLMs like TinyLlama are currently "good enough" for practical use, especially compared to larger models like Stable LM 3B Zephyr. Some argue that small LLMs are still useful for specific tasks and hardware constraints, while others point out their limitations and inaccuracies.
+*   **Model Comparisons and Future Improvements:** The discussion includes comparisons between different models (TinyLlama, Stable LM 1.6B, Gemma 2B, Qwen 0.5B) and their performance characteristics. There's also speculation about future improvements in LLM technology, such as the potential for 1.6-bit models that offer no performance loss, enabling even larger models to run on-device.
+
+# Memory and Performance Constraints
+*   The discussion starts with concerns about memory allocation for apps on the Vision Pro, referencing similar limitations on iOS/iPadOS devices.
+    *   [1] (jsheard) asked, "Out of curiosity, how much memory can a single app actually use on the Vision Pro?"
+    *   [1.1.1] (jsheard) pointed out, "Apparently 16GB iPads set the line at 5GB per app by default... I suppose it's probably safe to assume the Vision Pro is similar."
+*   The potential for Apple to implement user-configurable memory allocation for apps is considered.
+    *   [1.1.1.1] (samstave) suggested a future iOS feature: "a user setting for specific apps to slider how much the user wants to allot... and a toggle to 'shed other apps as needed' and 'shed other apps when temp reaches X'"
+
+# Utility of Small LLMs
+*   The core debate centers around whether small LLMs are currently useful, with some arguing that they are still valuable for specific use cases and hardware constraints.
+    *   [7.2] (mmcwilliams) stated, "I've finetuned TinyLlama... and it produces higher task alignment in 1/4 the inference time. As a general purpose model it isn't great but small models have their place in the ecosystem."
+*   However, others argue that small LLMs are not accurate enough for practical use.
+    *   [7] (d--b) expressed, "IMO, small LLMs are not good enough yet... but a model that makes mistakes all the time is not worth the tradeoff."
+*   Specific examples of TinyLlama's inaccuracies are provided.
+    *   [7.1] (Gormo) shared an example where TinyLlama provided significantly incorrect population density and land area figures for Nebraska.
+
+# Model Comparisons and Future Improvements
+*   The discussion compares different models (TinyLlama, Stable LM 1.6B, Gemma 2B, Qwen 0.5B) and their performance characteristics.
+    *   [3.1] (woadwarrior01) mentioned, "I'm just about to ship an update to the iOS version my offline LLM app which will replace its current 3B default model (RedPajama Chat) with Stable LM 1.6B. Works extremely well even when quantized."
+*   Future improvements in LLM technology are anticipated, such as the potential for 1.6-bit models that offer no performance loss, enabling even larger models to run on-device.
+    *   [7.5] (Moldoteck) noted, "we'll see how things play out after the new paper with 1.6 bits and no performance loss. This would mean being able to fit on device much bigger models"
+
+# Key Perspectives
+*   **Optimistic View:** Some users are enthusiastic about the potential of small LLMs and the ongoing development of local AI solutions.
+    *   [6.1] (codepixel) shared, "yes i'm working on this 3D avatar idea as well. it's actually really mind blowing in my opinion... this is just the start"
+*   **Skeptical View:** Other users are more critical of the current state of small LLMs, particularly regarding their accuracy and usefulness in general chat environments.
+    *   [7] (d--b) argued, "small LLMs are not good enough yet... a model that makes mistakes all the time is not worth the tradeoff."
+*   There's a consensus that larger LLM models, like Stable LM 3B Zephyr, currently offer superior performance and capabilities.
+
+# Notable Side Discussions
+*   The potential for 3D avatar assistants as a future direction for local AI is discussed.
+    *   [6.1] (codepixel) mentioned working on "this 3D avatar idea as well."
+*   A user shared their experience of fine-tuning TinyLlama and achieving higher task alignment compared to larger models, highlighting the potential for optimization.
+    *   [7.2] (mmcwilliams) shared, "I've finetuned TinyLlama... and it produces higher task alignment in 1/4 the inference time."
+ `;
+    }
     summarizeUsingOpenRouter(text, model, apiKey, commentPathToIdMap) {
         // Validate required parameters
         if (!text || !model || !apiKey) {
@@ -2163,8 +2338,8 @@ ${text}
 
         // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
         const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
-
         const {aiProvider, model} = await this.getAIProviderModel();
+
         if (aiProvider) {
             this.summaryPanel.updateContent({
                 metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong>`,

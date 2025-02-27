@@ -26,6 +26,32 @@
                     </div>
                 </div>
 
+                <!-- Static Model (for debugging purpose) -->
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <input id="static" name="provider-selection" type="radio"
+                               class="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden [&:not(:checked)]:before:hidden">
+                        <label for="static" class="ml-3 block text-sm font-medium text-gray-900">Static Models (Debug only)</label>
+                    </div>
+                    <div class="ml-7 space-y-3">
+                        <div>
+                            <label for="static-model" class="block text-sm font-medium text-gray-900">Select Finetune Model</label>
+                            <div class="mt-2 grid grid-cols-1">
+                                <select id="static-model"
+                                        name="static-model"
+                                        class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 text-sm">
+                                    <option value="gguf-bf16">OpenPipe GGUF BF16</option>
+                                    <option value="raw-bf16">OpenPipe Raw BF16</option>
+                                    <option value="raw-bf16-qtz">OpenPipe Raw BF16 Q8 quant</option>
+                                </select>
+                                <svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+                                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Ollama -->
                 <div class="space-y-3">
                     <div class="flex items-center">
