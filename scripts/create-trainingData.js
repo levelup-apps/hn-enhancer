@@ -168,11 +168,12 @@ const queryTemplate = (range, limit) => `
     )
     SELECT
         (SELECT COUNT(*) FROM selected_posts) AS total_selected_posts,
-        (SELECT SUM(llm_response_total_token_count) FROM selected_posts) AS total_input_tokens,
+        (SELECT SUM(llm_response_input_token_count) FROM selected_posts) AS total_input_tokens,
         post_id,
         post_title,
         post_formatted_comments,
-        llm_response_summary
+        llm_response_summary,
+        llm_response_input_token_count
     FROM selected_posts;
 `;
 
@@ -217,6 +218,12 @@ const postBuckets = Object.entries(results);
 console.log(`\nRetrieved ${postBuckets.length} buckets of posts from the database\n`);
 await db.close();
 
+console.log(`Selected ${postBuckets.length} buckets of posts to process...`);
+postBuckets.forEach(([bucketName, posts]) => {
+    const inputTokens = `${posts[0].total_input_tokens.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+    console.log(`...Bucket: ${bucketName}, Posts: ${posts.length}. Total input tokens: ${inputTokens}`);
+});
+console.log();
 
 // Choose the system prompt to use - deailed or concise
 const SYSTEM_PROMPT = {
@@ -228,7 +235,7 @@ const systemPromptChoice = SYSTEM_PROMPT.DETAILED;
 
 const systemPrompt = (systemPromptChoice === SYSTEM_PROMPT.DETAILED) ? systemPrompt_detailed : systemPrompt_concise;
 
-const outputFileName = `hnft-trg-data-32M_sys-${(systemPromptChoice === SYSTEM_PROMPT.DETAILED) ? 'detailed': 'concise'}.jsonl`;
+const outputFileName = `hnft-trg-data-32M_sys-hybrid.jsonl`;
 
 // Create a write stream for the JSONL file
 const jsonlFile = path.join(__dirname, outputFileName);
@@ -238,19 +245,59 @@ const writer = jsonlines.stringify();
 // Pipe the writer to the write stream
 writer.pipe(writeStream);
 
+// Prepare the template for fine-tuning. Different providers may require different formats.
+const FINETUNE_TEMPLATES = {
+    CHAT: JSON.stringify({
+        "messages": [
+            {"role": "system", "content": "{{systemPrompt}}"},
+            {"role": "user", "content": "{{userPrompt}}"},
+            {"role": "assistant", "content": "{{targetSummary}}"}
+        ]
+    }),
+    ALPACA: JSON.stringify({
+        "instruction": "{{systemPrompt}}",
+        "input": "{{userPrompt}}",
+        "output": "{{targetSummary}}"
+    }),
+    CHAT_OLD: JSON.stringify({
+        "prompt": "{{systemPrompt}}\n\nUser: {{userPrompt}}\n\nAssistant: {{targetSummary}}",
+        "completion": "{{targetSummary}}"
+    }),
+};
+
+const PROVIDER = {
+    FINETUNE_DB: { id: 1, name: 'FineTune DB', template: FINETUNE_TEMPLATES.CHAT},
+    OPEN_PIPE: { id: 1, name: 'OpenPipe', template: FINETUNE_TEMPLATES.CHAT},
+    LIGHTNING_AI: { id: 1, name: 'Lighting AI', template: FINETUNE_TEMPLATES.ALPACA},
+};
+
+const fineTuneProvider = PROVIDER.OPEN_PIPE;
+
+const finetuneTemplate = JSON.parse(fineTuneProvider.template);
+
 // Track the total posts and input tokens across all buckets
-let totalPosts = 0;
-let totalInputTokens = 0;
+let totalInputTokensProcessed = 0;
+let totalInputTokensExpected = 0;
 
 // Track the success and error counts
-let successCount = 0;
+let totalPostsProcessed = 0;
+let totalPostsExpected = 0;
+
 let errorCount = 0;
 
 for (const [bucketName, posts] of postBuckets) {
-    console.log(`Processing ${bucketName} with ${posts?.length} posts...`);
+
+    const bucketPostsExpected = posts[0].total_selected_posts;
+    const bucketInputTokensExpected = posts[0].total_input_tokens;
+
+    console.log(`Processing ${bucketName} with ${posts?.length} posts (${posts[0].total_input_tokens.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} input tokens)...`);
+
+    let bucketPostsProcessed = 0;
+    let bucketInputTokensProcessed = 0;
 
     // Iterate through each post in the bucket
     for (const post of posts) {
+
         // if any of the required fields (title, formatted comments or summar) are missing, skip this post
         if(!post.post_title || post.post_title.trim().length === 0 ||
             !post.post_formatted_comments || post.post_formatted_comments.trim().length === 0 ||
@@ -266,36 +313,6 @@ for (const [bucketName, posts] of postBuckets) {
             .replace(/{{postComments}}/g, post.post_formatted_comments || '');
 
         const targetSummary = post.llm_response_summary || '';
-
-        // Prepare the template for fine-tuning. Different providers may require different formats.
-        const FINETUNE_TEMPLATES = {
-            CHAT: JSON.stringify({
-                "messages": [
-                    {"role": "system", "content": "{{systemPrompt}}"},
-                    {"role": "user", "content": "{{userPrompt}}"},
-                    {"role": "assistant", "content": "{{targetSummary}}"}
-                ]
-            }),
-            ALPACA: JSON.stringify({
-                "instruction": "{{systemPrompt}}",
-                "input": "{{userPrompt}}",
-                "output": "{{targetSummary}}"
-            }),
-            CHAT_OLD: JSON.stringify({
-                "prompt": "{{systemPrompt}}\n\nUser: {{userPrompt}}\n\nAssistant: {{targetSummary}}",
-                "completion": "{{targetSummary}}"
-            }),
-        };
-
-        const PROVIDER = {
-            FINETUNE_DB: { id: 1, name: 'FineTune DB', template: FINETUNE_TEMPLATES.CHAT},
-            OPEN_PIPE: { id: 1, name: 'OpenPipe', template: FINETUNE_TEMPLATES.CHAT},
-            LIGHTNING_AI: { id: 1, name: 'Lighting AI', template: FINETUNE_TEMPLATES.ALPACA},
-        };
-
-        const fineTuneProvider = PROVIDER.OPEN_PIPE;
-
-        const finetuneTemplate = JSON.parse(fineTuneProvider.template);
 
         // Replace the placeholers in the template using JSON object so that the encoding is consistent
         finetuneTemplate.messages.forEach(message => {
@@ -319,24 +336,31 @@ for (const [bucketName, posts] of postBuckets) {
 
         try {
             writer.write(jsonlObject);
-            successCount++;
+
+            bucketPostsProcessed++;
+            bucketInputTokensProcessed += post.llm_response_input_token_count;
         } catch (e) {
             console.error(`...Error processing post ID ${post.post_id}: ${e.message}`);
             errorCount++;
         }
     }
 
-    const bucketTotalPosts = posts[0].total_selected_posts;
-    const bucketTotalInputTokens = posts[0].total_input_tokens;
-    console.log(`  Total posts: ${bucketTotalPosts}, Input tokens: ${bucketTotalInputTokens.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`);
+    console.log(`  Done! Processed posts: ${bucketPostsProcessed} of ${bucketPostsExpected}, ` +
+                `Input tokens : ${bucketInputTokensProcessed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} of ` +
+                `${bucketInputTokensExpected.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`);
 
-    totalPosts += bucketTotalPosts;
-    totalInputTokens += bucketTotalInputTokens;
+    totalPostsProcessed += bucketPostsProcessed;
+    totalInputTokensProcessed += bucketInputTokensProcessed;
+
+    totalPostsExpected += bucketPostsExpected;
+    totalInputTokensExpected += bucketInputTokensExpected;
 }
 
 // End the writer
 writer.end(() => {
-    console.log(`\nTotal posts (across all buckets): ${totalPosts}, Total input tokens: ${totalInputTokens.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`);
-    console.log(`Successfully processed ${successCount}/${totalPosts} posts. Errors: ${errorCount} posts. Success rate: ${100 * successCount / totalPosts}%`);
-    console.log(`Training data exported to JSONL file: ${outputFileName}`);
+    console.log(`\nAll done! Total processed: ${totalPostsProcessed} of ${totalPostsExpected} posts. ` +
+                `Input tokens: ${totalInputTokensProcessed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}` +
+                ` of ${totalInputTokensExpected.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} \n` +
+                `  Errors: ${errorCount}. Success rate: ${100 * totalPostsProcessed / totalPostsProcessed}%`);
+    console.log(`\nTraining data exported to JSONL file: ${outputFileName}`);
 });
