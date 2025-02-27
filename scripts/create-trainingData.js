@@ -215,10 +215,9 @@ async function executeAllQueries() {
 // Run the queries and get the results. Close the database connection after that.
 const results = await executeAllQueries();
 const postBuckets = Object.entries(results);
-console.log(`\nRetrieved ${postBuckets.length} buckets of posts from the database\n`);
+console.log(`\nRetrieved ${postBuckets.length} buckets of posts from the database`);
 await db.close();
 
-console.log(`Selected ${postBuckets.length} buckets of posts to process...`);
 postBuckets.forEach(([bucketName, posts]) => {
     const inputTokens = `${posts[0].total_input_tokens.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
     console.log(`...Bucket: ${bucketName}, Posts: ${posts.length}. Total input tokens: ${inputTokens}`);
@@ -230,12 +229,11 @@ const SYSTEM_PROMPT = {
     DETAILED: 1,
     CONCISE: 2,
 }
-const systemPromptChoice = SYSTEM_PROMPT.DETAILED;
-// const systemPromptChoice = SYSTEM_PROMPT.CONCISE;
+// const systemPromptChoice = SYSTEM_PROMPT.DETAILED;
+const defaultSystemPromptType = SYSTEM_PROMPT.CONCISE;
+console.log(`Default system prompt: ${defaultSystemPromptType === SYSTEM_PROMPT.DETAILED ? 'Detailed' : 'Concise'}\n`);
 
-const systemPrompt = (systemPromptChoice === SYSTEM_PROMPT.DETAILED) ? systemPrompt_detailed : systemPrompt_concise;
-
-const outputFileName = `hnft-trg-data-32M_sys-hybrid.jsonl`;
+const outputFileName = `hnft-trg-data-27M_sys-hybrid.jsonl`;
 
 // Create a write stream for the JSONL file
 const jsonlFile = path.join(__dirname, outputFileName);
@@ -285,6 +283,7 @@ let totalPostsExpected = 0;
 
 let errorCount = 0;
 
+let totalConcisePrompts = 0;
 for (const [bucketName, posts] of postBuckets) {
 
     const bucketPostsExpected = posts[0].total_selected_posts;
@@ -294,9 +293,28 @@ for (const [bucketName, posts] of postBuckets) {
 
     let bucketPostsProcessed = 0;
     let bucketInputTokensProcessed = 0;
+    let bucketConcisePrompts = 0;
 
     // Iterate through each post in the bucket
     for (const post of posts) {
+
+        let systemPromptType = defaultSystemPromptType;
+
+        // Choose the system prompt type based on the number of posts processed
+        //  - use detailed prompt for the first half of the posts
+        //  - use detailed prompt every 15th post after that
+        //  - use concise prompt for the rest
+        if (bucketPostsProcessed < bucketPostsExpected / 2) {
+            systemPromptType = SYSTEM_PROMPT.DETAILED;
+        } else if (bucketPostsProcessed % 5 === 0) {
+            systemPromptType = SYSTEM_PROMPT.DETAILED;
+        } else {
+            systemPromptType = SYSTEM_PROMPT.CONCISE;
+            bucketConcisePrompts++;
+        }
+
+        // console.log(`Post [${bucketPostsProcessed}/ ${bucketPostsExpected}]. id: ${post.post_id}. System prompt selected: ${systemPromptType === SYSTEM_PROMPT.DETAILED ? 'Detailed' : 'Concise'}`);
+        let systemPrompt = systemPromptType === SYSTEM_PROMPT.DETAILED ? systemPrompt_detailed : systemPrompt_concise;
 
         // if any of the required fields (title, formatted comments or summar) are missing, skip this post
         if(!post.post_title || post.post_title.trim().length === 0 ||
@@ -348,19 +366,22 @@ for (const [bucketName, posts] of postBuckets) {
     console.log(`  Done! Processed posts: ${bucketPostsProcessed} of ${bucketPostsExpected}, ` +
                 `Input tokens : ${bucketInputTokensProcessed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} of ` +
                 `${bucketInputTokensExpected.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`);
-
+    console.log(`  Concise prompts: ${bucketConcisePrompts} / ${bucketPostsProcessed} posts (${100 * bucketConcisePrompts / bucketPostsProcessed}%)\n`);
     totalPostsProcessed += bucketPostsProcessed;
-    totalInputTokensProcessed += bucketInputTokensProcessed;
 
+    totalInputTokensProcessed += bucketInputTokensProcessed;
+    totalConcisePrompts += bucketConcisePrompts;
     totalPostsExpected += bucketPostsExpected;
+
     totalInputTokensExpected += bucketInputTokensExpected;
 }
-
 // End the writer
+
 writer.end(() => {
     console.log(`\nAll done! Total processed: ${totalPostsProcessed} of ${totalPostsExpected} posts. ` +
                 `Input tokens: ${totalInputTokensProcessed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}` +
                 ` of ${totalInputTokensExpected.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} \n` +
                 `  Errors: ${errorCount}. Success rate: ${100 * totalPostsProcessed / totalPostsProcessed}%`);
+    console.log(`  Concise prompts: ${totalConcisePrompts} / ${totalPostsProcessed} posts (${100 * totalConcisePrompts / totalPostsProcessed}%)\n`);
     console.log(`\nTraining data exported to JSONL file: ${outputFileName}`);
 });
