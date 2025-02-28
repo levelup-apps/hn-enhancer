@@ -187,11 +187,12 @@ const queryTemplate = (range, limit) => `
 // Total,       "27,397,704","4,563,056", "31,960,760",3500, 14532,     24.08%
 async function executeAllQueries() {
     const bucketRanges = [
-        { range: '< 4000', limit: 500 },
-        { range: 'BETWEEN 4001 AND 8000', limit: 1500 },
-        { range: 'BETWEEN 8001 AND 12000', limit: 1000 },
-        { range: 'BETWEEN 12001 AND 14000', limit: 400 },
-        { range: 'BETWEEN 14001 AND 32000', limit: 100 }
+        { range: '< 4000', limit: 1000 },
+        { range: 'BETWEEN 4001 AND 8000', limit: 3000 },
+        { range: 'BETWEEN 8001 AND 12000', limit: 2000 },
+        { range: 'BETWEEN 12001 AND 14000', limit: 800 },
+        { range: 'BETWEEN 14001 AND 32000', limit: 200 },
+        { range: 'BETWEEN 32001 AND 64000', limit: 100 }
     ];
 
     const results = {};
@@ -233,7 +234,7 @@ const SYSTEM_PROMPT = {
 const defaultSystemPromptType = SYSTEM_PROMPT.CONCISE;
 console.log(`Default system prompt: ${defaultSystemPromptType === SYSTEM_PROMPT.DETAILED ? 'Detailed' : 'Concise'}\n`);
 
-const outputFileName = `hnft-trg-data-27M_sys-hybrid.jsonl`;
+const outputFileName = `hnft-trg-data-7100_sys-hybrid.jsonl`;
 
 // Create a write stream for the JSONL file
 const jsonlFile = path.join(__dirname, outputFileName);
