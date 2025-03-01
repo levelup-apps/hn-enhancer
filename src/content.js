@@ -2298,7 +2298,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload),
-            timeout: 30000 // Longer timeout for summarization
+            timeout: 180_000 // Longer timeout for summarization
         })
             .then(data => {
                 const summary = data.response;

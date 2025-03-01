@@ -50,7 +50,10 @@ function handleAsyncMessage(message, asyncOperation, sendResponse) {
 }
 
 // Utility function for API calls with timeout
-async function fetchWithTimeout(url, {method = 'GET', headers = {}, body = null, timeout = 60000} = {}) {
+async function fetchWithTimeout(url, options = {}) {
+
+    const {method = 'GET', headers = {}, body = null, timeout = 60_000} = options;
+
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
 
