@@ -1320,7 +1320,7 @@ class HNEnhancer {
                 .join('');
 
             this.logDebug('formattedComment...', formattedComment);
-            this.logDebug('commentPathToIdMap...', JSON.stringify([...commentPathToIdMap.entries()]));
+            // this.logDebug('commentPathToIdMap...', JSON.stringify([...commentPathToIdMap.entries()]));
 
             return {
                 formattedComment,
@@ -1676,11 +1676,11 @@ class HNEnhancer {
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        this.logDebug('2. System prompt:', systemPrompt);
+        // this.logDebug('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        this.logDebug('3. User prompt:', userPrompt);
+        // this.logDebug('3. User prompt:', userPrompt);
 
         // OpenRouter, just like OpenAI, takes system and user messages as an array with role (system / user) and content
         const messages = [{
@@ -1770,11 +1770,11 @@ class HNEnhancer {
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        this.logDebug('2. System prompt:', systemPrompt);
+        // this.logDebug('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        this.logDebug('3. User prompt:', userPrompt);
+        // this.logDebug('3. User prompt:', userPrompt);
 
         // OpenAI takes system and user messages as an array with role (system / user) and content
         const messages = [{
@@ -1947,11 +1947,11 @@ class HNEnhancer {
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        this.logDebug('2. System prompt:', systemPrompt);
+        // this.logDebug('2. System prompt:', systemPrompt);
 
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        this.logDebug('3. User prompt:', userPrompt);
+        // this.logDebug('3. User prompt:', userPrompt);
 
         // DeepSeek takes system and user messages in the same format as OpenAI - an array with role (system / user) and content
         const messages = [{
@@ -2228,61 +2228,14 @@ ${text}
         const endpoint = 'http://localhost:11434/api/generate';
 
         // Create the system message for better summarization
-        const systemMessage = `You are an AI assistant specialized in summarizing Hacker News discussions. Your task is to provide concise, meaningful summaries that capture the essence of the thread without losing important details. Follow these guidelines:
-1. Identify the main topics and key arguments. 
-2. Use markdown formatting for clarity and readability.
-3. Include brief, relevant quotes to support main points.
-4. Whenever you use a quote, provide the path-based identifier of the quoted comment.
-5. Show content hierarchy by using path-based identifiers (e.g., [1], [1.1], [1.1.1]) to track reply relationships.
-
-Input Format:
-The conversation will be provided as text with path-based identifiers showing the hierarchical structure of the comments: [path_id] Author: Comment
-This list is sorted based on relevance and engagement, with the most active and engaging branches at the top.
-
-Example:
-[1] author1: First reply to the post
-[1.1] author2: First reply to [1]
-[1.1.1] author3: Second-level reply to [1.1]
-[1.2] author4: Second reply to [1]
-        `;
+        const systemMessage = this.getSystemMessage();
 
         // Create the user message with the text to summarize
         const title = this.getHNPostTitle();
-        const userMessage = `
-Analyze and summarize the following Hacker News thread. The title of the post and comments are separated by dashed lines.:
------
-Post Title: ${title}
------
-Comments: 
-${text}
------
+        const userMessage = this.getUserMessage(title, text);
 
-Use the following structure as an example of the output (do not copy the content, only use the format). The text in square brackets are placeholders for actual content. Do not show that in the final summary. Add more sections as needed based on the content of the discussion while maintaining a clear and concise summary. 
-
-# Summary
-## Main discussion points
-[List the main topics discussed across all branches as a list]
-  
-## Key takeaways
-[Summarize the most important insights or conclusions from the entire discussion as a list]
-
-# Thread analysis
-## Primary branches
-[Number and brief description of main conversation branches as a list. For each significant branch, specify the branch path and evaluate its productivity or engagement level.]
-  
-## Interaction patterns
-[Notable patterns in how the discussion branched and evolved]
-
-## Notable Quotes
-[Add notable quotes from the discussion with path-based identifiers of the quoted comment. Enclose quotes in italics.]
-
-Please proceed with your analysis and summary of the Hacker News discussion.
-        `;
-
-        // console.log('2. System message:', systemMessage);
-        // console.log('3. User message:', userMessage);
-
-        // console.log('Ollama input text:', text);
+        // this.logDebug('2. System message:', systemMessage);
+        // this.logDebug('3. User message:', userMessage);
 
         // Prepare the request payload
         const payload = {
@@ -2307,7 +2260,7 @@ Please proceed with your analysis and summary of the Hacker News discussion.
                 if (!summary) {
                     throw new Error('No summary generated from API response');
                 }
-                // console.log('4. Summary:', summary);
+                // this.logDebug('4. Summary:', summary);
 
                 // Update the summary panel with the generated summary
                 this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
