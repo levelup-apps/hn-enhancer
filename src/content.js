@@ -1454,10 +1454,11 @@ class HNEnhancer {
             apiComments++;
 
             // If this is the story item (root of the tree), flatten its children, but do not add the story item to the map.
+            //  We must call flattenCommentTree with the parent id as null so that the 'path' for the top level comments is correct.
             if (comment.type === 'story') {
                 if (comment.children && comment.children.length > 0) {
                     comment.children.forEach(child => {
-                        flattenCommentTree(child, comment.id);
+                        flattenCommentTree(child, null);
                     });
                 }
                 return;
@@ -1513,8 +1514,9 @@ class HNEnhancer {
 
         function calculatePath(comment) {
             let path;
-            if (comment.parentId === commentsTree.id) {
-                // Top level comment (its parent is the root of the comment tree which is the story).
+
+            if (!comment.parentId) {
+                // Top level comment - its parent is the story ('summarize all comments' flow) OR this is the root comment ('summarize thread' flow).
                 //  The path is just a number like 1, 2, 3, etc.
                 path = String(topLevelCounter++);
             } else {
