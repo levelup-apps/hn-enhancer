@@ -6,7 +6,7 @@
 > You can also find this extension on the [Chrome Web Store](https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf).
 
 ## 🚀 Quick Start Guide
-1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf)
+1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf) or [Firefox Addon store](https://addons.mozilla.org/en-US/firefox/addon/hacker-news-companion/)
 2. Navigate to [Hacker News](https://news.ycombinator.com)
 3. Press '?' to view keyboard shortcuts
 4. Choose your preferred AI provider in extension settings
@@ -24,8 +24,9 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
 * **AI-Powered Thread Summarization**
   * Multiple AI provider options
   * Summarize entire threads or specific comment branches
-  * Use Chrome's built-in AI for local processing
-  * Connect to OpenAI, Anthropic, Ollama or OpenRouterfor advanced summaries
+  * Connect to cloud-hosted models - OpenAI, Anthropic, or OpenRouter for advanced summaries
+  * Use local models hosted on Ollama
+  * Use Chrome's built-in AI for local processing on Chrome browser
 
 * **Enhanced Comment Navigation**
     * Quick-jump between comments by the same author
@@ -39,25 +40,7 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
 
 ## 🤖 AI Provider Setup Guide
 
-### Chrome Built-in AI (Free, Local Processing)
-1. Requirements:
-    * Chrome version 131 or higher
-    * One-time model download
-
-2. Setup Steps:
-   * To verify that you have chrome version higher than 131, navigate to 'About Chrome' `chrome://settings/help` and check the version.
-   * To trigger the model download, go to Chrome Dev [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/) and try some text.
-   * To verify that the model download is complete, navigate to 'Chrome components' -`chrome://components/` and you should see 'Optimization Guide On Device Model'. Make sure the version is `2024.9.25.2033` or higher.
-
-> [!IMPORTANT]
-> Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/).
-
-3. Best Practices:
-    * Ideal for individual comments or brief threads
-    * May have limitations with very long discussions
-    * No API key required
-
-### Ollama (Free, Local Processing)
+### Ollama 
 1. Requirements:
     * [Ollama](https://ollama.com/) installed on your system
     * CORS configuration for the extension
@@ -82,6 +65,24 @@ Transform your Hacker News experience with intelligent navigation, AI-powered su
     * Keep Ollama running in the background
     * Restart Ollama after CORS configuration
     * Set CORS environment variable to persist across restarts
+
+### Chrome Built-in AI
+1. Requirements:
+    * Chrome version 131 or higher
+    * One-time model download
+
+2. Setup Steps:
+   * To verify that you have chrome version higher than 131, navigate to 'About Chrome' `chrome://settings/help` and check the version.
+   * To trigger the model download, go to Chrome Dev [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/) and try some text.
+   * To verify that the model download is complete, navigate to 'Chrome components' -`chrome://components/` and you should see 'Optimization Guide On Device Model'. Make sure the version is `2024.9.25.2033` or higher.
+
+> [!IMPORTANT]
+> Ensure that summarization works in the [Summarization API Playground](https://chrome.dev/web-ai-demos/summarization-api-playground/).
+
+3. Best Practices:
+    * Ideal for individual comments or brief threads
+    * May have limitations with very long discussions
+    * No API key required
 
 ### OpenAI
 1. Requirements:
