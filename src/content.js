@@ -1130,7 +1130,7 @@ class HNEnhancer {
 
         // 1. Inject the script into the webpage's context
         const pageScript = document.createElement('script');
-        pageScript.src = chrome.runtime.getURL('src/page-script.js');
+        pageScript.src = chrome.runtime.getURL('page-script.js');
         (document.head || document.documentElement).appendChild(pageScript);
 
         pageScript.onload = () => {
