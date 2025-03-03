@@ -1646,7 +1646,7 @@ class HNEnhancer {
                     break;
 
                 case 'none':
-                    this.showSummaryInPanel(formattedComment, commentPathToIdMap).catch(error => {
+                    this.showSummaryInPanel(formattedComment, commentPathToIdMap, 0).catch(error => {
                         console.error('Error showing summary:', error);
                     });
                     break;
@@ -1719,7 +1719,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
                 console.error('Error showing summary:', error);
             });
 
@@ -1814,7 +1814,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
                 console.error('Error showing summary:', error);
             });
 
@@ -1904,7 +1904,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
                 console.error('Error showing summary:', error);
             });
 
@@ -1991,7 +1991,7 @@ class HNEnhancer {
             // console.log('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
                 console.error('Error showing summary:', error);
             });
 
@@ -2158,7 +2158,7 @@ ${text}
     // Show the summary in the summary panel - format the summary for two steps:
     // 1. Replace markdown with HTML
     // 2. Replace path identifiers with comment IDs
-    async showSummaryInPanel(summary, commentPathToIdMap) {
+    async showSummaryInPanel(summary, commentPathToIdMap, duration) {
 
         // Format the summary to replace markdown with HTML
         const summaryHtml = this.convertMarkdownToHTML(summary);
@@ -2169,7 +2169,7 @@ ${text}
         const {aiProvider, model} = await this.getAIProviderModel();
         if (aiProvider) {
             this.summaryPanel.updateContent({
-                metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong>`,
+                metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong> in <strong>${duration ?? '0'} secs</strong>`,
                 text: formattedSummary
             });
         } else {
@@ -2263,7 +2263,7 @@ ${text}
                 // this.logDebug('4. Summary:', summary);
 
                 // Update the summary panel with the generated summary
-                this.showSummaryInPanel(summary, commentPathToIdMap).catch(error => {
+                this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
                     console.error('Error showing summary:', error);
                 });
 
