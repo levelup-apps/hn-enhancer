@@ -382,22 +382,24 @@ class HNEnhancer {
 
         let response;
         const startTime = performance.now();
+        let duration = 0;
 
         try {
             response = await chrome.runtime.sendMessage({type, data});
 
             const endTime = performance.now();
-            this.logDebug(`Background message ${type} returned success in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+            duration = Math.round((endTime - startTime) / 1000);
+
+            this.logDebug(`Got response from background message '${type}' in ${duration}s. URL: ${data.url || 'N/A'}`);
 
         } catch (error) {
             const endTime = performance.now();
-            this.logDebug(`Background message ${type} returned error in ${(endTime - startTime).toFixed(0)} ms. URL: ${data.url}`);
+            duration = Math.round((endTime - startTime) / 1000);
 
-            console.error(`Error sending browser runtime message ${type}:`, error);
-            throw error;
+            const errorMessage = `Error sending background message '${type}' URL: ${data?.url || 'N/A'}. Duration: ${duration}s. Error: ${error.message}`;
+            console.error(errorMessage);
+            throw new Error(errorMessage);
         }
-
-        this.logDebug(`Response from background message ${type}:`, JSON.stringify(response));
 
         if (!response) {
             console.error(`No response from background message ${type}`);
@@ -408,6 +410,8 @@ class HNEnhancer {
             throw new Error(response.error);
         }
 
+        // Add the duration to the response for displaying in the summary panel
+        response.data.duration = duration;
         return response.data;
     }
 
