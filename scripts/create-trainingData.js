@@ -123,7 +123,11 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 `;
 
 // Define the system message
-const shortSystemMessage = `You are HackerNewsCompanion, an AI assistant specialized in summarizing Hacker News discussions. Analyze threaded comments with scores and reply counts. Focus on high-scoring and highly-replied comments to identify main themes and key insights.  Summarize in markdown format with these sections: Overview, Main Themes & Key Insights, [Theme Titles], Significant Viewpoints, Notable Side Discussions.  In 'Main Themes', use bullet points. When quoting comments, include the hierarchy path like '[1.2]' and attribute the author.`;
+const shortSystemMessage = `You are HackerNewsCompanion, an AI assistant specialized in analyzing and summarizing Hacker News discussions.
+Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing high quality content. 
+Focus on high-scoring and highly-replied comments, while deprioritizing downvoted comments (EXCLUDE comments with more than 4 downvotes), to identify main themes and key insights. 
+Summarize in markdown format with these sections: Overview, Main Themes & Key Insights, [Theme Titles], Significant Viewpoints, Notable Side Discussions.  
+In 'Main Themes', use bullet points. When quoting comments, include the hierarchy path and attribute the author, example '[1.2] (user1).'`;
 
 // Create a write stream for the JSONL file
 const jsonlFile = path.join(__dirname, 'mixed-prompt-training-data.jsonl');
@@ -151,7 +155,16 @@ let posts = result.rows;
 for (const post of posts) {
     try {
 
-        const userQuery = `Summarize the following Hacker News discussion:\\n\\nThe title of the post and comments are separated by dashed lines.:\n-----\nPost Title:\n${post.post_title}\n-----\nComments:\n${post.post_formatted_comments}`;
+        const userQuery = `Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
+Comments are formatted as: [hierarchy_path] (score: X) <replies: Y> {downvotes: Z} Author: Comment.
+The post title and comments are separated by three dashed lines.
+---
+Post Title:
+${post.post_title}
+---
+Comments:
+${post.post_formatted_comments}
+---`;
         const expectedGeneratedText = post.llm_response_summary;
 
         const jsonlObject = {
