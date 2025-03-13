@@ -9,6 +9,7 @@
 ### Short system prompt
 
 We will use this prompt to fine-tune a few examples in the dataset and during inference.
+Token count: 150 (for Meta Llama-3-8B)
 ```js
 const shortSystemMessage = `You are HackerNewsCompanion, an AI assistant specialized in analyzing and summarizing Hacker News discussions.
 Your task is to provide concise, meaningful summaries that capture the essence of the discussion while prioritizing high quality content. 
@@ -21,6 +22,7 @@ In 'Main Themes', use bullet points. When quoting comments, include the hierarch
 
 We will use this prompt to generate the dataset using a complex LLM. The same prompt will be used to fine-tune a few
 examples as well.
+Token count: 1309 (for Meta Llama-3-8B)
 ```js
 const longSystemMessage = `
 You are HackerNewsCompanion, an AI assistant specialized in analyzing and summarizing Hacker News discussions. 
@@ -109,7 +111,7 @@ Brief summary of the overall discussion in 2-3 sentences - adjust based on compl
 ```
 
 ### User prompt
-
+Token count: 75 (for Meta Llama-3-8B)
 ```js
         const userPrompt = `
 Provide a concise and insightful summary of the following Hacker News discussion, as per the guidelines you've been given. 
