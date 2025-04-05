@@ -601,16 +601,30 @@ async function main() {
 
         // Summarize the post using the formatted text
 
+        // OpenRouter API key
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        const input = {
+            model: `anthropic/claude-3.7-sonnet`,
+            endpoint: `https://openrouter.ai/api/v1/chat/completions`,
+            apiKey: apiKey,
+        }
+
+        // Anthropic API key
+        // const apiKey = process.env.ANTHROPIC_API_KEY;
         // const input = {
         //     model: `claude-3-5-haiku-latest`,
         //     endpoint: `https://api.anthropic.com/v1/messages`,
         //     apiKey: `your_api_key`,
         // }
-        const input = {
-            model: `gpt-4`,
-            endpoint: `https://api.openai.com/v1/chat/completions`,
-            apiKey: `your_api_key`,
-        }
+
+        // OpenAI API key
+        // const apiKey = process.env.OPENAI_API_KEY;
+        // const input = {
+        //     model: `gpt-4`,
+        //     endpoint: `https://api.openai.com/v1/chat/completions`,
+        //     apiKey: apiKey,
+        // }
+
         console.log(`\nStep 4: Summarizing post using model ${input.model}...`);
         const summary = await summarizeComments(input.model, input.endpoint, input.apiKey, userPrompt);
         console.log(`...Post summarized successfully`);
