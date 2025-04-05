@@ -576,9 +576,15 @@ function resolveCommentLinks(post, summaryText, commentPathMapFilePath) {
 // main function that processes posts from SQLite database
 async function main() {
     try {
-        // const postId = 42981756;
-        // const postId = 37759873;
-        const postId = 43595585;
+        // Get the post ID from command line arguments
+        const postId = process.argv[2];
+
+        // Check if a post ID was provided
+        if (!postId) {
+            console.error('Error: Post ID missing. Please provide a post id as a command line argument');
+            console.error('Usage: node summarize-comments.js <postId>');
+            process.exit(1);
+        }
         console.log(`\nProcessing post ${postId}...\n`);
 
         console.log(`Step 1: Downloading post...`);
