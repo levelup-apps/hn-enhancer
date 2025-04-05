@@ -578,7 +578,7 @@ async function main() {
     try {
         // const postId = 42981756;
         // const postId = 37759873;
-        const postId = 43270843;
+        const postId = 43595585;
         console.log(`\nProcessing post ${postId}...\n`);
 
         console.log(`Step 1: Downloading post...`);
@@ -604,7 +604,9 @@ async function main() {
         // OpenRouter API key
         const apiKey = process.env.OPENROUTER_API_KEY;
         const input = {
-            model: `anthropic/claude-3.7-sonnet`,
+            model: `meta-llama/llama-4-maverick`,
+            // model: `meta-llama/llama-4-scout`,
+            // model: `anthropic/claude-3.7-sonnet`,
             endpoint: `https://openrouter.ai/api/v1/chat/completions`,
             apiKey: apiKey,
         }
