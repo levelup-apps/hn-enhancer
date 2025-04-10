@@ -1604,23 +1604,23 @@ class HNEnhancer {
     summarizeTextWithAI(formattedComment, commentPathToIdMap) {
         chrome.storage.sync.get('settings').then(data => {
 
-            const providerSelection = data.settings?.providerSelection;
-            // const providerSelection = 'none';
-            const model = data.settings?.[providerSelection]?.model;
+            const aiProvider = data.settings?.providerSelection;
+            // const aiProvider = 'none';
+            const model = data.settings?.[aiProvider]?.model;
 
-            if (!providerSelection) {
+            if (!aiProvider) {
                 console.log('AI provider not configured. Prompting user to complete setup.');
                 this.showConfigureAIMessage();
                 return;
             }
 
-            this.logInfo(`Summarization - AI Provider: ${providerSelection}, Model: ${model || 'none'}`);
+            this.logInfo(`Summarization - AI Provider: ${aiProvider}, Model: ${model || 'none'}`);
             // this.logDebug('1. Formatted comment:', formattedComment);
 
             // Remove unnecessary anchor tags from the text
             formattedComment = this.stripAnchors(formattedComment);
 
-            switch (providerSelection) {
+            switch (aiProvider) {
 
                 case 'none':
                     // For debugging purpose, show the formatted comment or any text as summary in the panel
@@ -1634,127 +1634,19 @@ class HNEnhancer {
                 case 'ollama':
                     this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
                     break;
-                default:
-                    // Cloud LLM providers - use the common summarize method
-                    const apiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingCloudLLM(providerSelection, model, apiKey, formattedComment, commentPathToIdMap);
-
-                /*case 'openai':
-                    const apiKey = data.settings?.[providerSelection]?.apiKey;
-                    // this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
-                    this.summarizeUsingOpenAI_new(formattedComment,  model, apiKey, commentPathToIdMap);
-                    break;
-
-                case 'openrouter':
-                    const openrouterKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingOpenRouter(formattedComment, model, openrouterKey, commentPathToIdMap);
-                    break;
-
+                // AI providers supported by Vercel AI SDK - use the common summarize method
+                case 'openai':
                 case 'anthropic':
-                    const claudeApiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingAnthropic(formattedComment, model, claudeApiKey, commentPathToIdMap);
-                    break;
-
                 case 'deepseek':
-                    const deepSeekApiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingDeepSeek(formattedComment, model, deepSeekApiKey, commentPathToIdMap);
+                case 'openrouter':
+                    const apiKey = data.settings?.[aiProvider]?.apiKey;
+                    this.summarizeUsingCloudLLM(aiProvider, model, apiKey, formattedComment, commentPathToIdMap);
                     break;
-                 */
+                default:
+                    console.error(`Unsupported AI provider: ${aiProvider}, Model: ${model}`);
             }
         }).catch(error => {
             console.error('Error fetching settings:', error);
-        });
-    }
-
-    summarizeUsingOpenRouter(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for OpenAI summarization');
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: 'Missing API configuration'
-            });
-            return;
-        }
-
-        // Rate Limit for OpenRouter
-        const tokenLimit = 60000;
-        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
-
-        // Set up the API request
-        const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-
-        // Create the system and user prompts for better summarization
-        const systemPrompt = this.getSystemMessage();
-        // this.logDebug('2. System prompt:', systemPrompt);
-
-        const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        // this.logDebug('3. User prompt:', userPrompt);
-
-        // OpenRouter, just like OpenAI, takes system and user messages as an array with role (system / user) and content
-        const messages = [{
-            role: "system",
-            content: systemPrompt
-        }, {
-            role: "user",
-            content: userPrompt
-        }];
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            messages: messages
-        };
-
-        // Make the API request using background message
-        this.sendBackgroundMessage('FETCH_API_REQUEST', {
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://chromewebstore.google.com/detail/hacker-news-companion/khfcainelcaedmmhjicphbkpigklejgf', // Optional. Site URL for rankings on openrouter.ai.
-                'X-Title': 'Hacker News Companion', // Optional. Site title for rankings on openrouter.ai.
-            },
-            body: JSON.stringify(payload)
-        }).then(data => {
-            // disable the warning unresolved variable in this specific instance
-            // noinspection JSUnresolvedVariable
-            const summary = data?.choices[0]?.message?.content;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-            // console.log('4. Summary:', summary);
-
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
-                console.error('Error showing summary:', error);
-            });
-
-        }).catch(error => {
-            console.error('Error in OpenRouter summarization:', error);
-
-            // Update the summary panel with an error message
-            // OpenRouter follows the same error message structure as OpenAI
-            // https://openrouter.ai/docs/errors
-            let errorMessage = `Error generating summary using OpenRouter model ${model}. `;
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429')) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else if (error.message.includes('current quota')) {
-                errorMessage += 'API quota exceeded. Please try again later.';
-            }
-            else {
-                errorMessage += error.message + ' Please try again later.';
-            }
-
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
         });
     }
 
@@ -1891,276 +1783,6 @@ class HNEnhancer {
         this.summaryPanel.updateContent({
             title: 'Error',
             text: errorMessage
-        });
-    }
-
-    summarizeUsingOpenAI(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for OpenAI summarization');
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: 'Missing API configuration'
-            });
-            return;
-        }
-
-        // Rate Limit for OpenAI
-        // gpt-4-turbo      - 30,000 TPM
-        // gpt-3.5-turbo    - 16,000 TPM
-        const tokenLimit = model === 'gpt-4-turbo' ? 25_000 : 15_000;
-        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
-
-        // Set up the API request
-        const endpoint = 'https://api.openai.com/v1/chat/completions';
-
-        // Create the system and user prompts for better summarization
-        const systemPrompt = this.getSystemMessage();
-        // this.logDebug('2. System prompt:', systemPrompt);
-
-        const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        // this.logDebug('3. User prompt:', userPrompt);
-
-        // OpenAI takes system and user messages as an array with role (system / user) and content
-        const messages = [{
-            role: "system",
-            content: systemPrompt
-        }, {
-            role: "user",
-            content: userPrompt
-        }];
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            messages: messages,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
-        };
-
-        // Make the API request using background message
-        this.sendBackgroundMessage('FETCH_API_REQUEST', {
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(payload)
-        }).then(data => {
-            // disable thw warning unresolved variable in this specific instance
-            // noinspection JSUnresolvedVariable
-            const summary = data?.choices[0]?.message?.content;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-            // console.log('4. Summary:', summary);
-
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
-                console.error('Error showing summary:', error);
-            });
-
-        }).catch(error => {
-            console.error('Error in OpenAI summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = `Error generating summary using OpenAI model ${model}. `;
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429') ) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else if (error.message.includes('current quota')) {
-                errorMessage += 'API quota exceeded. Please try again later.';  // OpenAI has a daily quota
-            }
-            else {
-                errorMessage += error.message + ' Please try again later.';
-            }
-
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
-        });
-    }
-
-    summarizeUsingAnthropic(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for Anthropic summarization');
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: 'Missing API configuration'
-            });
-            return;
-        }
-
-        // Limit the input text to 40,000 tokens for Anthropic
-        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
-
-        // Set up the API request
-        const endpoint = 'https://api.anthropic.com/v1/messages';
-
-        // Create the system and user prompts for better summarization
-        const systemPrompt = this.getSystemMessage();
-        // console.log('2. System prompt:', systemPrompt);
-
-        const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        // console.log('3. User prompt:', userPrompt);
-
-        // Anthropic takes system messages at the top level, whereas user messages as an array with role "user" and content.
-        const messages = [{
-            role: "user",
-            content: userPrompt
-        }];
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: messages
-        };
-
-        // Make the API request using background message
-        this.sendBackgroundMessage('FETCH_API_REQUEST', {
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true' // this is required to resolve CORS issue
-            },
-            body: JSON.stringify(payload)
-        }).then(data => {
-
-            if(!data || !data.content || data.content.length === 0) {
-                throw new Error(`Summary response data is empty. ${data}`);
-            }
-            const summary = data.content[0].text;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-            // console.log('4. Summary:', summary);
-
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
-                console.error('Error showing summary:', error);
-            });
-
-        }).catch(error => {
-            console.error('Error in Anthropic summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = `Error generating summary using Anthropic model ${model}. `;
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429')) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else {
-                errorMessage += 'Please try again later.';
-            }
-
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
-        });
-    }
-
-    summarizeUsingDeepSeek(text, model, apiKey, commentPathToIdMap) {
-        // Validate required parameters
-        if (!text || !model || !apiKey) {
-            console.error('Missing required parameters for DeepSeek summarization');
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: 'Missing API configuration'
-            });
-            return;
-        }
-
-        // Limit the input text to 40,000 tokens for DeepSeek
-        const tokenLimitText = this.splitInputTextAtTokenLimit(text, 40_000);
-
-        // Set up the API request
-        const endpoint = 'https://api.deepseek.com/v1/chat/completions';
-
-        // Create the system and user prompts for better summarization
-        const systemPrompt = this.getSystemMessage();
-        // this.logDebug('2. System prompt:', systemPrompt);
-
-        const postTitle = this.getHNPostTitle()
-        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
-        // this.logDebug('3. User prompt:', userPrompt);
-
-        // DeepSeek takes system and user messages in the same format as OpenAI - an array with role (system / user) and content
-        const messages = [{
-            role: "system",
-            content: systemPrompt
-        }, {
-            role: "user",
-            content: userPrompt
-        }];
-
-        // Prepare the request payload
-        const payload = {
-            model: model,
-            messages: messages,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
-        };
-
-        // Make the API request using background message
-        this.sendBackgroundMessage('FETCH_API_REQUEST', {
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(payload)
-        }).then(data => {
-            // disable thw warning unresolved variable in this specific instance
-            // noinspection JSUnresolvedVariable
-            const summary = data?.choices[0]?.message?.content;
-
-            if (!summary) {
-                throw new Error('No summary generated from API response');
-            }
-            // console.log('4. Summary:', summary);
-
-            // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
-                console.error('Error showing summary:', error);
-            });
-
-        }).catch(error => {
-            console.error('Error in DeepSeek summarization:', error);
-
-            // Update the summary panel with an error message
-            let errorMessage = `Error generating summary using DeepSeek model ${model}. `;
-            if (error.message.includes('API key')) {
-                errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429') ) {
-                errorMessage += 'Rate limit exceeded. Please try again later.';
-            } else if (error.message.includes('current quota')) {
-                errorMessage += 'API quota exceeded. Please try again later.';  // DeepSeek has a daily quota
-            }
-            else {
-                errorMessage += error.message + ' Please try again later.';
-            }
-
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
         });
     }
 
