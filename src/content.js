@@ -1621,13 +1621,28 @@ class HNEnhancer {
             formattedComment = this.stripAnchors(formattedComment);
 
             switch (providerSelection) {
+
+                case 'none':
+                    // For debugging purpose, show the formatted comment or any text as summary in the panel
+                    this.showSummaryInPanel(formattedComment, commentPathToIdMap, 0).catch(error => {
+                        console.error('Error showing summary:', error);
+                    });
+                    break;
                 case 'chrome-ai':
                     this.summarizeUsingChromeBuiltInAI(formattedComment, commentPathToIdMap);
                     break;
-
-                case 'openai':
+                case 'ollama':
+                    this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
+                    break;
+                default:
+                    // Cloud LLM providers - use the common summarize method
                     const apiKey = data.settings?.[providerSelection]?.apiKey;
-                    this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
+                    this.summarizeUsingCloudLLM(providerSelection, model, apiKey, formattedComment, commentPathToIdMap);
+
+                /*case 'openai':
+                    const apiKey = data.settings?.[providerSelection]?.apiKey;
+                    // this.summarizeUsingOpenAI(formattedComment,  model, apiKey, commentPathToIdMap);
+                    this.summarizeUsingOpenAI_new(formattedComment,  model, apiKey, commentPathToIdMap);
                     break;
 
                 case 'openrouter':
@@ -1644,16 +1659,7 @@ class HNEnhancer {
                     const deepSeekApiKey = data.settings?.[providerSelection]?.apiKey;
                     this.summarizeUsingDeepSeek(formattedComment, model, deepSeekApiKey, commentPathToIdMap);
                     break;
-
-                case 'ollama':
-                    this.summarizeUsingOllama(formattedComment, model, commentPathToIdMap);
-                    break;
-
-                case 'none':
-                    this.showSummaryInPanel(formattedComment, commentPathToIdMap, 0).catch(error => {
-                        console.error('Error showing summary:', error);
-                    });
-                    break;
+                 */
             }
         }).catch(error => {
             console.error('Error fetching settings:', error);
@@ -1742,6 +1748,71 @@ class HNEnhancer {
                 errorMessage += 'API quota exceeded. Please try again later.';
             }
             else {
+                errorMessage += error.message + ' Please try again later.';
+            }
+
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: errorMessage
+            });
+        });
+    }
+
+    summarizeUsingCloudLLM(aiProvider, modelName, apiKey, text, commentPathToIdMap) {
+        // Validate required parameters
+        if (!text || !aiProvider || !modelName || !apiKey) {
+            console.error('Missing required parameters for AI summarization');
+            this.summaryPanel.updateContent({
+                title: 'Error',
+                text: 'Missing API configuration'
+            });
+            return;
+        }
+
+        // Rate Limit for OpenAI
+        // gpt-4-turbo      - 30,000 TPM
+        // gpt-3.5-turbo    - 16,000 TPM
+        const tokenLimit = modelName === 'gpt-4' ? 25_000 : 15_000;
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+
+        // Create the system and user prompts for better summarization
+        const systemPrompt = this.getSystemMessage();
+        // this.logDebug('2. System prompt:', systemPrompt);
+
+        const postTitle = this.getHNPostTitle()
+        const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+        // this.logDebug('3. User prompt:', userPrompt);
+
+        const llmInput = {
+            aiProvider,
+            modelName,
+            apiKey,
+            systemPrompt,
+            userPrompt,
+        };
+
+        this.sendBackgroundMessage('HN_SUMMARIZE', llmInput).then(summary => {
+            if (!summary) {
+                throw new Error('No summary generated from API response');
+            }
+            // console.log('4. Summary:', summary);
+
+            // Update the summary panel with the generated summary
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
+                console.error('Error showing summary:', error);
+            });
+        }).catch(error => {
+            console.error('Error in AI summarization:', error);
+
+            // Update the summary panel with an error message
+            let errorMessage = `Error generating summary using model ${modelName}. `;
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.message.includes('429') ) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.message.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';
+            } else {
                 errorMessage += error.message + ' Please try again later.';
             }
 

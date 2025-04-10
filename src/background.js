@@ -1,3 +1,6 @@
+import { generateText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
+
 async function onInstalled() {
     const data = await chrome.storage.sync.get('settings');
     const providerSelection = data.settings?.providerSelection;
@@ -27,11 +30,66 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 async () => await fetchWithTimeout(message.data.url, message.data),
                 sendResponse
             );
-
+        case 'HN_SUMMARIZE':
+            return handleAsyncMessage(
+                message,
+                async () => await summarizeText(message.data),
+                sendResponse
+            );
         default:
             console.log('Unknown message type:', message.type);
     }
 });
+
+async function summarizeText(data) {
+
+    try {
+
+        const { aiProvider, modelName, apiKey, systemPrompt, userPrompt, parameters = {} } = data;
+
+        let model;
+        switch (aiProvider) {
+            // AI provider can be 'openai', 'anthropic', 'deepseek' or 'openrouter'
+            case 'openai':
+                const openai = createOpenAI({
+                    apiKey: apiKey,
+                });
+                model = openai(modelName);
+                break;
+            default:
+                throw new Error(`Unsupported AI provider: ${aiProvider}, model: ${modelName}`);
+        }
+        if (!model) {
+            throw new Error(`Failed to initialize model for provider: ${aiProvider}, model: ${modelName}`);
+        }
+
+        const { text } = await generateText({
+            model: model,
+            system: systemPrompt,
+            prompt: userPrompt,
+            // Add optional parameters if provided
+            temperature: parameters.temperature || 0.7,
+            top_p: parameters.top_p || 1,
+            frequency_penalty: parameters.frequency_penalty || 0,
+            presence_penalty: parameters.presence_penalty || 0,
+            max_tokens: parameters.max_tokens
+        });
+
+        console.log('Summarized text success. Summary:', text);
+
+        return text;
+    } catch (error) {
+        console.log('Error in summarizeText: ', error);
+        // Provide more detailed error information for better debugging
+        const errorInfo = {
+            message: error.message,
+            provider: data?.aiProvider,
+            model: data?.modelName,
+            stack: error.stack
+        };
+        throw errorInfo;
+    }
+}
 
 // Handle async message and send response
 function handleAsyncMessage(message, asyncOperation, sendResponse) {
