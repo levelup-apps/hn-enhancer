@@ -1,5 +1,9 @@
 import { generateText } from 'ai';
+
 import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createDeepSeek } from '@ai-sdk/deepseek';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 async function onInstalled() {
     const data = await chrome.storage.sync.get('settings');
@@ -60,7 +64,7 @@ function handleAsyncMessage(message, asyncOperation, sendResponse) {
 async function summarizeText(data) {
     try {
 
-        const { aiProvider, modelName, apiKey, systemPrompt, userPrompt, parameters = {} } = data;
+        const { aiProvider, modelId, apiKey, systemPrompt, userPrompt, parameters = {} } = data;
 
         let model;
         switch (aiProvider) {
@@ -69,13 +73,35 @@ async function summarizeText(data) {
                 const openai = createOpenAI({
                     apiKey: apiKey,
                 });
-                model = openai(modelName);
+                model = openai(modelId);
                 break;
+
+            case 'anthropic':
+                const anthropic = createAnthropic({
+                    apiKey: apiKey,
+                });
+                model = anthropic(modelId);
+                break;
+
+            case 'deepseek':
+                const deepseek = createDeepSeek({
+                    apiKey: apiKey,
+                });
+                model = deepseek(modelId);
+                break;
+
+                case 'openrouter':
+                    const openRouter = createOpenRouter({
+                        apiKey: apiKey,
+                    });
+                    model = openRouter.completion(modelId);
+                    break;
+
             default:
-                throw new Error(`Unsupported AI provider: ${aiProvider}, model: ${modelName}`);
+                throw new Error(`Unsupported AI provider: ${aiProvider}, model: ${modelId}`);
         }
         if (!model) {
-            throw new Error(`Failed to initialize model for provider: ${aiProvider}, model: ${modelName}`);
+            throw new Error(`Failed to initialize model for provider: ${aiProvider}, model: ${modelId}`);
         }
 
         const { text: summary } = await generateText({
@@ -100,7 +126,7 @@ async function summarizeText(data) {
         const errorInfo = {
             message: error.message,
             provider: data?.aiProvider,
-            model: data?.modelName,
+            model: data?.modelId,
             stack: error.stack
         };
         throw errorInfo;

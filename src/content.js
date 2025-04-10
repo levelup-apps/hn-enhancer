@@ -1758,9 +1758,9 @@ class HNEnhancer {
         });
     }
 
-    summarizeUsingCloudLLM(aiProvider, modelName, apiKey, text, commentPathToIdMap) {
+    summarizeUsingCloudLLM(aiProvider, modelId, apiKey, text, commentPathToIdMap) {
         // Validate required parameters
-        if (!text || !aiProvider || !modelName || !apiKey) {
+        if (!text || !aiProvider || !modelId || !apiKey) {
             console.error('Missing required parameters for AI summarization');
             this.summaryPanel.updateContent({
                 title: 'Error',
@@ -1769,10 +1769,10 @@ class HNEnhancer {
             return;
         }
 
-        this.logDebug(`Summarizing with ${aiProvider} / ${modelName}`);
+        this.logDebug(`Summarizing with ${aiProvider} / ${modelId}`);
 
         // Get the configuration based on provider and model
-        const modelConfig = this.getModelConfiguration(aiProvider, modelName);
+        const modelConfig = this.getModelConfiguration(aiProvider, modelId);
 
         // Handle input token limits based on model configuration
         const tokenLimitText = this.splitInputTextAtTokenLimit(text, modelConfig.inputTokenLimit);
@@ -1796,7 +1796,7 @@ class HNEnhancer {
 
         const llmInput = {
             aiProvider,
-            modelName,
+            modelId,
             apiKey,
             systemPrompt,
             userPrompt,
@@ -1822,7 +1822,7 @@ class HNEnhancer {
     }
 
     // Helper method to get model-specific configuration
-    getModelConfiguration(provider, modelName) {
+    getModelConfiguration(provider, modelId) {
         const defaultConfig = {
             inputTokenLimit: 15000,  // Maximum tokens to include from input text
             outputTokenLimit: 4000,  // Maximum tokens allowed for generated summary
@@ -1853,7 +1853,7 @@ class HNEnhancer {
         };
 
         // Return model-specific config or fall back to provider default then global default
-        return (modelConfigs[provider] && modelConfigs[provider][modelName])
+        return (modelConfigs[provider] && modelConfigs[provider][modelId])
                 || (modelConfigs[provider] && modelConfigs[provider].default)
                 || defaultConfig;
     }
