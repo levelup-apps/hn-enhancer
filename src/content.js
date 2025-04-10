@@ -1769,19 +1769,30 @@ class HNEnhancer {
             return;
         }
 
-        // Rate Limit for OpenAI
-        // gpt-4-turbo      - 30,000 TPM
-        // gpt-3.5-turbo    - 16,000 TPM
-        const tokenLimit = modelName === 'gpt-4' ? 25_000 : 15_000;
-        const tokenLimitText = this.splitInputTextAtTokenLimit(text, tokenLimit);
+        this.logDebug(`Summarizing with ${aiProvider} / ${modelName}`);
+
+        // Get the configuration based on provider and model
+        const modelConfig = this.getModelConfiguration(aiProvider, modelName);
+
+        // Handle input token limits based on model configuration
+        const tokenLimitText = this.splitInputTextAtTokenLimit(text, modelConfig.inputTokenLimit);
 
         // Create the system and user prompts for better summarization
         const systemPrompt = this.getSystemMessage();
-        // this.logDebug('2. System prompt:', systemPrompt);
-
         const postTitle = this.getHNPostTitle()
         const userPrompt = this.getUserMessage(postTitle, tokenLimitText);
+
+        // this.logDebug('2. System prompt:', systemPrompt);
         // this.logDebug('3. User prompt:', userPrompt);
+
+        // Prepare model parameters with defaults and overrides
+        const parameters = {
+            temperature: modelConfig.temperature || 0.7,
+            top_p: modelConfig.top_p || 1,
+            frequency_penalty: modelConfig.frequency_penalty || 0,
+            presence_penalty: modelConfig.presence_penalty || 0,
+            max_tokens: modelConfig.outputTokenLimit || undefined
+        };
 
         const llmInput = {
             aiProvider,
@@ -1789,37 +1800,97 @@ class HNEnhancer {
             apiKey,
             systemPrompt,
             userPrompt,
+            parameters,
         };
 
-        this.sendBackgroundMessage('HN_SUMMARIZE', llmInput).then(summary => {
+        this.sendBackgroundMessage('HN_SUMMARIZE', llmInput).then(data => {
+            const summary = data?.summary;
             if (!summary) {
                 throw new Error('No summary generated from API response');
             }
-            // console.log('4. Summary:', summary);
+            // this.logDebug('4. Summary:', summary);
 
             // Update the summary panel with the generated summary
-            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration).catch(error => {
-                console.error('Error showing summary:', error);
-            });
+            this.showSummaryInPanel(summary, commentPathToIdMap, data.duration)
+                .catch(error => {
+                    console.error('Error showing summary:', error);
+                });
         }).catch(error => {
             console.error('Error in AI summarization:', error);
+            this.handleSummaryError(error);
+        });
+    }
 
-            // Update the summary panel with an error message
-            let errorMessage = `Error generating summary using model ${modelName}. `;
+    // Helper method to get model-specific configuration
+    getModelConfiguration(provider, modelName) {
+        const defaultConfig = {
+            inputTokenLimit: 15000,  // Maximum tokens to include from input text
+            outputTokenLimit: 4000,  // Maximum tokens allowed for generated summary
+            temperature: 0.7,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0
+        };
+
+        // Model-specific configurations
+        const modelConfigs = {
+            'openai': {
+                'gpt-4': { inputTokenLimit: 25000, temperature: 0.7 },
+                'gpt-4-turbo': { inputTokenLimit: 27000, temperature: 0.7 },
+                'gpt-3.5-turbo': { inputTokenLimit: 16000, temperature: 0.7 }
+            },
+            'anthropic': {
+                'claude-3-opus-20240229': { inputTokenLimit: 25000, outputTokenLimit: 3000, temperature: 0.7 },
+                'claude-3-sonnet-20240229': { inputTokenLimit: 20000, outputTokenLimit: 3000, temperature: 0.7 },
+            },
+            'deepseek': {
+                'deepseek-chat': { inputTokenLimit: 15000, temperature: 0.7 }
+            },
+            'openrouter': {
+                // These are placeholders - adjust based on actual models
+                'claude-3-sonnet-20240229': { inputTokenLimit: 25000, outputTokenLimit: 3000, temperature: 0.7 },
+            }
+        };
+
+        // Return model-specific config or fall back to provider default then global default
+        return (modelConfigs[provider] && modelConfigs[provider][modelName])
+                || (modelConfigs[provider] && modelConfigs[provider].default)
+                || defaultConfig;
+    }
+
+    // Helper method to handle summary errors with user-friendly messages
+    handleSummaryError(error) {
+        let errorMessage = `Error generating summary. `;
+
+        // Provide user-friendly error messages based on error type
+        if (typeof error === 'string') {
+            if (error.includes('API key')) {
+                errorMessage += 'Please check your API key configuration.';
+            } else if (error.includes('429')) {
+                errorMessage += 'Rate limit exceeded. Please try again later.';
+            } else if (error.includes('current quota')) {
+                errorMessage += 'API quota exceeded. Please try again later.';
+            } else {
+                errorMessage += error;
+            }
+        } else if (error.message) {
             if (error.message.includes('API key')) {
                 errorMessage += 'Please check your API key configuration.';
-            } else if (error.message.includes('429') ) {
+            } else if (error.message.includes('429')) {
                 errorMessage += 'Rate limit exceeded. Please try again later.';
             } else if (error.message.includes('current quota')) {
                 errorMessage += 'API quota exceeded. Please try again later.';
             } else {
-                errorMessage += error.message + ' Please try again later.';
+                errorMessage += error.message;
             }
+        } else {
+            errorMessage += 'An unexpected error occurred. Please try again.';
+        }
 
-            this.summaryPanel.updateContent({
-                title: 'Error',
-                text: errorMessage
-            });
+        // Update the summary panel with the error message
+        this.summaryPanel.updateContent({
+            title: 'Error',
+            text: errorMessage
         });
     }
 

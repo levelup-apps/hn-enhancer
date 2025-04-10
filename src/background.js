@@ -41,8 +41,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-async function summarizeText(data) {
+// Handle async message and send response
+function handleAsyncMessage(message, asyncOperation, sendResponse) {
+    (async () => {
+        try {
+            const response = await asyncOperation();
+            sendResponse({success: true, data: response});
+        } catch (error) {
+            console.error(`Message: ${message.type}. Error: ${error}`);
+            sendResponse({success: false, error: error.toString()});
+        }
+    })();
 
+    // indicate that sendResponse will be called later and hence keep the message channel open
+    return true;
+}
+
+async function summarizeText(data) {
     try {
 
         const { aiProvider, modelName, apiKey, systemPrompt, userPrompt, parameters = {} } = data;
@@ -63,7 +78,7 @@ async function summarizeText(data) {
             throw new Error(`Failed to initialize model for provider: ${aiProvider}, model: ${modelName}`);
         }
 
-        const { text } = await generateText({
+        const { text: summary } = await generateText({
             model: model,
             system: systemPrompt,
             prompt: userPrompt,
@@ -75,9 +90,10 @@ async function summarizeText(data) {
             max_tokens: parameters.max_tokens
         });
 
-        console.log('Summarized text success. Summary:', text);
+        console.log('Summarized text success. Summary:', summary);
 
-        return text;
+        return summary;
+
     } catch (error) {
         console.log('Error in summarizeText: ', error);
         // Provide more detailed error information for better debugging
@@ -89,22 +105,6 @@ async function summarizeText(data) {
         };
         throw errorInfo;
     }
-}
-
-// Handle async message and send response
-function handleAsyncMessage(message, asyncOperation, sendResponse) {
-    (async () => {
-        try {
-            const response = await asyncOperation();
-            sendResponse({success: true, data: response});
-        } catch (error) {
-            console.error(`Message: ${message.type}. Error: ${error}`);
-            sendResponse({success: false, error: error.toString()});
-        }
-    })();
-
-    // indicate that sendResponse will be called later and hence keep the message channel open
-    return true;
 }
 
 // Utility function for API calls with timeout
