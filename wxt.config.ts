@@ -9,5 +9,11 @@ export default defineConfig({
     homepage_url: "https://github.com/levelup-apps/hn-enhancer",
     version: "1.1.0",
     permissions: ['storage'],
+    icons: {
+      16: '/icon/icon-16.png',
+      32: '/icon/icon-32.png',
+      48: '/icon/icon-48.png',
+      128: '/icon/icon-128.png',
+    },
   },
 });
