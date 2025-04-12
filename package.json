@@ -14,15 +14,22 @@
     "jsonlines": "^0.1.1",
     "node-fetch": "^3.3.2",
     "node-html-parser": "^7.0.1",
-    "tailwindcss": "^3.4.16"
+    "tailwindcss": "^3.4.16",
+    "wxt": "^0.20.0"
   },
   "scripts": {
-    "build:tailwind": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css",
-    "build:tailwind:watch": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --watch",
-    "release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --minify",
-    "release-build": "NODE_ENV=production pnpm run release:tailwind && node src/build.js",
-    "dev-build": "NODE_ENV=development pnpm run build:tailwind && node src/build.js",
-    "dev": "NODE_ENV=development --mode development",
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "postinstall": "wxt prepare",
+
+      "build:tailwind": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css",
+      "build:tailwind:watch": "pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --watch",
+      "release:tailwind": "NODE_ENV=production pnpm tailwindcss -i ./src/options/options-base.css -o ./src/options/options-styles.css --minify",
+
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "download-post-ids": "node scripts/download-post-ids.js",
     "download-posts": "node scripts/download.js",
