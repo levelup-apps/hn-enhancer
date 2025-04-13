@@ -29,9 +29,7 @@ export default defineConfig({
                 48: '/icon/icon-48.png',
                 128: '/icon/icon-128.png',
             },
-            action: {
-                default_popup: "options.html"
-            },
+            action: {},
         };
         if(browser === 'firefox') {
             manifest["browser_specific_settings"] = {
@@ -46,5 +44,8 @@ export default defineConfig({
         plugins: [
             tailwindcss(),
         ],
+        build: {
+            minify: false, // Disable minification
+        }
     }),
 });
