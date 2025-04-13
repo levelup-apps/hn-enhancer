@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Hacker News Companion</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="inter-ui/inter.css">
+    <script src="popup.js" type="module"></script>
+</head>
+<body class="flex items-center justify-center bg-gray-100" style="min-width: 400px ; min-height: 250px">
+<div class="md:flex md:items-center md:justify-between md:space-x-5">
+    <div class="flex items-center space-x-5">
+        <div class="shrink-0">
+            <div class="relative">
+                <img class="size-16 " src="/icon/icon-128.png" alt="HN Companion">
+            </div>
+        </div>
+        <div >
+            <h1 class="text-2xl font-bold text-gray-900">HN Companion</h1>
+        </div>
+    </div>
+    <div class="mt-6 flex flex-col-reverse justify-stretch space-y-4 space-y-reverse sm:flex-row-reverse sm:justify-end sm:space-x-3 sm:space-y-0 sm:space-x-reverse md:mt-0 md:flex-row md:space-x-3">
+        <button type="button" id="configureBtn" class="inline-flex items-center justify-center rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">Configure HN Companion</button>
+    </div>
+</div>
+</body>
+</html>
