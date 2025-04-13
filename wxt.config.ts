@@ -10,11 +10,18 @@ export default defineConfig({
             name: "Hacker News Companion",
             description: "Enhance Hacker News with smart navigation and AI summaries using local or cloud LLMs. Navigate easily with Vim-style shortcuts.",
             homepage_url: "https://github.com/levelup-apps/hn-enhancer",
-            version: "1.1.0",
+            version: "1.5.0",
             permissions: ['storage'],
             host_permissions: [
                 "https://news.ycombinator.com/*",
                 "https://hn.algolia.com/*"
+            ],
+            optional_host_permissions: [
+                "https://api.openai.com/v1/chat/completions/*",
+                "https://api.anthropic.com/v1/messages/*",
+                "http://localhost:11434/*",
+                "https://openrouter.ai/api/v1/*",
+                "https://api.deepseek.com/v1/chat/completions/*"
             ],
             icons: {
                 16: '/icon/icon-16.png',
