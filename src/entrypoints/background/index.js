@@ -1,3 +1,5 @@
+import {summarizeText} from '../../lib/llm-summarizer.js';
+
 export default defineBackground(() => {
 
     async function onInstalled() {
@@ -13,76 +15,86 @@ export default defineBackground(() => {
         }
     }
 
-    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-        console.log('Background script received message of type:', message.type);
+            console.log('Background script received message of type:', message.type);
 
-        // Handle the message
-        switch (message.type) {
-            case 'HN_SHOW_OPTIONS':
-                browser.runtime.openOptionsPage();
-                break;
+            // Handle the message
+            switch (message.type) {
+                case 'HN_SHOW_OPTIONS':
+                    browser.runtime.openOptionsPage();
+                    break;
 
-            case 'FETCH_API_REQUEST':
-                return handleAsyncMessage(
-                    message,
-                    async () => await fetchWithTimeout(message.data.url, message.data),
-                    sendResponse
-                );
+                case 'FETCH_API_REQUEST':
+                    return handleAsyncMessage(
+                        message,
+                        async () => await fetchWithTimeout(message.data.url, message.data),
+                        sendResponse
+                    );
 
-            default:
-                console.log('Unknown message type:', message.type);
-        }
-    });
+                case 'HN_SUMMARIZE':
+                    return handleAsyncMessage(
+                        message,
+                        async () => {
+                            const summary = await summarizeText(message.data);
+                            return { summary: summary };
+                        },
+                        sendResponse
+                    );
+
+                default:
+                    console.log('Unknown message type:', message.type);
+            }
+        });
 
 // Handle async message and send response
-    function handleAsyncMessage(message, asyncOperation, sendResponse) {
-        (async () => {
-            try {
-                const response = await asyncOperation();
-                sendResponse({success: true, data: response});
-            } catch (error) {
-                console.error(`Message: ${message.type}. Error: ${error}`);
-                sendResponse({success: false, error: error.toString()});
-            }
-        })();
+function handleAsyncMessage(message, asyncOperation, sendResponse) {
+    (async () => {
+        try {
+            const response = await asyncOperation();
+            sendResponse({success: true, data: response});
+        } catch (error) {
+            console.error(`Message: ${message.type}. Error: ${error}`);
+            sendResponse({success: false, error: error.toString()});
+        }
+    })();
 
-        // indicate that sendResponse will be called later and hence keep the message channel open
-        return true;
-    }
+    // indicate that sendResponse will be called later and hence keep the message channel open
+    return true;
+}
 
 // Utility function for API calls with timeout
-    async function fetchWithTimeout(url, options = {}) {
+async function fetchWithTimeout(url, options = {}) {
 
-        const {method = 'GET', headers = {}, body = null, timeout = 60_000} = options;
+    const {method = 'GET', headers = {}, body = null, timeout = 60_000} = options;
 
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
 
-        try {
-            const response = await fetch(url, {
-                method,
-                headers,
-                body,
-                signal: controller.signal
-            });
-            clearTimeout(id);
+    try {
+        const response = await fetch(url, {
+            method,
+            headers,
+            body,
+            signal: controller.signal
+        });
+        clearTimeout(id);
 
-            if (!response.ok) {
-                const responseText = await response.text();
-                const errorText = `API Error: HTTP error code: ${response.status}, URL: ${url} \nBody: ${responseText}`;
-                console.error(errorText);
-                throw new Error(errorText);
-            }
-
-            return await response.json();
-        } catch (error) {
-            clearTimeout(id);
-            if (error.name === 'AbortError') {
-                throw new Error(`Request timeout after ${timeout}ms: ${url}`);
-            }
-            throw error;
+        if (!response.ok) {
+            const responseText = await response.text();
+            const errorText = `API Error: HTTP error code: ${response.status}, URL: ${url} \nBody: ${responseText}`;
+            console.error(errorText);
+            throw new Error(errorText);
         }
+
+        return await response.json();
+    } catch (error) {
+        clearTimeout(id);
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeout}ms: ${url}`);
+        }
+        throw error;
     }
+}
 });
 // chrome.runtime.onInstalled.addListener(onInstalled);
