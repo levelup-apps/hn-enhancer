@@ -1,43 +1,13 @@
+import HNState from './hnstate.js';
+import SummaryPanel from './summary-panel.js';
+
+// TODO: Remove or move inside
 const SummarizeCheckStatus = {
     OK: 'ok',
     TEXT_TOO_SHORT: 'too_short',
     THREAD_TOO_SHALLOW: 'too_shallow',
     THREAD_TOO_DEEP: 'chrome_depth_limit'
 };
-
-class HNState {
-    static saveLastSeenPostId(postId) {
-        chrome.storage.local.set({
-            lastSeenPost: {
-                id: postId,
-                timestamp: Date.now()
-            }
-        }).catch(_ => {
-            // console.error('Error saving current post state:', _);
-        });
-    }
-
-    static async getLastSeenPostId() {
-        try {
-            const data = await chrome.storage.local.get('lastSeenPost');
-            // Return null if no state or if state is older than 15 minutes
-            if (!data.lastSeenPost || Date.now() - data.lastSeenPost.timestamp > (15 * 60 * 1000)) {
-                await this.clearLastSeenPost();
-                return null;
-            }
-            return data.lastSeenPost.id;
-        } catch (error) {
-            // console.error('Error retrieving saved post state:', error);
-            return null;
-        }
-    }
-
-    static async clearLastSeenPost() {
-        chrome.storage.local.remove('lastSeenPost').catch(_ => {
-            // console.error('Error clearing lastSeenPost post state:', _);
-        });
-    }
-}
 
 class HNEnhancer {
 
@@ -86,7 +56,7 @@ class HNEnhancer {
             // Navigate to first comment, but don't scroll to it (to avoid jarring effect when you first come to the page)
             this.navigateToFirstComment(false);
 
-            this.initChromeBuiltinAI();
+            // this.initChromeBuiltinAI();
 
             this.summaryPanel = new SummaryPanel();
         }
@@ -2320,7 +2290,4 @@ ${text}
     }
 }
 
-// Initialize the HNEnhancer. Note that we are loading this content script with the default run_at of 'document_idle'.
-// So this script is injected only after the DOM is loaded and all other scripts have finished executing.
-// This guarantees that the DOM of the main HN page is loaded by the time this script runs.
-document.hnEnhancer = new HNEnhancer();
+export default HNEnhancer;

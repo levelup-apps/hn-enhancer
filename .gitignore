@@ -16,3 +16,10 @@ src/options/options-styles.css
 /scripts/data
 
 /scripts/.env
+
+# WXT files
+.output
+stats.html
+stats-*.json
+.wxt
+web-ext.config.ts

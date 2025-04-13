@@ -192,3 +192,5 @@ class SummaryPanel {
         if (text && textElement) textElement.innerHTML = text;
     }
 }
+
+export default SummaryPanel;
