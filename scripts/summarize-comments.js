@@ -655,8 +655,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     // You can run this script in two ways:
     // 1. As a standalone script: node summarize-comments.js <post_id>
     //    eg: node summarize-comments.js 43705649
-    // 2. As a module: import { summarizePostComments } from './summarize-comments.js';
-    //    Call summarizePostComments(postId) directly with the post ID.
+    // 2. As a module as follows:
+    //       import { summarizePostComments } from './summarize-comments.js';
+    //       await summarizePostComments(postId), where postId is the post id
     //    eg: summarizePostComments(43705649);
     main().catch(error => {
         console.error('Error in main:', error);
