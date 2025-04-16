@@ -23,15 +23,15 @@ if (!fs.existsSync(outputDir)) {
 }
 
 async function fetchHNPostFromAPI(postId) {
+    const url = `https://hn.algolia.com/api/v1/items/${postId}`;
     try {
-        const url = `https://hn.algolia.com/api/v1/items/${postId}`;
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
         }
         return response.json();
     } catch (error) {
-        throw new Error(`Failed to fetch post from HN API for post ID ${postId}. Error: ${error.message}`);
+        throw new Error(`Failed to fetch post from HN Algolia API. Post id: ${postId}. url: ${url}. Error: ${error.message}`);
     }
 }
 
@@ -445,7 +445,7 @@ function createCommentPathIdMapping(post, comments) {
     return { commentPathIdMapping, commentPathMapFilePath };
 }
 
-async function summarizeComments(model, endpoint, apiKey, userPrompt) {
+async function summarizeUsingLLM(llmConfig, userPrompt) {
 
     // Set up the API request
 
@@ -483,7 +483,7 @@ async function summarizeComments(model, endpoint, apiKey, userPrompt) {
 
     // Prepare the request payload
     const payload = {
-        model: model,
+        model: llmConfig.model,
         messages: messages,
         top_p: 1,
         frequency_penalty: 0,
@@ -492,13 +492,13 @@ async function summarizeComments(model, endpoint, apiKey, userPrompt) {
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${llmConfig.apiKey}`
     };
 
     // Make the API request using background message
     let summary;
     try {
-        const response = await fetch(endpoint, {
+        const response = await fetch(llmConfig.endpoint, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
@@ -543,14 +543,6 @@ async function summarizeComments(model, endpoint, apiKey, userPrompt) {
     return summary;
 }
 
-function summarizePost(userPromptFilePath) {
-
-    // replace with your LLM of choice
-
-    // Placeholder for the summarization logic
-    return 'This is a placeholder summary with path [1.1](auth_1) This is ok. And one more comment [2.1](auth_2) said something else. Some text.';
-}
-
 function resolveCommentLinks(post, summaryText, commentPathMapFilePath) {
 
     // Read the comment path to ID map from the JSON file. Read into a map for faster lookup.
@@ -573,84 +565,87 @@ function resolveCommentLinks(post, summaryText, commentPathMapFilePath) {
     });
 }
 
+async function summarizeCommentsOfPost(postId) {
+    console.log(`Step 1: Downloading post...`);
+    const { post, postComments } = await downloadPostComments(postId);
+
+    console.log(`Downloaded post ${post.id} '${post.title}' (${postComments.size} comments)`);
+
+    console.log(`\nStep 2: Creating user prompt and saving to file...`);
+    const { userPrompt, userPromptFilePath } = createUserPrompt(post, postComments);
+
+    console.log(`\nStep 3: Creating comment path-to-id map and saving to file...`);
+    const { commentPathIdMapping, commentPathMapFilePath } = createCommentPathIdMapping(post, postComments);
+
+    console.log(`...Post ${post.id} downloaded and saved to files:`);
+    console.log(`   User prompt formatted (text file): ${userPromptFilePath}`);
+    console.log(`   Comment path id map (json file):   ${commentPathMapFilePath}`);
+
+    // Summarize the post using the formatted text
+
+    // OpenRouter API key
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    const llmConfig = {
+        model: `meta-llama/llama-4-maverick`,
+        // model: `meta-llama/llama-4-scout`,
+        // model: `anthropic/claude-3.7-sonnet`,
+        endpoint: `https://openrouter.ai/api/v1/chat/completions`,
+        apiKey: apiKey,
+    }
+
+    // Anthropic API key
+    // const apiKey = process.env.ANTHROPIC_API_KEY;
+    // const input = {
+    //     model: `claude-3-5-haiku-latest`,
+    //     endpoint: `https://api.anthropic.com/v1/messages`,
+    //     apiKey: `your_api_key`,
+    // }
+
+    // OpenAI API key
+    // const apiKey = process.env.OPENAI_API_KEY;
+    // const input = {
+    //     model: `gpt-4`,
+    //     endpoint: `https://api.openai.com/v1/chat/completions`,
+    //     apiKey: apiKey,
+    // }
+
+    console.log(`\nStep 4: Summarizing post using model ${llmConfig.model}...`);
+    const summary = await summarizeUsingLLM(llmConfig, userPrompt);
+    console.log(`...Post summarized successfully`);
+    console.log(`Summary: ${summary}`);
+
+    // Resolve the comment path to id's in the summary text
+    console.log(`\nStep 5: Resolving comment links in the summary...`);
+    const resolvedSummary = resolveCommentLinks(post, summary, commentPathMapFilePath);
+
+    // Save the resolved summary as MD file
+    const summaryFilePath = userPromptFilePath.replace('-user-prompt.txt', '-summary.md');
+    fs.writeFileSync(summaryFilePath, resolvedSummary, 'utf8');
+    console.log(`...Saved post summary to ${summaryFilePath}`);
+}
+
 // main function that processes posts from SQLite database
 async function main() {
+
+    // Run as: node summarize-comments.js <post_id>, eg: node summarize-comments.js 43705649
+    // Get the post ID from command line arguments
+    const postId = process.argv[2];
+
+    // Check if a post ID was provided
+    if (!postId) {
+        console.error('Error: Post ID missing. Please provide a post id as a command line argument');
+        console.error('Usage: node summarize-comments.js <postId>');
+        process.exit(1);
+    }
+
     try {
-        // Get the post ID from command line arguments
-        const postId = process.argv[2];
-
-        // Check if a post ID was provided
-        if (!postId) {
-            console.error('Error: Post ID missing. Please provide a post id as a command line argument');
-            console.error('Usage: node summarize-comments.js <postId>');
-            process.exit(1);
-        }
         console.log(`\nProcessing post ${postId}...\n`);
-
-        console.log(`Step 1: Downloading post...`);
-        const { post, postComments } = await downloadPostComments(postId);
-        if(!post || !postComments) {
-            console.error(`...Failed to download post ${postId}`);
-            return;
-        }
-        console.log(`Downloaded post ${post.id} '${post.title}' (${postComments.size} comments)`);
-
-        console.log(`\nStep 2: Creating user prompt and saving to file...`);
-        const { userPrompt, userPromptFilePath } = createUserPrompt(post, postComments);
-
-        console.log(`\nStep 3: Creating comment path-to-id map and saving to file...`);
-        const { commentPathIdMapping, commentPathMapFilePath } = createCommentPathIdMapping(post, postComments);
-
-        console.log(`...Post ${post.id} downloaded and saved to files:`);
-        console.log(`   User prompt formatted (text file): ${userPromptFilePath}`);
-        console.log(`   Comment path id map (json file):   ${commentPathMapFilePath}`);
-
-        // Summarize the post using the formatted text
-
-        // OpenRouter API key
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        const input = {
-            model: `meta-llama/llama-4-maverick`,
-            // model: `meta-llama/llama-4-scout`,
-            // model: `anthropic/claude-3.7-sonnet`,
-            endpoint: `https://openrouter.ai/api/v1/chat/completions`,
-            apiKey: apiKey,
-        }
-
-        // Anthropic API key
-        // const apiKey = process.env.ANTHROPIC_API_KEY;
-        // const input = {
-        //     model: `claude-3-5-haiku-latest`,
-        //     endpoint: `https://api.anthropic.com/v1/messages`,
-        //     apiKey: `your_api_key`,
-        // }
-
-        // OpenAI API key
-        // const apiKey = process.env.OPENAI_API_KEY;
-        // const input = {
-        //     model: `gpt-4`,
-        //     endpoint: `https://api.openai.com/v1/chat/completions`,
-        //     apiKey: apiKey,
-        // }
-
-        console.log(`\nStep 4: Summarizing post using model ${input.model}...`);
-        const summary = await summarizeComments(input.model, input.endpoint, input.apiKey, userPrompt);
-        console.log(`...Post summarized successfully`);
-        console.log(`Summary: ${summary}`);
-
-        // Resolve the comment path to id's in the summary text
-        console.log(`\nStep 5: Resolving comment links in the summary...`);
-        const resolvedSummary = resolveCommentLinks(post, summary, commentPathMapFilePath);
-
-        // Save the resolved summary as MD file
-        const summaryFilePath = userPromptFilePath.replace('-user-prompt.txt', '-summary.md');
-        fs.writeFileSync(summaryFilePath, resolvedSummary, 'utf8');
-        console.log(`...Saved post summary to ${summaryFilePath}`);
-
-        console.log('\nPost summarized successfully');
+        await summarizeCommentsOfPost(postId);
+        console.log(`Post ${postId} summarized successfully`);
 
     } catch (error) {
-        console.error('ERROR in main:', error);
+        console.error('ERROR thrown by summarizePost():', error);
+        console.error(`...Failed to download post ${postId}`);
     }
 }
 
