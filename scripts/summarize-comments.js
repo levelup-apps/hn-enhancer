@@ -517,13 +517,13 @@ async function summarizeUsingLLM(llmConfig, userPrompt) {
 
         // OpenAI response
         if(!responseJson || !responseJson.choices || responseJson.choices.length === 0) {
-            throw new Error(`Summary response data is empty. ${data}`);
+            throw new Error(`Summary response data is empty. ${responseJson}`);
         }
         summary = responseJson?.choices[0]?.message?.content;
 
     } catch (error) {
         // Update the summary panel with an error message
-        let errorMessage = `Error generating summary using model ${model}. `;
+        let errorMessage = `Error generating summary using model ${llmConfig.model}. `;
         if (error.message.includes('API key')) {
             errorMessage += 'Please check your API key configuration.';
         } else if (error.message.includes('429') ) {
@@ -538,7 +538,7 @@ async function summarizeUsingLLM(llmConfig, userPrompt) {
     }
 
     if (!summary) {
-        throw new Error(`No summary generated from API response. endpoint: ${endpoint}, model: ${model}`);
+        throw new Error(`No summary generated from API response. endpoint: ${llmConfig.endpoint}, model: ${llmConfig.model}`);
     }
     return summary;
 }
@@ -565,7 +565,7 @@ function resolveCommentLinks(post, summaryText, commentPathMapFilePath) {
     });
 }
 
-async function summarizeCommentsOfPost(postId) {
+async function summarizePostComments(postId) {
     console.log(`Step 1: Downloading post...`);
     const { post, postComments } = await downloadPostComments(postId);
 
@@ -640,7 +640,7 @@ async function main() {
 
     try {
         console.log(`\nProcessing post ${postId}...\n`);
-        await summarizeCommentsOfPost(postId);
+        await summarizePostComments(postId);
         console.log(`Post ${postId} summarized successfully`);
 
     } catch (error) {
@@ -651,8 +651,17 @@ async function main() {
 
 // Only run the main function if this file is being run directly
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+
+    // You can run this script in two ways:
+    // 1. As a standalone script: node summarize-comments.js <post_id>
+    //    eg: node summarize-comments.js 43705649
+    // 2. As a module: import { summarizePostComments } from './summarize-comments.js';
+    //    Call summarizePostComments(postId) directly with the post ID.
+    //    eg: summarizePostComments(43705649);
     main().catch(error => {
         console.error('Error in main:', error);
         process.exit(1);  // Exit with error code
     });
 }
+
+export { summarizePostComments }
