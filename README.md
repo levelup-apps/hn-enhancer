@@ -1,3 +1,9 @@
+# Important
+> [!IMPORTANT]  
+> ‼️ This repository has moved to https://github.com/hncompanion/browser-extension
+
+---
+
 ### Hacker News Companion - Chrome Extension
 
 [![Basic features video](http://img.youtube.com/vi/uPRh7UKYd8E/maxresdefault.jpg)](https://www.youtube.com/watch?v=uPRh7UKYd8E)
