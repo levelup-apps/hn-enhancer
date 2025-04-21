@@ -87,7 +87,7 @@ async function fetchWithTimeout(url, options = {}) {
             throw new Error(errorText);
         }
 
-        return await response.json();
+            return await response.json();
     } catch (error) {
         clearTimeout(id);
         if (error.name === 'AbortError') {

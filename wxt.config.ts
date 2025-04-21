@@ -14,7 +14,8 @@ export default defineConfig({
             permissions: ['storage'],
             host_permissions: [
                 "https://news.ycombinator.com/*",
-                "https://hn.algolia.com/*"
+                "https://hn.algolia.com/*",
+                "https://app.hncompanion.com"
             ],
             optional_host_permissions: [
                 "https://api.openai.com/v1/chat/completions/*",

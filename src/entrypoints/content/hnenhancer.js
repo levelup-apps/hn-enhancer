@@ -1190,10 +1190,22 @@ class HNEnhancer {
             return;
         }
 
+        if (!this.summaryPanel.isVisible) {
+            this.summaryPanel.toggle();
+        }
+
+        // Serve the summary from cache if it is available
+        const { summary: cachedSummary, duration } = await this.getCachedSummary(itemId);
+        if(cachedSummary && cachedSummary.length > 0) {
+            // Update the summary panel with the generated summary
+            // Cached summary already has the links resolved, so commentPathToIdMap is not needed
+            await this.showSummaryInPanel(cachedSummary, null, duration, true);
+            return;
+        }
+        // If the summary is not available in the cache, fetch the comments from the API and summarize them
+        console.info(`Cached summary not available. Summarizing through the API...`);
+
         try {
-            if (!this.summaryPanel.isVisible) {
-                this.summaryPanel.toggle();
-            }
 
             const {aiProvider, model} = await this.getAIProviderModel();
 
@@ -1248,6 +1260,22 @@ class HNEnhancer {
     getCurrentHNItemId() {
         const itemIdMatch = window.location.search.match(/id=(\d+)/);
         return itemIdMatch ? itemIdMatch[1] : null;
+    }
+
+    async getCachedSummary(postId) {
+        const url = `https://app.hncompanion.com/api/posts/${postId}`;
+        try {
+            const data = await this.sendBackgroundMessage(
+                'FETCH_API_REQUEST', { url }
+            );
+            if (!data || !data.summary) {
+                throw new Error(`Cached summary response is empty. Post ID $\{postId}: ${postId}`);
+            }
+            return data;
+        } catch (error) {
+            console.error(`Error fetching cached summary for post ID ${postId}:`, error);
+            return null;
+        }
     }
 
     async fetchHNCommentsFromAPI(itemId) {
@@ -1896,25 +1924,25 @@ ${text}
     // Show the summary in the summary panel - format the summary for two steps:
     // 1. Replace markdown with HTML
     // 2. Replace path identifiers with comment IDs
-    async showSummaryInPanel(summary, commentPathToIdMap, duration) {
+    async showSummaryInPanel(summary, commentPathToIdMap, duration, cached = false) {
 
         // Format the summary to replace markdown with HTML
         const summaryHtml = this.convertMarkdownToHTML(summary);
 
         // Parse the summaryHTML to find 'path' identifiers and replace them with the actual comment IDs links
-        const formattedSummary = this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap);
+        const formattedSummary = commentPathToIdMap ?
+            this.replacePathsWithCommentLinks(summaryHtml, commentPathToIdMap):
+            summaryHtml;
 
         const {aiProvider, model} = await this.getAIProviderModel();
-        if (aiProvider) {
-            this.summaryPanel.updateContent({
-                metadata: `Summarized using <strong>${aiProvider} ${model || ''}</strong> in <strong>${duration ?? '0'} secs</strong>`,
-                text: formattedSummary
-            });
-        } else {
-            this.summaryPanel.updateContent({
-                text: formattedSummary
-            });
-        }
+        const metadata = cached ? `Summary served from <strong>HNCompanion cache</strong> in <strong>${duration ?? '0'} secs</strong>` :
+            aiProvider ? `Summarized using <strong>${aiProvider} ${model || ''}</strong> in <strong>${duration ?? '0'} secs</strong>`
+                : '';
+
+        this.summaryPanel.updateContent({
+            metadata,
+            text: formattedSummary
+        });
 
         // Now that the summary links are in the DOM< attach listeners to those hyperlinks to navigate to the respective comments
         document.querySelectorAll('[data-comment-link="true"]').forEach(link => {
